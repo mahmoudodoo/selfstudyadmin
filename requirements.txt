@@ -1,0 +1,11 @@
+django
+django-simpleui
+Pillow
+djangorestframework
+django-filter
+whitenoise
+django-cors-headers
+django-import-export
+python-dotenv
+django-prometheus
+psutil

@@ -1,0 +1,438 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+{% block header %}{{ title }}{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/selfstudydomains.css' %}">
+
+<div class="network-bg"></div>
+
+<div class="container">
+    <div class="header">
+        <h1 class="title">Self Study Domains Management</h1>
+        <div class="actions">
+            <button class="btn btn-primary" id="addAppBtn">
+                <i class="fas fa-plus"></i> Add App
+            </button>
+            <button class="btn btn-primary" id="addReplicaBtn">
+                <i class="fas fa-plus"></i> Add Replica
+            </button>
+            <button class="btn btn-secondary" id="syncBtn">
+                <i class="fas fa-sync-alt"></i> 
+                <span id="syncStatusText">
+                    {% if sync_status.out_of_sync %}
+                        Sync Needed
+                    {% else %}
+                        Sync
+                    {% endif %}
+                </span>
+            </button>
+        </div>
+    </div>
+
+    {% if sync_status.out_of_sync %}
+    <div class="sync-status out-of-sync">
+        <i class="fas fa-exclamation-triangle"></i>
+        <span>Warning: Some domains are out of sync</span>
+    </div>
+    {% else %}
+    <div class="sync-status in-sync">
+        <i class="fas fa-check-circle"></i>
+        <span>All domains are in sync</span>
+    </div>
+    {% endif %}
+
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title">Self Study Apps</h2>
+            <div class="actions">
+                <button class="btn btn-outline" id="filterAppsBtn">
+                    <i class="fas fa-filter"></i> Filter
+                </button>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="form-group mb-3">
+                <input type="text" id="searchApps" class="form-control" placeholder="Search apps...">
+            </div>
+            <table class="table" id="appsTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>App Name</th>
+                        <th>Description</th>
+                        <th>GitHub Link</th>
+                        <th>Created At</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for app in apps %}
+                    <tr>
+                        <td>{{ app.id }}</td>
+                        <td>{{ app.app_name }}</td>
+                        <td>{{ app.description|truncatechars:50 }}</td>
+                        <td>
+                            <a href="{{ app.github_link }}" target="_blank">
+                                {{ app.github_link|truncatechars:30 }}
+                            </a>
+                        </td>
+                        <td>{{ app.created_at }}</td>
+                        <td>
+                            <button class="btn btn-outline edit-btn" data-id="{{ app.id }}" data-type="app">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-outline delete-btn" data-id="{{ app.id }}" data-type="app">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title">Self Study Replicas</h2>
+            <div class="actions">
+                <button class="btn btn-outline" id="filterReplicasBtn">
+                    <i class="fas fa-filter"></i> Filter
+                </button>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="form-group mb-3">
+                <input type="text" id="searchReplicas" class="form-control" placeholder="Search replicas...">
+            </div>
+            <table class="table" id="replicasTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>App</th>
+                        <th>Replica URL</th>
+                        <th>Credentials</th>
+                        <th>DB Info</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for replica in replicas %}
+                    <tr>
+                        <td>{{ replica.id }}</td>
+                        <td>{{ replica.app.app_name }}</td>
+                        <td>
+                            <a href="{{ replica.replica_url }}" target="_blank">
+                                {{ replica.replica_url|truncatechars:30 }}
+                            </a>
+                        </td>
+                        <td>
+                            <div><strong>User:</strong> {{ replica.replica_username }}</div>
+                            <div><strong>Admin:</strong> {{ replica.admin_username }}</div>
+                        </td>
+                        <td>
+                            <div><strong>Host:</strong> {{ replica.db_host }}</div>
+                            <div><strong>DB:</strong> {{ replica.db_name }}</div>
+                        </td>
+                        <td>
+                            <button class="btn btn-outline edit-btn" data-id="{{ replica.id }}" data-type="replica">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-outline delete-btn" data-id="{{ replica.id }}" data-type="replica">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Sync Modal -->
+<div class="modal" id="syncModal">
+    <div class="modal-content">
+        <button class="modal-close">&times;</button>
+        <h2 class="modal-title">Synchronize Data</h2>
+        <div class="modal-body">
+            <div id="syncDetails">
+                <p>The following domains have data inconsistencies:</p>
+                {% if sync_status.out_of_sync %}
+                    <ul>
+                        {% for domain, diff in sync_status.details.items %}
+                        <li>
+                            <strong>{{ domain }}</strong>: 
+                            Apps difference: {{ diff.apps_diff }}, 
+                            Replicas difference: {{ diff.replicas_diff }}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p>All domains are already in sync.</p>
+                {% endif %}
+            </div>
+            <div class="form-group">
+                <label for="sourceDomain" class="form-label">Source Domain:</label>
+                <select id="sourceDomain" class="form-control">
+                    {% for domain in domains %}
+                    <option value="{{ domain }}">{{ domain }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <p>This will overwrite all data in other domains with data from the selected source domain.</p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" id="cancelSync">Cancel</button>
+            <button class="btn btn-primary" id="confirmSync">Confirm Sync</button>
+        </div>
+    </div>
+</div>
+
+<!-- Add App Modal -->
+<div class="modal" id="addAppModal">
+    <div class="modal-content">
+        <button class="modal-close">&times;</button>
+        <h2 class="modal-title">Add New App</h2>
+        <div class="modal-body">
+            <form id="appForm">
+                <div class="form-group">
+                    <label for="appName" class="form-label">App Name</label>
+                    <input type="text" id="appName" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="appDescription" class="form-label">Description</label>
+                    <textarea id="appDescription" class="form-control" rows="3" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="appGithubLink" class="form-label">GitHub Link</label>
+                    <input type="url" id="appGithubLink" class="form-control" required>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" id="cancelAddApp">Cancel</button>
+            <button class="btn btn-primary" id="confirmAddApp">Add App</button>
+        </div>
+    </div>
+</div>
+
+<!-- Add Replica Modal -->
+<div class="modal" id="addReplicaModal">
+    <div class="modal-content">
+        <button class="modal-close">&times;</button>
+        <h2 class="modal-title">Add New Replica</h2>
+        <div class="modal-body">
+            <form id="replicaForm">
+                <div class="form-group">
+                    <label for="replicaApp" class="form-label">App</label>
+                    <select id="replicaApp" class="form-control" required>
+                        {% for app in apps %}
+                        <option value="{{ app.id }}">{{ app.app_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="replicaUrl" class="form-label">Replica URL</label>
+                    <input type="url" id="replicaUrl" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="replicaUsername" class="form-label">Replica Username</label>
+                    <input type="text" id="replicaUsername" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="replicaPassword" class="form-label">Replica Password</label>
+                    <input type="password" id="replicaPassword" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="adminUsername" class="form-label">Admin Username</label>
+                    <input type="text" id="adminUsername" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="adminPassword" class="form-label">Admin Password</label>
+                    <input type="password" id="adminPassword" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="dbHost" class="form-label">Database Host</label>
+                    <input type="text" id="dbHost" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="dbName" class="form-label">Database Name</label>
+                    <input type="text" id="dbName" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="dbUsername" class="form-label">Database Username</label>
+                    <input type="text" id="dbUsername" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="dbPassword" class="form-label">Database Password</label>
+                    <input type="password" id="dbPassword" class="form-control" required>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" id="cancelAddReplica">Cancel</button>
+            <button class="btn btn-primary" id="confirmAddReplica">Add Replica</button>
+        </div>
+    </div>
+</div>
+
+<!-- Edit App Modal -->
+<div class="modal" id="editAppModal">
+    <div class="modal-content">
+        <button class="modal-close">&times;</button>
+        <h2 class="modal-title">Edit App</h2>
+        <div class="modal-body">
+            <form id="editAppForm">
+                <input type="hidden" id="editAppId">
+                <div class="form-group">
+                    <label for="editAppName" class="form-label">App Name</label>
+                    <input type="text" id="editAppName" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="editAppDescription" class="form-label">Description</label>
+                    <textarea id="editAppDescription" class="form-control" rows="3" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="editAppGithubLink" class="form-label">GitHub Link</label>
+                    <input type="url" id="editAppGithubLink" class="form-control" required>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" id="cancelEditApp">Cancel</button>
+            <button class="btn btn-primary" id="confirmEditApp">Update App</button>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Replica Modal -->
+<div class="modal" id="editReplicaModal">
+    <div class="modal-content">
+        <button class="modal-close">&times;</button>
+        <h2 class="modal-title">Edit Replica</h2>
+        <div class="modal-body">
+            <form id="editReplicaForm">
+                <input type="hidden" id="editReplicaId">
+                <div class="form-group">
+                    <label for="editReplicaApp" class="form-label">App</label>
+                    <select id="editReplicaApp" class="form-control" required>
+                        {% for app in apps %}
+                        <option value="{{ app.id }}">{{ app.app_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="editReplicaUrl" class="form-label">Replica URL</label>
+                    <input type="url" id="editReplicaUrl" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="editReplicaUsername" class="form-label">Replica Username</label>
+                    <input type="text" id="editReplicaUsername" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="editReplicaPassword" class="form-label">Replica Password</label>
+                    <input type="password" id="editReplicaPassword" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="editAdminUsername" class="form-label">Admin Username</label>
+                    <input type="text" id="editAdminUsername" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="editAdminPassword" class="form-label">Admin Password</label>
+                    <input type="password" id="editAdminPassword" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="editDbHost" class="form-label">Database Host</label>
+                    <input type="text" id="editDbHost" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="editDbName" class="form-label">Database Name</label>
+                    <input type="text" id="editDbName" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="editDbUsername" class="form-label">Database Username</label>
+                    <input type="text" id="editDbUsername" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="editDbPassword" class="form-label">Database Password</label>
+                    <input type="password" id="editDbPassword" class="form-control" required>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" id="cancelEditReplica">Cancel</button>
+            <button class="btn btn-primary" id="confirmEditReplica">Update Replica</button>
+        </div>
+    </div>
+</div>
+
+<!-- Filter Apps Modal -->
+<div class="modal" id="filterAppsModal">
+    <div class="modal-content">
+        <button class="modal-close">&times;</button>
+        <h2 class="modal-title">Filter Apps</h2>
+        <div class="modal-body">
+            <form id="filterAppsForm">
+                <div class="form-group">
+                    <label for="filterAppName" class="form-label">App Name</label>
+                    <input type="text" id="filterAppName" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="filterAppDescription" class="form-label">Description</label>
+                    <input type="text" id="filterAppDescription" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="filterAppGithubLink" class="form-label">GitHub Link</label>
+                    <input type="text" id="filterAppGithubLink" class="form-control">
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" id="clearAppFilters">Clear Filters</button>
+            <button class="btn btn-primary" id="applyAppFilters">Apply Filters</button>
+        </div>
+    </div>
+</div>
+
+<!-- Filter Replicas Modal -->
+<div class="modal" id="filterReplicasModal">
+    <div class="modal-content">
+        <button class="modal-close">&times;</button>
+        <h2 class="modal-title">Filter Replicas</h2>
+        <div class="modal-body">
+            <form id="filterReplicasForm">
+                <div class="form-group">
+                    <label for="filterReplicaApp" class="form-label">App</label>
+                    <select id="filterReplicaApp" class="form-control">
+                        <option value="">All Apps</option>
+                        {% for app in apps %}
+                        <option value="{{ app.id }}">{{ app.app_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="filterReplicaUrl" class="form-label">Replica URL</label>
+                    <input type="text" id="filterReplicaUrl" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="filterReplicaUsername" class="form-label">Replica Username</label>
+                    <input type="text" id="filterReplicaUsername" class="form-control">
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" id="clearReplicaFilters">Clear Filters</button>
+            <button class="btn btn-primary" id="applyReplicaFilters">Apply Filters</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'js/selfstudydomains.js' %}"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+{% endblock %}
