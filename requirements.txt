@@ -9,3 +9,5 @@ django-import-export
 python-dotenv
 django-prometheus
 psutil
+django-decouple
+requests
