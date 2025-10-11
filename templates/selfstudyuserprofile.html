@@ -1,0 +1,422 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}User Profiles Management{% endblock %}
+{% block page_title %}User Profiles Management{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/selfstudyuserprofile.css' %}">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+{% endblock %}
+
+{% block content %}
+<div class="page-content">
+    <!-- Header Section -->
+    <div class="header-section">
+        <h1><i class="fas fa-users-cog"></i> User Profiles Management</h1>
+        <p>Manage user profiles and account settings across all domains</p>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="stats-container">
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-users"></i>
+            </div>
+            <div class="stat-info">
+                <h3>{{ users|length }}</h3>
+                <p>Total Users</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon verified">
+                <i class="fas fa-envelope"></i>
+            </div>
+            <div class="stat-info">
+                <h3>{{ users|length }}</h3>
+                <p>Verified Emails</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="action-section">
+        <button class="btn btn-primary" onclick="openCreateModal()">
+            <i class="fas fa-plus"></i> Add New User
+        </button>
+        <div class="domain-info">
+            <i class="fas fa-sync-alt"></i>
+            <span>Connected to dynamic domains</span>
+        </div>
+    </div>
+
+    {% if error %}
+    <div class="error-message">
+        <i class="fas fa-exclamation-triangle"></i>
+        <span>Error: {{ error }}</span>
+    </div>
+    {% endif %}
+
+    <!-- Users Table -->
+    <div class="table-container">
+        <div class="table-responsive">
+            <table class="users-table">
+                <thead>
+                    <tr>
+                        <th>Profile</th>
+                        <th>User Info</th>
+                        <th>Contact</th>
+                        <th>Status</th>
+                        <th>Joined</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr class="user-row">
+                        <td>
+                            <div class="user-avatar">
+                                {% if user.image_url %}
+                                    <img src="{{ user.image_url }}" alt="{{ user.first_name }} {{ user.last_name }}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                    <div class="avatar-fallback" style="display: none;">
+                                        {{ user.first_name|first|default:'' }}{{ user.last_name|first|default:'' }}
+                                    </div>
+                                {% else %}
+                                    <div class="avatar-fallback">
+                                        {{ user.first_name|first|default:'' }}{{ user.last_name|first|default:'' }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            <div class="user-info">
+                                <div class="user-name">{{ user.first_name }} {{ user.last_name }}</div>
+                                <div class="user-username">@{{ user.username }}</div>
+                                <div class="user-gender">
+                                    {% if user.gender == 'M' %}
+                                        <i class="fas fa-mars"></i> Male
+                                    {% elif user.gender == 'F' %}
+                                        <i class="fas fa-venus"></i> Female
+                                    {% else %}
+                                        <i class="fas fa-genderless"></i> Not specified
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="contact-info">
+                                <div class="email">
+                                    <i class="fas fa-envelope"></i>
+                                    {{ user.email }}
+                                </div>
+                                {% if user.lab_url %}
+                                <div class="lab-url">
+                                    <i class="fas fa-flask"></i>
+                                    <a href="{{ user.lab_url }}" target="_blank">Virtual Lab</a>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            <div class="status-badge {% if user.is_email_verified %}verified{% else %}unverified{% endif %}">
+                                <i class="fas {% if user.is_email_verified %}fa-check-circle{% else %}fa-clock{% endif %}"></i>
+                                {{ user.is_email_verified|yesno:"Verified,Unverified" }}
+                            </div>
+                        </td>
+                        <td>
+                            <div class="date-joined">
+                                {{ user.date_joined|date:"M j, Y" }}
+                            </div>
+                        </td>
+                        <td>
+                            <div class="action-buttons">
+                                <button class="btn-icon btn-edit" onclick="openEditModal('{{ user.user_id }}')" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn-icon btn-delete" onclick="openDeleteModal('{{ user.user_id }}', '{{ user.username }}')" title="Delete">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="no-users">
+                            <i class="fas fa-users-slash"></i>
+                            <p>No users found</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Create User Modal -->
+<div id="createModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2><i class="fas fa-user-plus"></i> Create New User</h2>
+            <span class="close" onclick="closeCreateModal()">&times;</span>
+        </div>
+        <form method="POST" class="modal-form">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="create">
+            
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="create_username">Username *</label>
+                    <input type="text" id="create_username" name="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="create_email">Email *</label>
+                    <input type="email" id="create_email" name="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="create_password">Password *</label>
+                    <input type="password" id="create_password" name="password" required minlength="8">
+                </div>
+                <div class="form-group">
+                    <label for="create_first_name">First Name</label>
+                    <input type="text" id="create_first_name" name="first_name">
+                </div>
+                <div class="form-group">
+                    <label for="create_last_name">Last Name</label>
+                    <input type="text" id="create_last_name" name="last_name">
+                </div>
+                <div class="form-group">
+                    <label for="create_gender">Gender</label>
+                    <select id="create_gender" name="gender">
+                        <option value="">Select Gender</option>
+                        <option value="M">Male</option>
+                        <option value="F">Female</option>
+                    </select>
+                </div>
+                <div class="form-group full-width">
+                    <label for="create_image_url">Profile Image URL</label>
+                    <input type="url" id="create_image_url" name="image_url" placeholder="https://example.com/image.jpg">
+                </div>
+                <div class="form-group full-width">
+                    <label for="create_lab_url">Virtual Lab URL</label>
+                    <input type="url" id="create_lab_url" name="lab_url" placeholder="https://example.com/lab">
+                </div>
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="is_email_verified" value="true">
+                        <span class="checkmark"></span>
+                        Email Verified
+                    </label>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" onclick="closeCreateModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Create User</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit User Modal -->
+<div id="editModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2><i class="fas fa-user-edit"></i> Edit User</h2>
+            <span class="close" onclick="closeEditModal()">&times;</span>
+        </div>
+        <form method="POST" class="modal-form">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="update">
+            <input type="hidden" id="edit_user_id" name="user_id">
+            
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="edit_username">Username *</label>
+                    <input type="text" id="edit_username" name="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit_email">Email *</label>
+                    <input type="email" id="edit_email" name="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit_password">New Password</label>
+                    <input type="password" id="edit_password" name="password" minlength="8" placeholder="Leave empty to keep current">
+                </div>
+                <div class="form-group">
+                    <label for="edit_first_name">First Name</label>
+                    <input type="text" id="edit_first_name" name="first_name">
+                </div>
+                <div class="form-group">
+                    <label for="edit_last_name">Last Name</label>
+                    <input type="text" id="edit_last_name" name="last_name">
+                </div>
+                <div class="form-group">
+                    <label for="edit_gender">Gender</label>
+                    <select id="edit_gender" name="gender">
+                        <option value="">Select Gender</option>
+                        <option value="M">Male</option>
+                        <option value="F">Female</option>
+                    </select>
+                </div>
+                <div class="form-group full-width">
+                    <label for="edit_image_url">Profile Image URL</label>
+                    <input type="url" id="edit_image_url" name="image_url">
+                </div>
+                <div class="form-group full-width">
+                    <label for="edit_lab_url">Virtual Lab URL</label>
+                    <input type="url" id="edit_lab_url" name="lab_url">
+                </div>
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="edit_is_email_verified" name="is_email_verified" value="true">
+                        <span class="checkmark"></span>
+                        Email Verified
+                    </label>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Update User</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="deleteModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2><i class="fas fa-exclamation-triangle"></i> Confirm Deletion</h2>
+            <span class="close" onclick="closeDeleteModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <p>Are you sure you want to delete user <strong id="delete_username"></strong>?</p>
+            <p class="warning-text">This action cannot be undone and will delete the user across all domains.</p>
+        </div>
+        <form method="POST" class="modal-form">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="delete">
+            <input type="hidden" id="delete_user_id" name="user_id">
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" onclick="closeDeleteModal()">Cancel</button>
+                <button type="submit" class="btn btn-danger">Delete User</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+// Modal functions
+function openCreateModal() {
+    document.getElementById('createModal').style.display = 'block';
+}
+
+function closeCreateModal() {
+    document.getElementById('createModal').style.display = 'none';
+}
+
+function openEditModal(userId) {
+    // Find the user row by data attribute
+    const userRow = document.querySelector(`tr[data-user-id="${userId}"]`);
+    if (userRow) {
+        // Populate the form fields
+        document.getElementById('edit_user_id').value = userId;
+        document.getElementById('edit_username').value = userRow.dataset.username || '';
+        document.getElementById('edit_email').value = userRow.dataset.email || '';
+        document.getElementById('edit_first_name').value = userRow.dataset.firstName || '';
+        document.getElementById('edit_last_name').value = userRow.dataset.lastName || '';
+        document.getElementById('edit_gender').value = userRow.dataset.gender || '';
+        document.getElementById('edit_image_url').value = userRow.dataset.imageUrl || '';
+        document.getElementById('edit_lab_url').value = userRow.dataset.labUrl || '';
+        document.getElementById('edit_is_email_verified').checked = userRow.dataset.verified === 'true';
+        
+        document.getElementById('editModal').style.display = 'block';
+    } else {
+        console.error('User row not found for ID:', userId);
+    }
+}
+
+function closeEditModal() {
+    document.getElementById('editModal').style.display = 'none';
+}
+
+function openDeleteModal(userId, username) {
+    document.getElementById('delete_user_id').value = userId;
+    document.getElementById('delete_username').textContent = username;
+    document.getElementById('deleteModal').style.display = 'block';
+}
+
+function closeDeleteModal() {
+    document.getElementById('deleteModal').style.display = 'none';
+}
+
+// Close modals when clicking outside
+window.onclick = function(event) {
+    const modals = document.getElementsByClassName('modal');
+    for (let modal of modals) {
+        if (event.target === modal) {
+            modal.style.display = 'none';
+        }
+    }
+}
+
+// Add user data to rows for easy access
+document.addEventListener('DOMContentLoaded', function() {
+    const userRows = document.querySelectorAll('.user-row');
+    userRows.forEach(row => {
+        // Extract data from table cells
+        const cells = row.cells;
+        
+        // Get username from the second cell
+        const usernameElement = cells[1].querySelector('.user-username');
+        const username = usernameElement ? usernameElement.textContent.replace('@', '') : '';
+        
+        // Get email from the third cell
+        const emailElement = cells[2].querySelector('.email');
+        const email = emailElement ? emailElement.textContent.trim() : '';
+        
+        // Get name from the second cell
+        const nameElement = cells[1].querySelector('.user-name');
+        const nameParts = nameElement ? nameElement.textContent.split(' ') : [];
+        const firstName = nameParts[0] || '';
+        const lastName = nameParts.slice(1).join(' ') || '';
+        
+        // Get gender from the second cell
+        const genderElement = cells[1].querySelector('.user-gender');
+        let gender = '';
+        if (genderElement) {
+            if (genderElement.textContent.includes('Male')) gender = 'M';
+            else if (genderElement.textContent.includes('Female')) gender = 'F';
+        }
+        
+        // Get image URL from the first cell
+        const imgElement = cells[0].querySelector('img');
+        const imageUrl = imgElement ? imgElement.src : '';
+        
+        // Get lab URL from the third cell
+        const labLink = cells[2].querySelector('.lab-url a');
+        const labUrl = labLink ? labLink.href : '';
+        
+        // Get verification status from the fourth cell
+        const statusBadge = cells[3].querySelector('.status-badge');
+        const isVerified = statusBadge ? statusBadge.classList.contains('verified') : false;
+        
+        // Get user_id from the action buttons
+        const editButton = cells[5].querySelector('.btn-edit');
+        const userId = editButton ? editButton.getAttribute('onclick').match(/'([^']+)'/)[1] : '';
+        
+        // Set data attributes
+        row.dataset.userId = userId;
+        row.dataset.username = username;
+        row.dataset.email = email;
+        row.dataset.firstName = firstName;
+        row.dataset.lastName = lastName;
+        row.dataset.gender = gender;
+        row.dataset.imageUrl = imageUrl;
+        row.dataset.labUrl = labUrl;
+        row.dataset.verified = isVerified;
+    });
+});
+
+</script>
+{% endblock %}

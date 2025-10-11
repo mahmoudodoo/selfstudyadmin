@@ -1,0 +1,12 @@
+/* static/css/admin_dashboard.css */
+.page-content h2 {
+    color: #2c3e50;
+    margin-bottom: 20px;
+    font-size: 2rem;
+}
+
+.page-content p {
+    color: #666;
+    line-height: 1.6;
+    font-size: 1.1rem;
+}

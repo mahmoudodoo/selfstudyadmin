@@ -1,0 +1,153 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Admin Dashboard{% endblock %}
+{% block page_title %}User Management Dashboard{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/selfstudyadmin.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="page-content">
+    <!-- Flash Messages -->
+    {% if messages %}
+    <div class="messages-container">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}">
+            {{ message }}
+            <span class="close-btn" onclick="this.parentElement.style.display='none'">&times;</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Dashboard Header -->
+    <div class="dashboard-header">
+        <h2>User Management</h2>
+        <a href="{% url 'user_create' %}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Add New User
+        </a>
+    </div>
+
+    <!-- Users Table -->
+    <div class="table-container">
+        <div class="table-responsive">
+            <table class="users-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Username</th>
+                        <th>Email</th>
+                        <th>First Name</th>
+                        <th>Last Name</th>
+                        <th>Staff</th>
+                        <th>Superuser</th>
+                        <th>Date Joined</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in page_obj %}
+                    <tr>
+                        <td>{{ user.id }}</td>
+                        <td>{{ user.username }}</td>
+                        <td>{{ user.email }}</td>
+                        <td>{{ user.first_name }}</td>
+                        <td>{{ user.last_name }}</td>
+                        <td>
+                            <span class="status-badge {% if user.is_staff %}active{% else %}inactive{% endif %}">
+                                {{ user.is_staff|yesno:"Yes,No" }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="status-badge {% if user.is_superuser %}active{% else %}inactive{% endif %}">
+                                {{ user.is_superuser|yesno:"Yes,No" }}
+                            </span>
+                        </td>
+                        <td>{{ user.date_joined|date:"M d, Y" }}</td>
+                        <td class="actions">
+                            <a href="{% url 'user_update' user.id %}" class="btn btn-edit" title="Edit">
+                                <i class="fas fa-edit"></i> Edit
+                            </a>
+                            <form method="post" action="{% url 'user_delete' user.id %}" class="delete-form" onsubmit="return confirm('Are you sure you want to delete user {{ user.username }}?');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-delete" title="Delete">
+                                    <i class="fas fa-trash"></i> Delete
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="no-data">No users found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if page_obj.has_other_pages %}
+        <div class="pagination">
+            {% if page_obj.has_previous %}
+                <a href="?page=1" class="page-link first">&laquo; First</a>
+                <a href="?page={{ page_obj.previous_page_number }}" class="page-link prev">Previous</a>
+            {% endif %}
+
+            <span class="current">
+                Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+            </span>
+
+            {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}" class="page-link next">Next</a>
+                <a href="?page={{ page_obj.paginator.num_pages }}" class="page-link last">Last &raquo;</a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="stats-container">
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-users"></i>
+            </div>
+            <div class="stat-info">
+                <h3>Total Users</h3>
+                <span class="stat-number">{{ page_obj.paginator.count }}</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon staff">
+                <i class="fas fa-user-tie"></i>
+            </div>
+            <div class="stat-info">
+                <h3>Staff Users</h3>
+                <span class="stat-number">{{ page_obj.object_list|length }}</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon admin">
+                <i class="fas fa-user-shield"></i>
+            </div>
+            <div class="stat-info">
+                <h3>Admin Users</h3>
+                <span class="stat-number">{{ page_obj.object_list|length }}</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Auto-hide messages after 5 seconds
+setTimeout(function() {
+    const messages = document.querySelectorAll('.alert');
+    messages.forEach(function(message) {
+        message.style.display = 'none';
+    });
+}, 5000);
+</script>
+{% endblock %}

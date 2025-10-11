@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block extra_css %}
+
+<link rel="stylesheet" href="{% static 'css/admin_dashboard.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="page-content">
+    <h2>Welcome to Admin Dashboard</h2>
+    <p>This is the main dashboard page. Select a section from the sidebar to manage.</p>
+</div>
+{% endblock %}

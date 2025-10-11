@@ -1,0 +1,249 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Courses Management{% endblock %}
+{% block page_title %}Courses Management{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/selfstudycourse.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="course-management">
+    <!-- Header Section -->
+    <div class="header-section">
+        <div class="search-container">
+            <input type="text" id="globalSearch" placeholder="Search across all entities..." class="search-input">
+            <button class="search-btn">
+                <i class="fas fa-search"></i>
+            </button>
+        </div>
+        <div class="actions-container">
+            <button class="btn btn-primary" onclick="showCreateModal('course')">
+                <i class="fas fa-plus"></i> New Course
+            </button>
+            <button class="btn btn-secondary" onclick="refreshAllData()">
+                <i class="fas fa-sync-alt"></i> Refresh
+            </button>
+        </div>
+    </div>
+
+    <!-- Tabs Navigation -->
+    <div class="tabs-container">
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="courses">Courses</button>
+            <button class="tab-btn" data-tab="lessons">Lessons</button>
+            <button class="tab-btn" data-tab="comments">Comments</button>
+            <button class="tab-btn" data-tab="homeworks">Homeworks</button>
+            <button class="tab-btn" data-tab="submissions">Submissions</button>
+            <button class="tab-btn" data-tab="registrations">Registrations</button>
+        </div>
+    </div>
+
+    <!-- Content Sections -->
+    <div class="content-sections">
+        <!-- Courses Section -->
+        <div id="courses-section" class="content-section active">
+            <div class="section-header">
+                <h3>Courses</h3>
+                <button class="btn btn-sm btn-primary" onclick="showCreateModal('course')">
+                    <i class="fas fa-plus"></i> Add Course
+                </button>
+            </div>
+            <div class="table-container">
+                <table id="courses-table" class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Image</th>
+                            <th>Title</th>
+                            <th>Description</th>
+                            <th>Date Added</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="courses-tbody">
+                        <!-- Courses will be loaded here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Lessons Section -->
+        <div id="lessons-section" class="content-section">
+            <div class="section-header">
+                <h3>Lessons</h3>
+                <button class="btn btn-sm btn-primary" onclick="showCreateModal('lesson')">
+                    <i class="fas fa-plus"></i> Add Lesson
+                </button>
+            </div>
+            <div class="table-container">
+                <table id="lessons-table" class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Title</th>
+                            <th>Course</th>
+                            <th>Source Code URL</th>
+                            <th>Reading URL</th>
+                            <th>Date Added</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="lessons-tbody">
+                        <!-- Lessons will be loaded here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Comments Section -->
+        <div id="comments-section" class="content-section">
+            <div class="section-header">
+                <h3>Comments</h3>
+                <button class="btn btn-sm btn-primary" onclick="showCreateModal('comment')">
+                    <i class="fas fa-plus"></i> Add Comment
+                </button>
+            </div>
+            <div class="table-container">
+                <table id="comments-table" class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Content</th>
+                            <th>User ID</th>
+                            <th>Course</th>
+                            <th>Date Added</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="comments-tbody">
+                        <!-- Comments will be loaded here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Homeworks Section -->
+        <div id="homeworks-section" class="content-section">
+            <div class="section-header">
+                <h3>Homeworks</h3>
+                <button class="btn btn-sm btn-primary" onclick="showCreateModal('homework')">
+                    <i class="fas fa-plus"></i> Add Homework
+                </button>
+            </div>
+            <div class="table-container">
+                <table id="homeworks-table" class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Title</th>
+                            <th>Course</th>
+                            <th>Lesson</th>
+                            <th>Homework URL</th>
+                            <th>Description</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="homeworks-tbody">
+                        <!-- Homeworks will be loaded here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Submissions Section -->
+        <div id="submissions-section" class="content-section">
+            <div class="section-header">
+                <h3>Submitted Homeworks</h3>
+                <button class="btn btn-sm btn-primary" onclick="showCreateModal('submitted_homework')">
+                    <i class="fas fa-plus"></i> Add Submission
+                </button>
+            </div>
+            <div class="table-container">
+                <table id="submissions-table" class="data-table">
+                    <thead>
+                        <tr>
+                            <th>User ID</th>
+                            <th>Homework</th>
+                            <th>Submitted URL</th>
+                            <th>Description</th>
+                            <th>Date Submitted</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="submissions-tbody">
+                        <!-- Submissions will be loaded here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Registrations Section -->
+        <div id="registrations-section" class="content-section">
+            <div class="section-header">
+                <h3>Course Registrations</h3>
+                <button class="btn btn-sm btn-primary" onclick="showCreateModal('registration')">
+                    <i class="fas fa-plus"></i> Add Registration
+                </button>
+            </div>
+            <div class="table-container">
+                <table id="registrations-table" class="data-table">
+                    <thead>
+                        <tr>
+                            <th>User ID</th>
+                            <th>Course</th>
+                            <th>Date Registered</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="registrations-tbody">
+                        <!-- Registrations will be loaded here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create/Edit Modal -->
+<div id="createModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h4 id="modalTitle">Create New</h4>
+            <span class="close" onclick="closeModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form id="entityForm" enctype="multipart/form-data">
+                <div id="formFields">
+                    <!-- Form fields will be dynamically inserted here -->
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="submitBtn">Create</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="deleteModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h4>Confirm Delete</h4>
+            <span class="close" onclick="closeDeleteModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <p>Are you sure you want to delete this item? This action cannot be undone.</p>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="closeDeleteModal()">Cancel</button>
+            <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Delete</button>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Spinner -->
+<div id="loadingSpinner" class="loading-spinner">
+    <div class="spinner"></div>
+</div>
+
+<script src="{% static 'js/selfstudycourse.js' %}"></script>
+{% endblock %}

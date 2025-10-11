@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{% if form_type == 'create' %}Create User{% else %}Edit User{% endif %}{% endblock %}
+{% block page_title %}{% if form_type == 'create' %}Create New User{% else %}Edit User: {{ user.username }}{% endif %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/admin_dashboard.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="page-content">
+    <!-- Flash Messages -->
+    {% if messages %}
+    <div class="messages-container">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}">
+            {{ message }}
+            <span class="close-btn" onclick="this.parentElement.style.display='none'">&times;</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="form-container">
+        <form method="post" class="user-form">
+            {% csrf_token %}
+            
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="username">Username *</label>
+                    <input type="text" id="username" name="username" 
+                           value="{% if form_type == 'update' %}{{ user.username }}{% else %}{{ form_data.username|default:'' }}{% endif %}" 
+                           required>
+                </div>
+
+                <div class="form-group">
+                    <label for="email">Email *</label>
+                    <input type="email" id="email" name="email" 
+                           value="{% if form_type == 'update' %}{{ user.email }}{% else %}{{ form_data.email|default:'' }}{% endif %}" 
+                           required>
+                </div>
+
+                <div class="form-group">
+                    <label for="first_name">First Name</label>
+                    <input type="text" id="first_name" name="first_name" 
+                           value="{% if form_type == 'update' %}{{ user.first_name }}{% else %}{{ form_data.first_name|default:'' }}{% endif %}">
+                </div>
+
+                <div class="form-group">
+                    <label for="last_name">Last Name</label>
+                    <input type="text" id="last_name" name="last_name" 
+                           value="{% if form_type == 'update' %}{{ user.last_name }}{% else %}{{ form_data.last_name|default:'' }}{% endif %}">
+                </div>
+
+                <div class="form-group">
+                    <label for="password">
+                        {% if form_type == 'create' %}Password *{% else %}New Password (leave blank to keep current){% endif %}
+                    </label>
+                    <input type="password" id="password" name="password" 
+                           {% if form_type == 'create' %}required{% endif %}>
+                    {% if form_type == 'create' %}
+                    <small class="form-help">Password must be at least 8 characters long.</small>
+                    {% else %}
+                    <small class="form-help">Leave blank to keep the current password.</small>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="form-checkboxes">
+                <label class="checkbox-container">
+                    <input type="checkbox" name="is_staff" 
+                           {% if form_type == 'update' and user.is_staff %}checked{% endif %}
+                           {% if form_type == 'create' and form_data.is_staff %}checked{% endif %}>
+                    <span class="checkmark"></span>
+                    Staff status
+                    <small class="form-help">Designates whether the user can log into this admin site.</small>
+                </label>
+                
+                <label class="checkbox-container">
+                    <input type="checkbox" name="is_superuser" 
+                           {% if form_type == 'update' and user.is_superuser %}checked{% endif %}
+                           {% if form_type == 'create' and form_data.is_superuser %}checked{% endif %}>
+                    <span class="checkmark"></span>
+                    Superuser status
+                    <small class="form-help">Designates that this user has all permissions without explicitly assigning them.</small>
+                </label>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">
+                    {% if form_type == 'create' %}Create User{% else %}Update User{% endif %}
+                </button>
+                <a href="{% url 'admin_dashboard' %}" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
