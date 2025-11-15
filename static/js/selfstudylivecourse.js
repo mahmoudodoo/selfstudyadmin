@@ -1,137 +1,121 @@
 // Global variables
-let teachers = [];
-let liveCourseRooms = [];
-let userProfiles = [];
-let courses = [];
+let appData = {
+    userprofiles: [],
+    courses: [],
+    teachers: [],
+    live_course_rooms: []
+};
 
-// DOM Content Loaded
+// DOM Ready
 document.addEventListener('DOMContentLoaded', function() {
-    loadInitialData();
-    setupEventListeners();
+    loadData();
 });
 
-// Setup event listeners
-function setupEventListeners() {
-    // Close modals when clicking outside
-    window.addEventListener('click', function(event) {
-        const teacherModal = document.getElementById('teacherModal');
-        const roomModal = document.getElementById('roomModal');
-        const confirmModal = document.getElementById('confirmModal');
+// Load all data
+async function loadData() {
+    showLoading(true);
+    
+    try {
+        const response = await fetch('/selfstudylivecourse/api/data/');
+        const data = await response.json();
         
-        if (event.target === teacherModal) {
-            closeTeacherModal();
-        }
-        if (event.target === roomModal) {
-            closeRoomModal();
-        }
-        if (event.target === confirmModal) {
-            closeConfirmModal();
-        }
-    });
-}
-
-// Load initial data
-function loadInitialData() {
-    showLoading();
-    Promise.all([
-        fetchTeachers(),
-        fetchRooms(),
-        fetchUserProfiles(),
-        fetchCourses()
-    ]).then(() => {
-        updateUI();
-        hideLoading();
-    }).catch(error => {
-        console.error('Error loading initial data:', error);
-        showNotification('Error loading data. Please try again.', 'error');
-        hideLoading();
-    });
-}
-
-// API Functions
-async function fetchTeachers() {
-    try {
-        const response = await fetch('?action=get_teachers');
-        const data = await response.json();
-        if (data.teachers) {
-            teachers = data.teachers;
+        if (data.success) {
+            appData = data;
+            updateUI();
+            showToast('Data loaded successfully', 'success');
+        } else {
+            throw new Error(data.error || 'Failed to load data');
         }
     } catch (error) {
-        console.error('Error fetching teachers:', error);
-        throw error;
-    }
-}
-
-async function fetchRooms() {
-    try {
-        const response = await fetch('?action=get_rooms');
-        const data = await response.json();
-        if (data.rooms) {
-            liveCourseRooms = data.rooms;
-        }
-    } catch (error) {
-        console.error('Error fetching rooms:', error);
-        throw error;
-    }
-}
-
-async function fetchUserProfiles() {
-    try {
-        const response = await fetch('?action=get_user_profiles');
-        const data = await response.json();
-        if (data.user_profiles) {
-            userProfiles = data.user_profiles;
-        }
-    } catch (error) {
-        console.error('Error fetching user profiles:', error);
-        throw error;
-    }
-}
-
-async function fetchCourses() {
-    try {
-        const response = await fetch('?action=get_courses');
-        const data = await response.json();
-        if (data.courses) {
-            courses = data.courses;
-        }
-    } catch (error) {
-        console.error('Error fetching courses:', error);
-        throw error;
+        console.error('Error loading data:', error);
+        showToast('Error loading data: ' + error.message, 'error');
+    } finally {
+        showLoading(false);
     }
 }
 
 // Update UI with loaded data
 function updateUI() {
     updateStats();
-    renderTeachersTable();
-    renderRoomsTable();
-    populateDropdowns();
+    populateUserSelects();
+    updateTeachersTable();
+    updateRoomsTable();
 }
 
+// Update statistics
 function updateStats() {
-    document.getElementById('teachers-count').textContent = teachers.length;
-    document.getElementById('rooms-count').textContent = liveCourseRooms.length;
-    document.getElementById('users-count').textContent = userProfiles.length;
-    document.getElementById('courses-count').textContent = courses.length;
+    document.getElementById('teachers-count').textContent = appData.teachers.length;
+    document.getElementById('rooms-count').textContent = appData.live_course_rooms.length;
+    document.getElementById('users-count').textContent = appData.userprofiles.length;
+    document.getElementById('courses-count').textContent = appData.courses.length;
 }
 
-function renderTeachersTable() {
-    const tbody = document.getElementById('teachers-tbody');
-    tbody.innerHTML = '';
+// Populate dropdown selects
+function populateUserSelects() {
+    const teacherUserSelect = document.getElementById('teacherUserSelect');
+    const studentSelect = document.getElementById('studentSelect');
+    const teacherSelect = document.getElementById('teacherSelect');
+    const courseSelect = document.getElementById('courseSelect');
+    
+    // Clear existing options
+    teacherUserSelect.innerHTML = '<option value="">Select a user...</option>';
+    studentSelect.innerHTML = '<option value="">Select a student...</option>';
+    teacherSelect.innerHTML = '<option value="">Select a teacher...</option>';
+    courseSelect.innerHTML = '<option value="">Select a course...</option>';
+    
+    // Populate user profiles
+    appData.userprofiles.forEach(user => {
+        const option1 = document.createElement('option');
+        option1.value = user.username;
+        option1.textContent = user.username;
+        option1.setAttribute('data-user-id', user.user_id);
+        teacherUserSelect.appendChild(option1);
+        
+        const option2 = document.createElement('option');
+        option2.value = user.username;
+        option2.textContent = user.username;
+        option2.setAttribute('data-user-id', user.user_id);
+        studentSelect.appendChild(option2);
+    });
+    
+    // Populate teachers
+    appData.teachers.forEach(teacher => {
+        const option = document.createElement('option');
+        option.value = teacher.teacher_id;
+        option.textContent = teacher.teachername;
+        teacherSelect.appendChild(option);
+    });
+    
+    // Populate courses
+    appData.courses.forEach(course => {
+        const option = document.createElement('option');
+        option.value = course.title;
+        option.textContent = course.title;
+        courseSelect.appendChild(option);
+    });
+}
 
-    teachers.forEach(teacher => {
+// Update teachers table
+function updateTeachersTable() {
+    const tbody = document.getElementById('teachersTableBody');
+    tbody.innerHTML = '';
+    
+    if (appData.teachers.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" class="no-data">No teachers found</td></tr>';
+        return;
+    }
+    
+    appData.teachers.forEach(teacher => {
         const row = document.createElement('tr');
         row.innerHTML = `
             <td>${teacher.teacher_id}</td>
             <td>${teacher.teachername}</td>
-            <td>${teacher.my_live_courses_rooms ? teacher.my_live_courses_rooms.length : 0}</td>
             <td class="actions">
                 <button class="btn btn-sm btn-warning" onclick="editTeacher('${teacher.teacher_id}')">
-                    <i class="fas fa-edit"></i>
+                    <i class="fas fa-edit"></i> Edit
                 </button>
-                <button class="btn btn-sm btn-danger" onclick="confirmDeleteTeacher('${teacher.teacher_id}', '${teacher.teachername}')">
-                    <i class="fas fa-trash"></i>
+                <button class="btn btn-sm btn-danger" onclick="deleteTeacher('${teacher.teacher_id}')">
+                    <i class="fas fa-trash"></i> Delete
                 </button>
             </td>
         `;
@@ -139,11 +123,17 @@ function renderTeachersTable() {
     });
 }
 
-function renderRoomsTable() {
-    const tbody = document.getElementById('rooms-tbody');
+// Update rooms table
+function updateRoomsTable() {
+    const tbody = document.getElementById('roomsTableBody');
     tbody.innerHTML = '';
-
-    liveCourseRooms.forEach(room => {
+    
+    if (appData.live_course_rooms.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="no-data">No live course rooms found</td></tr>';
+        return;
+    }
+    
+    appData.live_course_rooms.forEach(room => {
         const row = document.createElement('tr');
         row.innerHTML = `
             <td>${room.room_id}</td>
@@ -154,10 +144,10 @@ function renderRoomsTable() {
             <td>${new Date(room.created_at).toLocaleString()}</td>
             <td class="actions">
                 <button class="btn btn-sm btn-warning" onclick="editRoom('${room.room_id}')">
-                    <i class="fas fa-edit"></i>
+                    <i class="fas fa-edit"></i> Edit
                 </button>
-                <button class="btn btn-sm btn-danger" onclick="confirmDeleteRoom('${room.room_id}', '${room.course_name}')">
-                    <i class="fas fa-trash"></i>
+                <button class="btn btn-sm btn-danger" onclick="deleteRoom('${room.room_id}')">
+                    <i class="fas fa-trash"></i> Delete
                 </button>
             </td>
         `;
@@ -165,399 +155,386 @@ function renderRoomsTable() {
     });
 }
 
+// Get teacher name by ID
 function getTeacherName(teacherId) {
-    const teacher = teachers.find(t => t.teacher_id === teacherId);
+    const teacher = appData.teachers.find(t => t.teacher_id === teacherId);
     return teacher ? teacher.teachername : 'Unknown';
 }
 
-function populateDropdowns() {
-    populateUserSelect();
-    populateCourseSelect();
-    populateTeacherSelect();
-    populateStudentSelect();
+// Modal functions
+function openModal(modalId) {
+    document.getElementById(modalId).style.display = 'block';
 }
 
-function populateUserSelect() {
-    const select = document.getElementById('teacher_user_select');
-    select.innerHTML = '<option value="">Select a user...</option>';
-    
-    userProfiles.forEach(user => {
-        const option = document.createElement('option');
-        option.value = user.user_id;
-        option.textContent = user.username;
-        option.setAttribute('data-username', user.username);
-        select.appendChild(option);
-    });
+function closeModal(modalId) {
+    document.getElementById(modalId).style.display = 'none';
+    resetForm(modalId + ' form');
 }
 
-function populateCourseSelect() {
-    const select = document.getElementById('course_select');
-    select.innerHTML = '<option value="">Select a course...</option>';
-    
-    courses.forEach(course => {
-        const option = document.createElement('option');
-        option.value = course.title;
-        option.textContent = course.title;
-        select.appendChild(option);
-    });
+function resetForm(formSelector) {
+    const form = document.querySelector(formSelector);
+    if (form) {
+        form.reset();
+        document.getElementById('teacherId').value = '';
+        document.getElementById('roomId').value = '';
+        document.getElementById('teacherModalTitle').textContent = 'Add New Teacher';
+        document.getElementById('roomModalTitle').textContent = 'Add New Live Course Room';
+    }
 }
 
-function populateTeacherSelect() {
-    const select = document.getElementById('teacher_select');
-    select.innerHTML = '<option value="">Select a teacher...</option>';
-    
-    teachers.forEach(teacher => {
-        const option = document.createElement('option');
-        option.value = teacher.teacher_id;
-        option.textContent = teacher.teachername;
-        select.appendChild(option);
-    });
-}
-
-function populateStudentSelect() {
-    const select = document.getElementById('student_select');
-    select.innerHTML = '<option value="">Select a student...</option>';
-    
-    userProfiles.forEach(user => {
-        const option = document.createElement('option');
-        option.value = user.user_id;
-        option.textContent = user.username;
-        option.setAttribute('data-username', user.username);
-        select.appendChild(option);
-    });
-}
-
-// Teacher Functions
-function openTeacherModal() {
-    document.getElementById('teacherModalTitle').textContent = 'Add New Teacher';
-    document.getElementById('teacherForm').reset();
-    document.getElementById('teacher_id').value = '';
-    document.getElementById('teacherModal').style.display = 'block';
-}
-
-function closeTeacherModal() {
-    document.getElementById('teacherModal').style.display = 'none';
-}
-
+// Fill teacher name from user selection
 function fillTeacherName() {
-    const select = document.getElementById('teacher_user_select');
-    const selectedOption = select.options[select.selectedIndex];
+    const userSelect = document.getElementById('teacherUserSelect');
+    const selectedOption = userSelect.options[userSelect.selectedIndex];
     if (selectedOption.value) {
-        document.getElementById('teachername').value = selectedOption.getAttribute('data-username');
+        document.getElementById('teacherName').value = selectedOption.value;
     }
 }
 
-function editTeacher(teacherId) {
-    const teacher = teachers.find(t => t.teacher_id === teacherId);
-    if (teacher) {
-        document.getElementById('teacherModalTitle').textContent = 'Edit Teacher';
-        document.getElementById('teacher_id').value = teacher.teacher_id;
-        document.getElementById('teachername').value = teacher.teachername;
-        
-        // Try to find matching user
-        const userSelect = document.getElementById('teacher_user_select');
-        for (let i = 0; i < userSelect.options.length; i++) {
-            if (userSelect.options[i].getAttribute('data-username') === teacher.teachername) {
-                userSelect.selectedIndex = i;
-                break;
-            }
-        }
-        
-        document.getElementById('teacherModal').style.display = 'block';
-    }
-}
-
-function saveTeacher() {
-    const teacherId = document.getElementById('teacher_id').value;
-    const teachername = document.getElementById('teachername').value.trim();
-    
-    if (!teachername) {
-        showNotification('Please enter teacher name', 'error');
-        return;
-    }
-    
-    showLoading();
-    
-    const payload = {
-        action: teacherId ? 'update_teacher' : 'create_teacher',
-        teachername: teachername
-    };
-    
-    if (teacherId) {
-        payload.teacher_id = teacherId;
-    }
-    
-    fetch('', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': getCSRFToken()
-        },
-        body: JSON.stringify(payload)
-    })
-    .then(response => response.json())
-    .then(data => {
-        hideLoading();
-        if (data.success) {
-            showNotification(`Teacher ${teacherId ? 'updated' : 'created'} successfully`, 'success');
-            closeTeacherModal();
-            refreshData();
-        } else {
-            showNotification(data.error || 'Operation failed', 'error');
-        }
-    })
-    .catch(error => {
-        hideLoading();
-        console.error('Error saving teacher:', error);
-        showNotification('Error saving teacher', 'error');
-    });
-}
-
-// Room Functions
-function openRoomModal() {
-    document.getElementById('roomModalTitle').textContent = 'Add New Live Course Room';
-    document.getElementById('roomForm').reset();
-    document.getElementById('room_id').value = '';
-    document.getElementById('roomModal').style.display = 'block';
-}
-
-function closeRoomModal() {
-    document.getElementById('roomModal').style.display = 'none';
-}
-
+// Fill student info from user selection
 function fillStudentId() {
-    const select = document.getElementById('student_select');
-    const selectedOption = select.options[select.selectedIndex];
+    const studentSelect = document.getElementById('studentSelect');
+    const selectedOption = studentSelect.options[studentSelect.selectedIndex];
     if (selectedOption.value) {
-        document.getElementById('student_id').value = selectedOption.value;
-        document.getElementById('student_name').value = selectedOption.getAttribute('data-username');
+        document.getElementById('studentName').value = selectedOption.value;
+        document.getElementById('studentId').value = selectedOption.getAttribute('data-user-id');
     }
 }
 
-function editRoom(roomId) {
-    const room = liveCourseRooms.find(r => r.room_id === roomId);
-    if (room) {
-        document.getElementById('roomModalTitle').textContent = 'Edit Live Course Room';
-        document.getElementById('room_id').value = room.room_id;
-        document.getElementById('course_select').value = room.course_name;
-        document.getElementById('student_id').value = room.student_id;
-        document.getElementById('student_name').value = room.student_name;
-        document.getElementById('room_url').value = room.room_url;
-        document.getElementById('teacher_select').value = room.teacher;
-        
-        // Set student select
-        const studentSelect = document.getElementById('student_select');
-        for (let i = 0; i < studentSelect.options.length; i++) {
-            if (studentSelect.options[i].value === room.student_id) {
-                studentSelect.selectedIndex = i;
-                break;
-            }
-        }
-        
-        document.getElementById('roomModal').style.display = 'block';
+// Teacher operations
+function editTeacher(teacherId) {
+    const teacher = appData.teachers.find(t => t.teacher_id === teacherId);
+    if (teacher) {
+        document.getElementById('teacherId').value = teacher.teacher_id;
+        document.getElementById('teacherName').value = teacher.teachername;
+        document.getElementById('teacherModalTitle').textContent = 'Edit Teacher';
+        openModal('teacherModal');
     }
 }
 
-function saveRoom() {
-    const roomId = document.getElementById('room_id').value;
-    const courseName = document.getElementById('course_select').value;
-    const studentId = document.getElementById('student_id').value;
-    const studentName = document.getElementById('student_name').value;
-    const roomUrl = document.getElementById('room_url').value.trim();
-    const teacherId = document.getElementById('teacher_select').value;
+async function saveTeacher() {
+    const teacherId = document.getElementById('teacherId').value;
+    const teacherName = document.getElementById('teacherName').value;
     
-    if (!courseName || !studentId || !roomUrl || !teacherId) {
-        showNotification('Please fill all required fields', 'error');
+    if (!teacherName) {
+        showToast('Please enter teacher name', 'warning');
         return;
     }
     
-    showLoading();
-    
-    const payload = {
-        action: roomId ? 'update_live_course_room' : 'create_live_course_room',
-        course_name: courseName,
-        student_id: studentId,
-        student_name: studentName,
-        room_url: roomUrl,
-        teacher_id: teacherId
+    const teacherData = {
+        teachername: teacherName
     };
     
-    if (roomId) {
-        payload.room_id = roomId;
+    showLoading(true);
+    
+    try {
+        let url = '/selfstudylivecourse/api/data/';
+        let method = 'POST';
+        let requestData = {
+            action: 'create_teacher',
+            ...teacherData
+        };
+        
+        if (teacherId) {
+            // Update existing teacher
+            method = 'PUT';
+            requestData = {
+                action: 'update_teacher',
+                teacher_id: teacherId,
+                ...teacherData
+            };
+        }
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': await getCsrfToken()
+            },
+            body: JSON.stringify(requestData)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showToast(`Teacher ${teacherId ? 'updated' : 'created'} successfully`, 'success');
+            closeModal('teacherModal');
+            await loadData();
+        } else {
+            throw new Error(result.error || 'Operation failed');
+        }
+    } catch (error) {
+        console.error('Error saving teacher:', error);
+        showToast('Error saving teacher: ' + error.message, 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+async function deleteTeacher(teacherId) {
+    if (!confirm('Are you sure you want to delete this teacher?')) {
+        return;
     }
     
-    fetch('', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': getCSRFToken()
-        },
-        body: JSON.stringify(payload)
-    })
-    .then(response => response.json())
-    .then(data => {
-        hideLoading();
-        if (data.success) {
-            showNotification(`Live course room ${roomId ? 'updated' : 'created'} successfully`, 'success');
-            closeRoomModal();
-            refreshData();
-        } else {
-            showNotification(data.error || 'Operation failed', 'error');
-        }
-    })
-    .catch(error => {
-        hideLoading();
-        console.error('Error saving room:', error);
-        showNotification('Error saving room', 'error');
-    });
-}
-
-// Delete Functions
-function confirmDeleteTeacher(teacherId, teacherName) {
-    document.getElementById('confirmMessage').textContent = `Are you sure you want to delete teacher "${teacherName}"?`;
-    document.getElementById('confirmActionBtn').onclick = () => deleteTeacher(teacherId);
-    document.getElementById('confirmModal').style.display = 'block';
-}
-
-function confirmDeleteRoom(roomId, roomName) {
-    document.getElementById('confirmMessage').textContent = `Are you sure you want to delete live course room "${roomName}"?`;
-    document.getElementById('confirmActionBtn').onclick = () => deleteRoom(roomId);
-    document.getElementById('confirmModal').style.display = 'block';
-}
-
-function deleteTeacher(teacherId) {
-    showLoading();
-    closeConfirmModal();
+    showLoading(true);
     
-    fetch('', {
-        method: 'DELETE',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': getCSRFToken()
-        },
-        body: JSON.stringify({
-            action: 'delete_teacher',
-            teacher_id: teacherId
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        hideLoading();
-        if (data.success) {
-            showNotification('Teacher deleted successfully', 'success');
-            refreshData();
+    try {
+        const response = await fetch('/selfstudylivecourse/api/data/', {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': await getCsrfToken()
+            },
+            body: JSON.stringify({
+                action: 'delete_teacher',
+                teacher_id: teacherId
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showToast('Teacher deleted successfully', 'success');
+            await loadData();
         } else {
-            showNotification('Failed to delete teacher', 'error');
+            throw new Error(result.error || 'Delete failed');
         }
-    })
-    .catch(error => {
-        hideLoading();
+    } catch (error) {
         console.error('Error deleting teacher:', error);
-        showNotification('Error deleting teacher', 'error');
-    });
+        showToast('Error deleting teacher: ' + error.message, 'error');
+    } finally {
+        showLoading(false);
+    }
 }
 
-function deleteRoom(roomId) {
-    showLoading();
-    closeConfirmModal();
+// Room operations
+function editRoom(roomId) {
+    const room = appData.live_course_rooms.find(r => r.room_id === roomId);
+    if (room) {
+        document.getElementById('roomId').value = room.room_id;
+        document.getElementById('courseSelect').value = room.course_name;
+        document.getElementById('studentName').value = room.student_name;
+        document.getElementById('studentId').value = room.student_id;
+        document.getElementById('teacherSelect').value = room.teacher;
+        document.getElementById('roomUrl').value = room.room_url;
+        document.getElementById('roomModalTitle').textContent = 'Edit Live Course Room';
+        openModal('roomModal');
+    }
+}
+
+async function saveRoom() {
+    const roomId = document.getElementById('roomId').value;
+    const courseName = document.getElementById('courseSelect').value;
+    const studentName = document.getElementById('studentName').value;
+    const studentId = document.getElementById('studentId').value;
+    const teacherId = document.getElementById('teacherSelect').value;
+    const roomUrl = document.getElementById('roomUrl').value;
     
-    fetch('', {
-        method: 'DELETE',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': getCSRFToken()
-        },
-        body: JSON.stringify({
-            action: 'delete_live_course_room',
-            room_id: roomId
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        hideLoading();
-        if (data.success) {
-            showNotification('Live course room deleted successfully', 'success');
-            refreshData();
-        } else {
-            showNotification('Failed to delete live course room', 'error');
+    // Validation
+    if (!courseName || !studentName || !studentId || !teacherId || !roomUrl) {
+        showToast('Please fill all required fields', 'warning');
+        return;
+    }
+    
+    const roomData = {
+        course_name: courseName,
+        student_name: studentName,
+        student_id: studentId,
+        teacher_id: teacherId,
+        room_url: roomUrl
+    };
+    
+    showLoading(true);
+    
+    try {
+        let url = '/selfstudylivecourse/api/data/';
+        let method = 'POST';
+        let requestData = {
+            action: 'create_live_course_room',
+            ...roomData
+        };
+        
+        if (roomId) {
+            // Update existing room
+            method = 'PUT';
+            requestData = {
+                action: 'update_live_course_room',
+                room_id: roomId,
+                ...roomData
+            };
         }
-    })
-    .catch(error => {
-        hideLoading();
-        console.error('Error deleting room:', error);
-        showNotification('Error deleting room', 'error');
-    });
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': await getCsrfToken()
+            },
+            body: JSON.stringify(requestData)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showToast(`Live course room ${roomId ? 'updated' : 'created'} successfully`, 'success');
+            closeModal('roomModal');
+            await loadData();
+        } else {
+            throw new Error(result.error || 'Operation failed');
+        }
+    } catch (error) {
+        console.error('Error saving room:', error);
+        showToast('Error saving room: ' + error.message, 'error');
+    } finally {
+        showLoading(false);
+    }
 }
 
-// Utility Functions
-function refreshData() {
-    loadInitialData();
-}
-
-function closeConfirmModal() {
-    document.getElementById('confirmModal').style.display = 'none';
-}
-
-function showLoading() {
-    document.getElementById('loadingSpinner').style.display = 'flex';
-}
-
-function hideLoading() {
-    document.getElementById('loadingSpinner').style.display = 'none';
-}
-
-function showNotification(message, type = 'info') {
-    // Remove existing notifications
-    const existingNotifications = document.querySelectorAll('.notification');
-    existingNotifications.forEach(notification => notification.remove());
+async function deleteRoom(roomId) {
+    if (!confirm('Are you sure you want to delete this live course room?')) {
+        return;
+    }
     
-    const notification = document.createElement('div');
-    notification.className = `notification notification-${type}`;
-    notification.innerHTML = `
-        <span>${message}</span>
-        <button onclick="this.parentElement.remove()">&times;</button>
+    showLoading(true);
+    
+    try {
+        const response = await fetch('/selfstudylivecourse/api/data/', {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': await getCsrfToken()
+            },
+            body: JSON.stringify({
+                action: 'delete_live_course_room',
+                room_id: roomId
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showToast('Live course room deleted successfully', 'success');
+            await loadData();
+        } else {
+            throw new Error(result.error || 'Delete failed');
+        }
+    } catch (error) {
+        console.error('Error deleting room:', error);
+        showToast('Error deleting room: ' + error.message, 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+// Utility functions
+function refreshData() {
+    loadData();
+}
+
+function showLoading(show) {
+    document.getElementById('loadingSpinner').style.display = show ? 'flex' : 'none';
+}
+
+function showToast(message, type = 'info') {
+    const toastContainer = document.getElementById('toastContainer');
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.innerHTML = `
+        <div class="toast-content">
+            <i class="fas fa-${getToastIcon(type)}"></i>
+            <span>${message}</span>
+        </div>
+        <button class="toast-close" onclick="this.parentElement.remove()">&times;</button>
     `;
     
-    document.body.appendChild(notification);
+    toastContainer.appendChild(toast);
     
     // Auto remove after 5 seconds
     setTimeout(() => {
-        if (notification.parentElement) {
-            notification.remove();
+        if (toast.parentElement) {
+            toast.remove();
         }
     }, 5000);
 }
 
-function getCSRFToken() {
-    const name = 'csrftoken';
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i].trim();
-            if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                break;
-            }
-        }
-    }
-    return cookieValue;
+function getToastIcon(type) {
+    const icons = {
+        success: 'check-circle',
+        error: 'exclamation-circle',
+        warning: 'exclamation-triangle',
+        info: 'info-circle'
+    };
+    return icons[type] || 'info-circle';
 }
 
-// Export functions for global access
-window.openTeacherModal = openTeacherModal;
-window.closeTeacherModal = closeTeacherModal;
-window.fillTeacherName = fillTeacherName;
-window.editTeacher = editTeacher;
-window.saveTeacher = saveTeacher;
-window.openRoomModal = openRoomModal;
-window.closeRoomModal = closeRoomModal;
-window.fillStudentId = fillStudentId;
-window.editRoom = editRoom;
-window.saveRoom = saveRoom;
-window.confirmDeleteTeacher = confirmDeleteTeacher;
-window.confirmDeleteRoom = confirmDeleteRoom;
-window.deleteTeacher = deleteTeacher;
-window.deleteRoom = deleteRoom;
-window.closeConfirmModal = closeConfirmModal;
-window.refreshData = refreshData;
+// Fixed CSRF Token function
+async function getCsrfToken() {
+    // Method 1: Try to get from cookie
+    const cookieValue = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('csrftoken='))
+        ?.split('=')[1];
+    
+    if (cookieValue) {
+        return cookieValue;
+    }
+    
+    // Method 2: Try to get from meta tag
+    const metaToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    if (metaToken) {
+        return metaToken;
+    }
+    
+    // Method 3: Try to get from form input
+    const formToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+    if (formToken) {
+        return formToken;
+    }
+    
+    // Method 4: If all else fails, make a request to get the token
+    try {
+        const response = await fetch('/selfstudylivecourse/');
+        const html = await response.text();
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        
+        // Look for CSRF token in the parsed document
+        const token = doc.querySelector('[name=csrfmiddlewaretoken]')?.value ||
+                     doc.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        
+        if (token) {
+            return token;
+        }
+    } catch (error) {
+        console.warn('Could not fetch CSRF token:', error);
+    }
+    
+    console.warn('CSRF token not found. Some operations may fail.');
+    return '';
+}
+
+// Close modal when clicking outside
+window.onclick = function(event) {
+    const modals = document.getElementsByClassName('modal');
+    for (let modal of modals) {
+        if (event.target === modal) {
+            modal.style.display = 'none';
+        }
+    }
+}
+
+// Add CSRF token to all fetch requests
+const originalFetch = window.fetch;
+window.fetch = function(...args) {
+    const [url, options = {}] = args;
+    
+    // Only add CSRF token for same-origin requests
+    if (typeof url === 'string' && url.startsWith('/')) {
+        options.headers = {
+            ...options.headers,
+            'X-CSRFToken': getCsrfToken()
+        };
+    }
+    
+    return originalFetch(url, options);
+};

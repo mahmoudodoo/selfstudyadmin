@@ -5,8 +5,8 @@
 {% block page_title %}Live Courses Management{% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <link rel="stylesheet" href="{% static 'css/selfstudylivecourse.css' %}">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 {% endblock %}
 
 {% block content %}
@@ -14,18 +14,18 @@
     <!-- Header Section -->
     <div class="header-section">
         <h1><i class="fas fa-video"></i> Live Courses Management</h1>
-        <p>Manage teachers and live course rooms across multiple domains</p>
+        <p>Manage teachers and live course rooms with real-time synchronization across all domains</p>
     </div>
 
     <!-- Stats Cards -->
-    <div class="stats-grid">
+    <div class="stats-container">
         <div class="stat-card">
             <div class="stat-icon">
                 <i class="fas fa-chalkboard-teacher"></i>
             </div>
             <div class="stat-info">
                 <h3 id="teachers-count">0</h3>
-                <p>Total Teachers</p>
+                <p>Teachers</p>
             </div>
         </div>
         <div class="stat-card">
@@ -59,10 +59,10 @@
 
     <!-- Action Buttons -->
     <div class="action-buttons">
-        <button class="btn btn-primary" onclick="openTeacherModal()">
+        <button class="btn btn-primary" onclick="openModal('teacherModal')">
             <i class="fas fa-plus"></i> Add Teacher
         </button>
-        <button class="btn btn-success" onclick="openRoomModal()">
+        <button class="btn btn-success" onclick="openModal('roomModal')">
             <i class="fas fa-plus"></i> Add Live Room
         </button>
         <button class="btn btn-info" onclick="refreshData()">
@@ -71,147 +71,124 @@
     </div>
 
     <!-- Teachers Table -->
-    <div class="card">
-        <div class="card-header">
-            <h3><i class="fas fa-chalkboard-teacher"></i> Teachers</h3>
-        </div>
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="data-table" id="teachers-table">
-                    <thead>
-                        <tr>
-                            <th>Teacher ID</th>
-                            <th>Teacher Name</th>
-                            <th>Live Rooms</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="teachers-tbody">
-                        <!-- Dynamic content -->
-                    </tbody>
-                </table>
-            </div>
+    <div class="table-section">
+        <h2><i class="fas fa-chalkboard-teacher"></i> Teachers</h2>
+        <div class="table-container">
+            <table id="teachersTable" class="data-table">
+                <thead>
+                    <tr>
+                        <th>Teacher ID</th>
+                        <th>Teacher Name</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="teachersTableBody">
+                    <!-- Dynamic content -->
+                </tbody>
+            </table>
         </div>
     </div>
 
     <!-- Live Course Rooms Table -->
-    <div class="card">
-        <div class="card-header">
-            <h3><i class="fas fa-door-open"></i> Live Course Rooms</h3>
-        </div>
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="data-table" id="rooms-table">
-                    <thead>
-                        <tr>
-                            <th>Room ID</th>
-                            <th>Course Name</th>
-                            <th>Student Name</th>
-                            <th>Teacher</th>
-                            <th>Room URL</th>
-                            <th>Created At</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="rooms-tbody">
-                        <!-- Dynamic content -->
-                    </tbody>
-                </table>
-            </div>
+    <div class="table-section">
+        <h2><i class="fas fa-door-open"></i> Live Course Rooms</h2>
+        <div class="table-container">
+            <table id="roomsTable" class="data-table">
+                <thead>
+                    <tr>
+                        <th>Room ID</th>
+                        <th>Course Name</th>
+                        <th>Student Name</th>
+                        <th>Teacher</th>
+                        <th>Room URL</th>
+                        <th>Created At</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="roomsTableBody">
+                    <!-- Dynamic content -->
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
 
-<!-- Teacher Modal -->
+<!-- Add/Edit Teacher Modal -->
 <div id="teacherModal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
             <h3 id="teacherModalTitle">Add New Teacher</h3>
-            <span class="close" onclick="closeTeacherModal()">&times;</span>
+            <span class="close" onclick="closeModal('teacherModal')">&times;</span>
         </div>
         <div class="modal-body">
             <form id="teacherForm">
-                <input type="hidden" id="teacher_id">
+                {% csrf_token %}
                 <div class="form-group">
-                    <label for="teacher_user_select">Select User:</label>
-                    <select id="teacher_user_select" class="form-control" onchange="fillTeacherName()">
+                    <label for="teacherUserSelect">Select User:</label>
+                    <select id="teacherUserSelect" class="form-control" onchange="fillTeacherName()">
                         <option value="">Select a user...</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label for="teachername">Teacher Name:</label>
-                    <input type="text" id="teachername" class="form-control" required>
+                    <label for="teacherName">Teacher Name:</label>
+                    <input type="text" id="teacherName" class="form-control" required>
                 </div>
+                <input type="hidden" id="teacherId">
             </form>
         </div>
         <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" onclick="closeTeacherModal()">Cancel</button>
+            <button type="button" class="btn btn-secondary" onclick="closeModal('teacherModal')">Cancel</button>
             <button type="button" class="btn btn-primary" onclick="saveTeacher()">Save Teacher</button>
         </div>
     </div>
 </div>
 
-<!-- Live Course Room Modal -->
+<!-- Add/Edit Live Room Modal -->
 <div id="roomModal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
             <h3 id="roomModalTitle">Add New Live Course Room</h3>
-            <span class="close" onclick="closeRoomModal()">&times;</span>
+            <span class="close" onclick="closeModal('roomModal')">&times;</span>
         </div>
         <div class="modal-body">
             <form id="roomForm">
-                <input type="hidden" id="room_id">
+                {% csrf_token %}
                 <div class="form-group">
-                    <label for="course_select">Course Name:</label>
-                    <select id="course_select" class="form-control" required>
+                    <label for="courseSelect">Course Name:</label>
+                    <select id="courseSelect" class="form-control" required>
                         <option value="">Select a course...</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label for="student_select">Student:</label>
-                    <select id="student_select" class="form-control" onchange="fillStudentId()" required>
+                    <label for="studentSelect">Student:</label>
+                    <select id="studentSelect" class="form-control" onchange="fillStudentId()" required>
                         <option value="">Select a student...</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label for="student_id">Student ID:</label>
-                    <input type="text" id="student_id" class="form-control" readonly>
+                    <label for="studentName">Student Name:</label>
+                    <input type="text" id="studentName" class="form-control" readonly>
                 </div>
                 <div class="form-group">
-                    <label for="student_name">Student Name:</label>
-                    <input type="text" id="student_name" class="form-control" readonly>
+                    <label for="studentId">Student ID:</label>
+                    <input type="text" id="studentId" class="form-control" readonly>
                 </div>
                 <div class="form-group">
-                    <label for="teacher_select">Teacher:</label>
-                    <select id="teacher_select" class="form-control" required>
+                    <label for="teacherSelect">Teacher:</label>
+                    <select id="teacherSelect" class="form-control" required>
                         <option value="">Select a teacher...</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label for="room_url">Room URL:</label>
-                    <input type="url" id="room_url" class="form-control" required placeholder="https://...">
+                    <label for="roomUrl">Room URL:</label>
+                    <input type="url" id="roomUrl" class="form-control" placeholder="https://..." required>
                 </div>
+                <input type="hidden" id="roomId">
             </form>
         </div>
         <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" onclick="closeRoomModal()">Cancel</button>
+            <button type="button" class="btn btn-secondary" onclick="closeModal('roomModal')">Cancel</button>
             <button type="button" class="btn btn-primary" onclick="saveRoom()">Save Room</button>
-        </div>
-    </div>
-</div>
-
-<!-- Confirmation Modal -->
-<div id="confirmModal" class="modal">
-    <div class="modal-content confirm-modal">
-        <div class="modal-header">
-            <h3>Confirm Action</h3>
-        </div>
-        <div class="modal-body">
-            <p id="confirmMessage">Are you sure you want to perform this action?</p>
-        </div>
-        <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" onclick="closeConfirmModal()">Cancel</button>
-            <button type="button" class="btn btn-danger" id="confirmActionBtn">Confirm</button>
         </div>
     </div>
 </div>
@@ -219,8 +196,11 @@
 <!-- Loading Spinner -->
 <div id="loadingSpinner" class="loading-spinner">
     <div class="spinner"></div>
-    <p>Loading...</p>
+    <p>Loading data...</p>
 </div>
+
+<!-- Toast Notifications -->
+<div id="toastContainer" class="toast-container"></div>
 {% endblock %}
 
 {% block extra_js %}
