@@ -8,8 +8,95 @@ let appData = {
 
 // DOM Ready
 document.addEventListener('DOMContentLoaded', function() {
+    initializeTabs();
+    initializeSearch();
     loadData();
 });
+
+// Initialize tabs functionality
+function initializeTabs() {
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    
+    tabBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const targetTab = this.getAttribute('data-tab');
+            
+            // Remove active class from all tabs and contents
+            document.querySelectorAll('.tab-btn').forEach(tb => tb.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
+            
+            // Add active class to current tab and content
+            this.classList.add('active');
+            document.getElementById(targetTab).classList.add('active');
+        });
+    });
+}
+
+// Initialize search functionality
+function initializeSearch() {
+    const teachersSearch = document.getElementById('teachersSearch');
+    const roomsSearch = document.getElementById('roomsSearch');
+    
+    if (teachersSearch) {
+        teachersSearch.addEventListener('input', function() {
+            filterTeachersTable(this.value.toLowerCase());
+        });
+    }
+    
+    if (roomsSearch) {
+        roomsSearch.addEventListener('input', function() {
+            filterRoomsTable(this.value.toLowerCase());
+        });
+    }
+}
+
+// Filter teachers table
+function filterTeachersTable(searchTerm) {
+    const tbody = document.getElementById('teachersTableBody');
+    const rows = tbody.getElementsByTagName('tr');
+    
+    for (let row of rows) {
+        if (row.classList.contains('no-data')) continue;
+        
+        const teacherId = row.cells[0].textContent.toLowerCase();
+        const teacherName = row.cells[1].textContent.toLowerCase();
+        const actions = row.cells[2].textContent.toLowerCase();
+        
+        const match = teacherId.includes(searchTerm) || 
+                     teacherName.includes(searchTerm) || 
+                     actions.includes(searchTerm);
+        
+        row.style.display = match ? '' : 'none';
+    }
+}
+
+// Filter rooms table
+function filterRoomsTable(searchTerm) {
+    const tbody = document.getElementById('roomsTableBody');
+    const rows = tbody.getElementsByTagName('tr');
+    
+    for (let row of rows) {
+        if (row.classList.contains('no-data')) continue;
+        
+        const roomId = row.cells[0].textContent.toLowerCase();
+        const courseName = row.cells[1].textContent.toLowerCase();
+        const studentName = row.cells[2].textContent.toLowerCase();
+        const teacher = row.cells[3].textContent.toLowerCase();
+        const roomUrl = row.cells[4].textContent.toLowerCase();
+        const createdAt = row.cells[5].textContent.toLowerCase();
+        const actions = row.cells[6].textContent.toLowerCase();
+        
+        const match = roomId.includes(searchTerm) || 
+                     courseName.includes(searchTerm) || 
+                     studentName.includes(searchTerm) || 
+                     teacher.includes(searchTerm) || 
+                     roomUrl.includes(searchTerm) || 
+                     createdAt.includes(searchTerm) || 
+                     actions.includes(searchTerm);
+        
+        row.style.display = match ? '' : 'none';
+    }
+}
 
 // Load all data
 async function loadData() {

@@ -70,45 +70,73 @@
         </button>
     </div>
 
-    <!-- Teachers Table -->
-    <div class="table-section">
-        <h2><i class="fas fa-chalkboard-teacher"></i> Teachers</h2>
-        <div class="table-container">
-            <table id="teachersTable" class="data-table">
-                <thead>
-                    <tr>
-                        <th>Teacher ID</th>
-                        <th>Teacher Name</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="teachersTableBody">
-                    <!-- Dynamic content -->
-                </tbody>
-            </table>
+    <!-- Tabs Navigation -->
+    <div class="tabs-container">
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="teachers-tab">
+                <i class="fas fa-chalkboard-teacher"></i> Teachers
+            </button>
+            <button class="tab-btn" data-tab="rooms-tab">
+                <i class="fas fa-door-open"></i> Live Course Rooms
+            </button>
         </div>
     </div>
 
-    <!-- Live Course Rooms Table -->
-    <div class="table-section">
-        <h2><i class="fas fa-door-open"></i> Live Course Rooms</h2>
-        <div class="table-container">
-            <table id="roomsTable" class="data-table">
-                <thead>
-                    <tr>
-                        <th>Room ID</th>
-                        <th>Course Name</th>
-                        <th>Student Name</th>
-                        <th>Teacher</th>
-                        <th>Room URL</th>
-                        <th>Created At</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="roomsTableBody">
-                    <!-- Dynamic content -->
-                </tbody>
-            </table>
+    <!-- Teachers Tab -->
+    <div id="teachers-tab" class="tab-content active">
+        <div class="table-section">
+            <div class="table-header">
+                <h2><i class="fas fa-chalkboard-teacher"></i> Teachers</h2>
+                <div class="search-box">
+                    <input type="text" id="teachersSearch" placeholder="Search teachers..." class="search-input">
+                    <i class="fas fa-search search-icon"></i>
+                </div>
+            </div>
+            <div class="table-container">
+                <table id="teachersTable" class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Teacher ID</th>
+                            <th>Teacher Name</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="teachersTableBody">
+                        <!-- Dynamic content -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Live Course Rooms Tab -->
+    <div id="rooms-tab" class="tab-content">
+        <div class="table-section">
+            <div class="table-header">
+                <h2><i class="fas fa-door-open"></i> Live Course Rooms</h2>
+                <div class="search-box">
+                    <input type="text" id="roomsSearch" placeholder="Search rooms..." class="search-input">
+                    <i class="fas fa-search search-icon"></i>
+                </div>
+            </div>
+            <div class="table-container">
+                <table id="roomsTable" class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Room ID</th>
+                            <th>Course Name</th>
+                            <th>Student Name</th>
+                            <th>Teacher</th>
+                            <th>Room URL</th>
+                            <th>Created At</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="roomsTableBody">
+                        <!-- Dynamic content -->
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 </div>
