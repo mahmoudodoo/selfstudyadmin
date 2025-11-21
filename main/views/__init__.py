@@ -5,3 +5,4 @@ from .selfstudyuserprofile import *
 from .selfstudyuserlab import *
 from .selfstudycourse import *
 from .selfstudylivecourse import *
+from .selfstudyexam import *

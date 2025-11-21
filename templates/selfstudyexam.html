@@ -1,15 +1,511 @@
 {% extends 'base.html' %}
-
-{% block title %}Exams{% endblock %}
-{% block page_title %}Exams Management{% endblock %}
+{% load static %}
+{% block title %}Exams Management{% endblock %}
+{% block page_title %}Exams & Quizzes Management{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="/static/css/selfstudyexam.css">
+<link rel="stylesheet" href="{% static 'css/selfstudyexam.css' %}">
 {% endblock %}
 
 {% block content %}
 <div class="page-content">
-    <h2>Exams Management</h2>
-    <p>Manage exams and assessment settings.</p>
+    <!-- Header Section -->
+    <div class="header-section">
+        <h1>Exams & Quizzes Management</h1>
+        <p>Manage exams, quizzes, questions, answers, and assessment settings across all domains</p>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon">📊</div>
+            <div class="stat-info">
+                <h3 id="exams-count">0</h3>
+                <p>Total Exams</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">📝</div>
+            <div class="stat-info">
+                <h3 id="quizzes-count">0</h3>
+                <p>Total Quizzes</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">❓</div>
+            <div class="stat-info">
+                <h3 id="questions-count">0</h3>
+                <p>Total Questions</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">🌐</div>
+            <div class="stat-info">
+                <h3 id="domains-count">Multiple</h3>
+                <p>Active Domains</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="action-buttons">
+        <button class="btn btn-primary" onclick="openCreateExamModal()">
+            <span class="btn-icon">➕</span> Create Exam
+        </button>
+        <button class="btn btn-secondary" onclick="openCreateQuizModal()">
+            <span class="btn-icon">📝</span> Create Quiz
+        </button>
+        <button class="btn btn-outline" onclick="refreshData()">
+            <span class="btn-icon">🔄</span> Refresh Data
+        </button>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs-container">
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('exams')">Exams</button>
+            <button class="tab-btn" onclick="switchTab('quizzes')">Quizzes</button>
+        </div>
+    </div>
+
+    <!-- Exams Table -->
+    <div id="exams-tab" class="tab-content active">
+        <div class="table-container">
+            <table id="exams-table" class="data-table">
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Course</th>
+                        <th>Duration</th>
+                        <th>Questions</th>
+                        <th>Date Added</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="exams-tbody">
+                    <!-- Data will be loaded via JavaScript -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Quizzes Table -->
+    <div id="quizzes-tab" class="tab-content">
+        <div class="table-container">
+            <table id="quizzes-table" class="data-table">
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Course</th>
+                        <th>Lesson</th>
+                        <th>Duration</th>
+                        <th>Questions</th>
+                        <th>Date Added</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="quizzes-tbody">
+                    <!-- Data will be loaded via JavaScript -->
+                </tbody>
+            </table>
+        </div>
+    </div>
 </div>
+
+<!-- Create/Edit Exam Modal -->
+<div id="exam-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="exam-modal-title">Create New Exam</h2>
+            <span class="close" onclick="closeExamModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form id="exam-form" class="modal-form">
+                <input type="hidden" id="exam-external-id">
+                
+                <div class="form-group">
+                    <label for="exam-title">Exam Title *</label>
+                    <input type="text" id="exam-title" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="exam-course">Course *</label>
+                    <select id="exam-course" required onchange="onCourseSelect('exam')">
+                        <option value="">Select a course</option>
+                        {% for course in courses %}
+                        <option value="{{ course.external_course_id }}" data-title="{{ course.title }}">
+                            {{ course.title }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="exam-course-id">Course ID *</label>
+                    <input type="text" id="exam-course-id" readonly required>
+                </div>
+
+                <div class="form-group">
+                    <label for="exam-duration">Duration (minutes) *</label>
+                    <input type="number" id="exam-duration" min="1" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="exam-instructions">Exam Instructions</label>
+                    <textarea id="exam-instructions" rows="4"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="exam-video-url">Video Instructions URL</label>
+                    <input type="url" id="exam-video-url">
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-outline" onclick="closeExamModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Exam</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Create/Edit Quiz Modal -->
+<div id="quiz-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="quiz-modal-title">Create New Quiz</h2>
+            <span class="close" onclick="closeQuizModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form id="quiz-form" class="modal-form">
+                <input type="hidden" id="quiz-external-id">
+                
+                <div class="form-group">
+                    <label for="quiz-title">Quiz Title *</label>
+                    <input type="text" id="quiz-title" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="quiz-course">Course *</label>
+                    <select id="quiz-course" required onchange="onCourseSelect('quiz')">
+                        <option value="">Select a course</option>
+                        {% for course in courses %}
+                        <option value="{{ course.external_course_id }}" data-title="{{ course.title }}">
+                            {{ course.title }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="quiz-course-id">Course ID *</label>
+                    <input type="text" id="quiz-course-id" readonly required>
+                </div>
+
+                <div class="form-group">
+                    <label for="quiz-lesson">Lesson *</label>
+                    <select id="quiz-lesson" required onchange="onLessonSelect()">
+                        <option value="">Select a lesson</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="quiz-lesson-id">Lesson ID *</label>
+                    <input type="text" id="quiz-lesson-id" readonly required>
+                </div>
+
+                <div class="form-group">
+                    <label for="quiz-duration">Duration (minutes) *</label>
+                    <input type="number" id="quiz-duration" min="1" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="quiz-description">Description</label>
+                    <textarea id="quiz-description" rows="4"></textarea>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-outline" onclick="closeQuizModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Quiz</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Exam Questions Management Modal -->
+<div id="exam-questions-modal" class="modal">
+    <div class="modal-content large-modal">
+        <div class="modal-header">
+            <h2 id="exam-questions-title">Manage Exam Questions</h2>
+            <span class="close" onclick="closeExamQuestionsModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div class="action-buttons">
+                <button class="btn btn-primary" onclick="openCreateExamQuestionModal()">
+                    <span class="btn-icon">➕</span> Add Question
+                </button>
+            </div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Question Text</th>
+                            <th>Score</th>
+                            <th>Answers</th>
+                            <th>Correct Answer</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="exam-questions-tbody">
+                        <!-- Questions will be loaded via JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quiz Questions Management Modal -->
+<div id="quiz-questions-modal" class="modal">
+    <div class="modal-content large-modal">
+        <div class="modal-header">
+            <h2 id="quiz-questions-title">Manage Quiz Questions</h2>
+            <span class="close" onclick="closeQuizQuestionsModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div class="action-buttons">
+                <button class="btn btn-primary" onclick="openCreateQuizQuestionModal()">
+                    <span class="btn-icon">➕</span> Add Question
+                </button>
+            </div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Question Text</th>
+                            <th>Score</th>
+                            <th>Answers</th>
+                            <th>Correct Answer</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="quiz-questions-tbody">
+                        <!-- Questions will be loaded via JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create/Edit Exam Question Modal -->
+<div id="exam-question-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="exam-question-modal-title">Create New Exam Question</h2>
+            <span class="close" onclick="closeExamQuestionModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form id="exam-question-form" class="modal-form">
+                <input type="hidden" id="exam-question-external-id">
+                <input type="hidden" id="exam-question-exam-id">
+                
+                <div class="form-group">
+                    <label for="exam-question-text">Question Text *</label>
+                    <textarea id="exam-question-text" rows="4" required placeholder="Enter the question text..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="exam-question-score">Score *</label>
+                    <input type="number" id="exam-question-score" min="1" value="1" required>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-outline" onclick="closeExamQuestionModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Question</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Create/Edit Quiz Question Modal -->
+<div id="quiz-question-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="quiz-question-modal-title">Create New Quiz Question</h2>
+            <span class="close" onclick="closeQuizQuestionModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form id="quiz-question-form" class="modal-form">
+                <input type="hidden" id="quiz-question-external-id">
+                <input type="hidden" id="quiz-question-quiz-id">
+                
+                <div class="form-group">
+                    <label for="quiz-question-text">Question Text *</label>
+                    <textarea id="quiz-question-text" rows="4" required placeholder="Enter the question text..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="quiz-question-score">Score *</label>
+                    <input type="number" id="quiz-question-score" min="1" value="1" required>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-outline" onclick="closeQuizQuestionModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Question</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Exam Answers Management Modal -->
+<div id="exam-answers-modal" class="modal">
+    <div class="modal-content large-modal">
+        <div class="modal-header">
+            <h2 id="exam-answers-title">Manage Exam Answers</h2>
+            <span class="close" onclick="closeExamAnswersModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div class="action-buttons">
+                <button class="btn btn-primary" onclick="openCreateExamAnswerModal()">
+                    <span class="btn-icon">➕</span> Add Answer
+                </button>
+            </div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Answer Text</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="exam-answers-tbody">
+                        <!-- Answers will be loaded via JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quiz Answers Management Modal -->
+<div id="quiz-answers-modal" class="modal">
+    <div class="modal-content large-modal">
+        <div class="modal-header">
+            <h2 id="quiz-answers-title">Manage Quiz Answers</h2>
+            <span class="close" onclick="closeQuizAnswersModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div class="action-buttons">
+                <button class="btn btn-primary" onclick="openCreateQuizAnswerModal()">
+                    <span class="btn-icon">➕</span> Add Answer
+                </button>
+            </div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Answer Text</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="quiz-answers-tbody">
+                        <!-- Answers will be loaded via JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create/Edit Exam Answer Modal -->
+<div id="exam-answer-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="exam-answer-modal-title">Create New Exam Answer</h2>
+            <span class="close" onclick="closeExamAnswerModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form id="exam-answer-form" class="modal-form">
+                <input type="hidden" id="exam-answer-external-id">
+                <input type="hidden" id="exam-answer-question-id">
+                
+                <div class="form-group">
+                    <label for="exam-answer-text">Answer Text *</label>
+                    <textarea id="exam-answer-text" rows="4" required placeholder="Enter the answer text..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="exam-answer-is-correct">
+                        <span class="checkmark"></span>
+                        This is the correct answer
+                    </label>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-outline" onclick="closeExamAnswerModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Answer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Create/Edit Quiz Answer Modal -->
+<div id="quiz-answer-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="quiz-answer-modal-title">Create New Quiz Answer</h2>
+            <span class="close" onclick="closeQuizAnswerModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form id="quiz-answer-form" class="modal-form">
+                <input type="hidden" id="quiz-answer-external-id">
+                <input type="hidden" id="quiz-answer-question-id">
+                
+                <div class="form-group">
+                    <label for="quiz-answer-text">Answer Text *</label>
+                    <textarea id="quiz-answer-text" rows="4" required placeholder="Enter the answer text..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="quiz-answer-is-correct">
+                        <span class="checkmark"></span>
+                        This is the correct answer
+                    </label>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-outline" onclick="closeQuizAnswerModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Answer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Overlay -->
+<div id="loading-overlay" class="loading-overlay">
+    <div class="loading-spinner"></div>
+    <p>Loading data...</p>
+</div>
+
+<!-- Toast Notifications -->
+<div id="toast-container" class="toast-container"></div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/selfstudyexam.js' %}"></script>
 {% endblock %}

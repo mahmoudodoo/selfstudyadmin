@@ -7,11 +7,6 @@ from django.utils.decorators import method_decorator
 
 
 @method_decorator(login_required, name='dispatch')
-class SelfStudyExamView(View):
-    def get(self, request):
-        return render(request, 'selfstudyexam.html')
-
-@method_decorator(login_required, name='dispatch')
 class SelfStudyCertificateView(View):
     def get(self, request):
         return render(request, 'selfstudycertificate.html')
