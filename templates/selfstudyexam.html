@@ -12,7 +12,7 @@
     <!-- Header Section -->
     <div class="header-section">
         <h1>Exams & Quizzes Management</h1>
-        <p>Manage exams, quizzes, questions, answers, and assessment settings across all domains</p>
+        <p>Manage exams, quizzes, questions, answers, appointments, and results across all domains</p>
     </div>
 
     <!-- Stats Cards -->
@@ -32,17 +32,17 @@
             </div>
         </div>
         <div class="stat-card">
-            <div class="stat-icon">❓</div>
+            <div class="stat-icon">📅</div>
             <div class="stat-info">
-                <h3 id="questions-count">0</h3>
-                <p>Total Questions</p>
+                <h3 id="appointments-count">0</h3>
+                <p>Exam Appointments</p>
             </div>
         </div>
         <div class="stat-card">
-            <div class="stat-icon">🌐</div>
+            <div class="stat-icon">🎯</div>
             <div class="stat-info">
-                <h3 id="domains-count">Multiple</h3>
-                <p>Active Domains</p>
+                <h3 id="results-count">0</h3>
+                <p>User Results</p>
             </div>
         </div>
     </div>
@@ -65,6 +65,9 @@
         <div class="tabs">
             <button class="tab-btn active" onclick="switchTab('exams')">Exams</button>
             <button class="tab-btn" onclick="switchTab('quizzes')">Quizzes</button>
+            <button class="tab-btn" onclick="switchTab('appointments')">Exam Appointments</button>
+            <button class="tab-btn" onclick="switchTab('exam-results')">Exam Results</button>
+            <button class="tab-btn" onclick="switchTab('quiz-results')">Quiz Results</button>
         </div>
     </div>
 
@@ -105,6 +108,70 @@
                     </tr>
                 </thead>
                 <tbody id="quizzes-tbody">
+                    <!-- Data will be loaded via JavaScript -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Exam Appointments Table -->
+    <div id="appointments-tab" class="tab-content">
+        <div class="table-container">
+            <table id="appointments-table" class="data-table">
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Exam</th>
+                        <th>Appointment Date</th>
+                        <th>Status</th>
+                        <th>Can Start</th>
+                        <th>Is Entered</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="appointments-tbody">
+                    <!-- Data will be loaded via JavaScript -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Exam Results Table -->
+    <div id="exam-results-tab" class="tab-content">
+        <div class="table-container">
+            <table id="exam-results-table" class="data-table">
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Exam</th>
+                        <th>Score</th>
+                        <th>Status</th>
+                        <th>Date Taken</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="exam-results-tbody">
+                    <!-- Data will be loaded via JavaScript -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Quiz Results Table -->
+    <div id="quiz-results-tab" class="tab-content">
+        <div class="table-container">
+            <table id="quiz-results-table" class="data-table">
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Quiz</th>
+                        <th>Score</th>
+                        <th>Status</th>
+                        <th>Date Taken</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="quiz-results-tbody">
                     <!-- Data will be loaded via JavaScript -->
                 </tbody>
             </table>
@@ -489,6 +556,136 @@
                 <div class="form-actions">
                     <button type="button" class="btn btn-outline" onclick="closeQuizAnswerModal()">Cancel</button>
                     <button type="submit" class="btn btn-primary">Save Answer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Exam Appointment Modal -->
+<div id="exam-appointment-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="exam-appointment-modal-title">Edit Exam Appointment</h2>
+            <span class="close" onclick="closeExamAppointmentModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form id="exam-appointment-form" class="modal-form">
+                <input type="hidden" id="exam-appointment-external-id">
+                
+                <div class="form-group">
+                    <label for="exam-appointment-status">Appointment Status *</label>
+                    <select id="exam-appointment-status" required>
+                        <option value="No Reservation Yet">No Reservation Yet</option>
+                        <option value="Scheduled">Scheduled</option>
+                        <option value="In Progress">In Progress</option>
+                        <option value="Completed">Completed</option>
+                        <option value="Taken but Failed">Taken but Failed</option>
+                        <option value="Cancelled">Cancelled</option>
+                        <option value="Expired">Expired</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="exam-appointment-can-start">
+                        <span class="checkmark"></span>
+                        Can Start Exam
+                    </label>
+                </div>
+
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="exam-appointment-is-entered">
+                        <span class="checkmark"></span>
+                        User Has Entered
+                    </label>
+                </div>
+
+                <div class="form-group">
+                    <label for="exam-appointment-proctor">Proctor ID</label>
+                    <input type="text" id="exam-appointment-proctor">
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-outline" onclick="closeExamAppointmentModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Appointment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Exam Result Modal -->
+<div id="exam-result-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="exam-result-modal-title">Edit Exam Result</h2>
+            <span class="close" onclick="closeExamResultModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form id="exam-result-form" class="modal-form">
+                <input type="hidden" id="exam-result-external-id">
+                
+                <div class="form-group">
+                    <label for="exam-result-score">Score *</label>
+                    <input type="number" id="exam-result-score" step="0.01" min="0" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="exam-result-status">Result Status *</label>
+                    <select id="exam-result-status" required>
+                        <option value="PASSED">PASSED</option>
+                        <option value="FAILED">FAILED</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="exam-result-message">Result Message</label>
+                    <textarea id="exam-result-message" rows="3" placeholder="Enter result message..."></textarea>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-outline" onclick="closeExamResultModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Result</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Quiz Result Modal -->
+<div id="quiz-result-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="quiz-result-modal-title">Edit Quiz Result</h2>
+            <span class="close" onclick="closeQuizResultModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form id="quiz-result-form" class="modal-form">
+                <input type="hidden" id="quiz-result-external-id">
+                
+                <div class="form-group">
+                    <label for="quiz-result-score">Score *</label>
+                    <input type="number" id="quiz-result-score" step="0.01" min="0" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="quiz-result-status">Result Status *</label>
+                    <select id="quiz-result-status" required>
+                        <option value="PASSED">PASSED</option>
+                        <option value="FAILED">FAILED</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="quiz-result-message">Result Message</label>
+                    <textarea id="quiz-result-message" rows="3" placeholder="Enter result message..."></textarea>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-outline" onclick="closeQuizResultModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Result</button>
                 </div>
             </form>
         </div>

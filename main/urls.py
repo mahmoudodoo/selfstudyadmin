@@ -23,10 +23,9 @@ urlpatterns = [
     path('selfstudylivecourse/', views.SelfStudyLiveCourseView.as_view(), name='selfstudylivecourse'),
     path('selfstudylivecourse/api/data/', views.LiveCourseDataView.as_view(), name='selfstudylivecourse_api_data'),
 
-    # Self Study Exam URLs
+    # Self Study Exam URLs - UPDATED
     path('selfstudyexam/', views.SelfStudyExamView.as_view(), name='selfstudyexam'),
     path('selfstudyexam/api/', views.SelfStudyExamAPIView.as_view(), name='selfstudyexam_api'),
-
 
     # Other Self Study URLs
     path('selfstudycertificate/', views.SelfStudyCertificateView.as_view(), name='selfstudycertificate'),

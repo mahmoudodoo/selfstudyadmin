@@ -1,9 +1,12 @@
-// SelfStudy Exam Management JavaScript
+// SelfStudy Exam Management JavaScript - OPTIMIZED VERSION
 class SelfStudyExamManager {
     constructor() {
         this.currentTab = 'exams';
         this.exams = [];
         this.quizzes = [];
+        this.appointments = [];
+        this.examResults = [];
+        this.quizResults = [];
         this.courses = [];
         this.lessons = {};
         this.examQuestions = {};
@@ -26,6 +29,9 @@ class SelfStudyExamManager {
         document.getElementById('quiz-question-form').addEventListener('submit', (e) => this.handleQuizQuestionSubmit(e));
         document.getElementById('exam-answer-form').addEventListener('submit', (e) => this.handleExamAnswerSubmit(e));
         document.getElementById('quiz-answer-form').addEventListener('submit', (e) => this.handleQuizAnswerSubmit(e));
+        document.getElementById('exam-appointment-form').addEventListener('submit', (e) => this.handleExamAppointmentSubmit(e));
+        document.getElementById('exam-result-form').addEventListener('submit', (e) => this.handleExamResultSubmit(e));
+        document.getElementById('quiz-result-form').addEventListener('submit', (e) => this.handleQuizResultSubmit(e));
         
         // Window events
         window.addEventListener('click', (e) => {
@@ -50,6 +56,31 @@ class SelfStudyExamManager {
         } catch (error) {
             console.error('Error loading data:', error);
             this.showToast('Error loading data: ' + error.message, 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    async loadTabData(tabName) {
+        this.showLoading();
+        
+        try {
+            switch(tabName) {
+                case 'appointments':
+                    await this.fetchExamAppointments();
+                    break;
+                case 'exam-results':
+                    await this.fetchUserExamResults();
+                    break;
+                case 'quiz-results':
+                    await this.fetchUserQuizResults();
+                    break;
+            }
+            this.updateTables();
+            this.updateStats();
+        } catch (error) {
+            console.error(`Error loading ${tabName} data:`, error);
+            this.showToast(`Error loading ${tabName} data: ` + error.message, 'error');
         } finally {
             this.hideLoading();
         }
@@ -81,6 +112,51 @@ class SelfStudyExamManager {
         } catch (error) {
             console.error('Error fetching quizzes:', error);
             this.quizzes = [];
+            throw error;
+        }
+    }
+
+    async fetchExamAppointments() {
+        try {
+            const response = await this.apiRequest('GET', { action: 'fetch_exam_appointments' });
+            if (response.success) {
+                this.appointments = response.appointments || [];
+            } else {
+                throw new Error(response.error || 'Failed to fetch exam appointments');
+            }
+        } catch (error) {
+            console.error('Error fetching exam appointments:', error);
+            this.appointments = [];
+            throw error;
+        }
+    }
+
+    async fetchUserExamResults() {
+        try {
+            const response = await this.apiRequest('GET', { action: 'fetch_user_exam_results' });
+            if (response.success) {
+                this.examResults = response.results || [];
+            } else {
+                throw new Error(response.error || 'Failed to fetch user exam results');
+            }
+        } catch (error) {
+            console.error('Error fetching user exam results:', error);
+            this.examResults = [];
+            throw error;
+        }
+    }
+
+    async fetchUserQuizResults() {
+        try {
+            const response = await this.apiRequest('GET', { action: 'fetch_user_quiz_results' });
+            if (response.success) {
+                this.quizResults = response.results || [];
+            } else {
+                throw new Error(response.error || 'Failed to fetch user quiz results');
+            }
+        } catch (error) {
+            console.error('Error fetching user quiz results:', error);
+            this.quizResults = [];
             throw error;
         }
     }
@@ -186,6 +262,9 @@ class SelfStudyExamManager {
     updateTables() {
         this.updateExamsTable();
         this.updateQuizzesTable();
+        this.updateAppointmentsTable();
+        this.updateExamResultsTable();
+        this.updateQuizResultsTable();
     }
 
     updateExamsTable() {
@@ -194,7 +273,7 @@ class SelfStudyExamManager {
         if (this.exams.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="7" class="empty-state">
+                    <td colspan="6" class="empty-state">
                         <div class="empty-icon">📊</div>
                         <p>No exams found</p>
                     </td>
@@ -231,7 +310,7 @@ class SelfStudyExamManager {
         if (this.quizzes.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="8" class="empty-state">
+                    <td colspan="7" class="empty-state">
                         <div class="empty-icon">📝</div>
                         <p>No quizzes found</p>
                     </td>
@@ -263,14 +342,105 @@ class SelfStudyExamManager {
         `).join('');
     }
 
+    updateAppointmentsTable() {
+        const tbody = document.getElementById('appointments-tbody');
+        
+        if (this.appointments.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="7" class="empty-state">
+                        <div class="empty-icon">📅</div>
+                        <p>No exam appointments found</p>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        tbody.innerHTML = this.appointments.map(appointment => `
+            <tr>
+                <td>${this.escapeHtml(appointment.username)}</td>
+                <td>${this.escapeHtml(appointment.exam_title || appointment.exam)}</td>
+                <td>${this.formatDate(appointment.appointment_date)}</td>
+                <td><span class="status-badge status-${appointment.appointment_status.toLowerCase().replace(' ', '-')}">${appointment.appointment_status}</span></td>
+                <td>${appointment.can_start ? '✅ Yes' : '❌ No'}</td>
+                <td>${appointment.is_entered ? '✅ Yes' : '❌ No'}</td>
+                <td class="table-actions">
+                    <button class="btn btn-edit" onclick="examManager.editExamAppointment('${appointment.external_id}')">
+                        ✏️ Edit
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    updateExamResultsTable() {
+        const tbody = document.getElementById('exam-results-tbody');
+        
+        if (this.examResults.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="empty-state">
+                        <div class="empty-icon">🎯</div>
+                        <p>No exam results found</p>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        tbody.innerHTML = this.examResults.map(result => `
+            <tr>
+                <td>${this.escapeHtml(result.username)}</td>
+                <td>${this.escapeHtml(result.exam_title || result.exam)}</td>
+                <td>${result.score}</td>
+                <td><span class="status-badge status-${result.result_status.toLowerCase()}">${result.result_status}</span></td>
+                <td>${this.formatDate(result.date_taken)}</td>
+                <td class="table-actions">
+                    <button class="btn btn-edit" onclick="examManager.editExamResult('${result.external_id}')">
+                        ✏️ Edit
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    updateQuizResultsTable() {
+        const tbody = document.getElementById('quiz-results-tbody');
+        
+        if (this.quizResults.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="empty-state">
+                        <div class="empty-icon">🎯</div>
+                        <p>No quiz results found</p>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        tbody.innerHTML = this.quizResults.map(result => `
+            <tr>
+                <td>${this.escapeHtml(result.username)}</td>
+                <td>${this.escapeHtml(result.quiz_title || result.quiz)}</td>
+                <td>${result.score}</td>
+                <td><span class="status-badge status-${result.result_status.toLowerCase()}">${result.result_status}</span></td>
+                <td>${this.formatDate(result.date_taken)}</td>
+                <td class="table-actions">
+                    <button class="btn btn-edit" onclick="examManager.editQuizResult('${result.external_id}')">
+                        ✏️ Edit
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
     updateStats() {
         document.getElementById('exams-count').textContent = this.exams.length;
         document.getElementById('quizzes-count').textContent = this.quizzes.length;
-        
-        // Calculate total questions
-        const totalExamQuestions = this.exams.reduce((total, exam) => total + (exam.questions ? exam.questions.length : 0), 0);
-        const totalQuizQuestions = this.quizzes.reduce((total, quiz) => total + (quiz.questions ? quiz.questions.length : 0), 0);
-        document.getElementById('questions-count').textContent = totalExamQuestions + totalQuizQuestions;
+        document.getElementById('appointments-count').textContent = this.appointments.length;
+        document.getElementById('results-count').textContent = this.examResults.length + this.quizResults.length;
     }
 
     // Exam Methods
@@ -797,6 +967,138 @@ class SelfStudyExamManager {
         this.showModal('quiz-answer-modal');
     }
 
+    // New Methods for Appointments and Results
+    async editExamAppointment(externalId) {
+        const appointment = this.appointments.find(a => a.external_id === externalId);
+        if (!appointment) return;
+
+        document.getElementById('exam-appointment-modal-title').textContent = 'Edit Exam Appointment';
+        document.getElementById('exam-appointment-external-id').value = appointment.external_id;
+        document.getElementById('exam-appointment-status').value = appointment.appointment_status;
+        document.getElementById('exam-appointment-can-start').checked = appointment.can_start;
+        document.getElementById('exam-appointment-is-entered').checked = appointment.is_entered;
+        document.getElementById('exam-appointment-proctor').value = appointment.proctor_id || '';
+        
+        this.showModal('exam-appointment-modal');
+    }
+
+    async editExamResult(externalId) {
+        const result = this.examResults.find(r => r.external_id === externalId);
+        if (!result) return;
+
+        document.getElementById('exam-result-modal-title').textContent = 'Edit Exam Result';
+        document.getElementById('exam-result-external-id').value = result.external_id;
+        document.getElementById('exam-result-score').value = result.score;
+        document.getElementById('exam-result-status').value = result.result_status;
+        document.getElementById('exam-result-message').value = result.result_message || '';
+        
+        this.showModal('exam-result-modal');
+    }
+
+    async editQuizResult(externalId) {
+        const result = this.quizResults.find(r => r.external_id === externalId);
+        if (!result) return;
+
+        document.getElementById('quiz-result-modal-title').textContent = 'Edit Quiz Result';
+        document.getElementById('quiz-result-external-id').value = result.external_id;
+        document.getElementById('quiz-result-score').value = result.score;
+        document.getElementById('quiz-result-status').value = result.result_status;
+        document.getElementById('quiz-result-message').value = result.result_message || '';
+        
+        this.showModal('quiz-result-modal');
+    }
+
+    async handleExamAppointmentSubmit(e) {
+        e.preventDefault();
+        
+        const formData = {
+            action: 'update_exam_appointment',
+            external_id: document.getElementById('exam-appointment-external-id').value,
+            appointment_status: document.getElementById('exam-appointment-status').value,
+            can_start: document.getElementById('exam-appointment-can-start').checked,
+            is_entered: document.getElementById('exam-appointment-is-entered').checked,
+            proctor_id: document.getElementById('exam-appointment-proctor').value
+        };
+
+        this.showLoading();
+        
+        try {
+            const response = await this.apiRequest('POST', formData);
+            
+            if (response.success) {
+                this.showToast('Exam appointment updated successfully!', 'success');
+                this.closeExamAppointmentModal();
+                await this.loadTabData('appointments');
+            } else {
+                throw new Error(response.error || 'Failed to update exam appointment');
+            }
+        } catch (error) {
+            this.showToast('Error updating exam appointment: ' + error.message, 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    async handleExamResultSubmit(e) {
+        e.preventDefault();
+        
+        const formData = {
+            action: 'update_user_exam_result',
+            external_id: document.getElementById('exam-result-external-id').value,
+            score: parseFloat(document.getElementById('exam-result-score').value),
+            result_status: document.getElementById('exam-result-status').value,
+            result_message: document.getElementById('exam-result-message').value
+        };
+
+        this.showLoading();
+        
+        try {
+            const response = await this.apiRequest('POST', formData);
+            
+            if (response.success) {
+                this.showToast('Exam result updated successfully!', 'success');
+                this.closeExamResultModal();
+                await this.loadTabData('exam-results');
+            } else {
+                throw new Error(response.error || 'Failed to update exam result');
+            }
+        } catch (error) {
+            this.showToast('Error updating exam result: ' + error.message, 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    async handleQuizResultSubmit(e) {
+        e.preventDefault();
+        
+        const formData = {
+            action: 'update_user_quiz_result',
+            external_id: document.getElementById('quiz-result-external-id').value,
+            score: parseFloat(document.getElementById('quiz-result-score').value),
+            result_status: document.getElementById('quiz-result-status').value,
+            result_message: document.getElementById('quiz-result-message').value
+        };
+
+        this.showLoading();
+        
+        try {
+            const response = await this.apiRequest('POST', formData);
+            
+            if (response.success) {
+                this.showToast('Quiz result updated successfully!', 'success');
+                this.closeQuizResultModal();
+                await this.loadTabData('quiz-results');
+            } else {
+                throw new Error(response.error || 'Failed to update quiz result');
+            }
+        } catch (error) {
+            this.showToast('Error updating quiz result: ' + error.message, 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
     async handleExamQuestionSubmit(e) {
         e.preventDefault();
         
@@ -1133,6 +1435,9 @@ class SelfStudyExamManager {
         this.closeQuizAnswersModal();
         this.closeExamAnswerModal();
         this.closeQuizAnswerModal();
+        this.closeExamAppointmentModal();
+        this.closeExamResultModal();
+        this.closeQuizResultModal();
     }
 
     closeExamModal() {
@@ -1182,6 +1487,21 @@ class SelfStudyExamManager {
 
     closeQuizAnswerModal() {
         document.getElementById('quiz-answer-modal').style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+
+    closeExamAppointmentModal() {
+        document.getElementById('exam-appointment-modal').style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+
+    closeExamResultModal() {
+        document.getElementById('exam-result-modal').style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+
+    closeQuizResultModal() {
+        document.getElementById('quiz-result-modal').style.display = 'none';
         document.body.style.overflow = 'auto';
     }
 
@@ -1246,7 +1566,15 @@ function switchTab(tabName) {
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.classList.remove('active');
     });
-    document.querySelector(`.tab-btn:nth-child(${tabName === 'exams' ? 1 : 2})`).classList.add('active');
+    
+    // Find and activate the clicked tab
+    const tabs = document.querySelectorAll('.tab-btn');
+    for (let i = 0; i < tabs.length; i++) {
+        if (tabs[i].textContent.toLowerCase().includes(tabName.toLowerCase())) {
+            tabs[i].classList.add('active');
+            break;
+        }
+    }
     
     // Update tab content
     document.querySelectorAll('.tab-content').forEach(content => {
@@ -1255,7 +1583,7 @@ function switchTab(tabName) {
     document.getElementById(`${tabName}-tab`).classList.add('active');
     
     examManager.currentTab = tabName;
-    examManager.updateStats();
+    examManager.loadTabData(tabName);
 }
 
 function openCreateExamModal() {
@@ -1320,6 +1648,18 @@ function closeExamAnswerModal() {
 
 function closeQuizAnswerModal() {
     examManager.closeQuizAnswerModal();
+}
+
+function closeExamAppointmentModal() {
+    examManager.closeExamAppointmentModal();
+}
+
+function closeExamResultModal() {
+    examManager.closeExamResultModal();
+}
+
+function closeQuizResultModal() {
+    examManager.closeQuizResultModal();
 }
 
 function onCourseSelect(type) {
