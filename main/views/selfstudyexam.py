@@ -183,7 +183,7 @@ class SelfStudyExamView(View):
 @method_decorator(csrf_exempt, name='dispatch')
 @method_decorator(login_required, name='dispatch')
 class SelfStudyExamAPIView(View):
-    """API endpoints for exam CRUD operations - COMPLETELY FIXED VERSION"""
+    """API endpoints for exam CRUD operations - COMPLETELY FIXED SYNC VERSION"""
     
     def get(self, request, *args, **kwargs):
         """Fetch exams from dynamic domains"""
@@ -223,7 +223,7 @@ class SelfStudyExamAPIView(View):
             return JsonResponse({'error': str(e)}, status=500)
 
     def post(self, request, *args, **kwargs):
-        """Create or update exam/quiz data - COMPLETELY FIXED"""
+        """Create or update exam/quiz data - FIXED SYNC"""
         try:
             data = json.loads(request.body)
             action = data.get('action')
@@ -242,7 +242,7 @@ class SelfStudyExamAPIView(View):
             elif action == 'delete_quiz':
                 return self.delete_quiz(data)
             
-            # Question operations - USE REGULAR ENDPOINTS
+            # Question operations
             elif action == 'create_exam_question':
                 return self.create_exam_question_direct(data)
             elif action == 'update_exam_question':
@@ -256,7 +256,7 @@ class SelfStudyExamAPIView(View):
             elif action == 'delete_quiz_question':
                 return self.delete_quiz_question_direct(data)
             
-            # Answer operations - FIXED VERSION
+            # Answer operations
             elif action == 'create_exam_answer':
                 return self.create_exam_answer_fixed(data)
             elif action == 'update_exam_answer':
@@ -270,13 +270,13 @@ class SelfStudyExamAPIView(View):
             elif action == 'delete_quiz_answer':
                 return self.delete_quiz_answer_fixed(data)
             
-            # New operations for appointments and results
+            # FIXED: Sync update operations - USE REGULAR ENDPOINTS WITH SYNC
             elif action == 'update_exam_appointment':
-                return self.update_exam_appointment(data)
+                return self.update_exam_appointment_complete(data)
             elif action == 'update_user_exam_result':
-                return self.update_user_exam_result(data)
+                return self.update_user_exam_result_complete(data)
             elif action == 'update_user_quiz_result':
-                return self.update_user_quiz_result(data)
+                return self.update_user_quiz_result_complete(data)
             else:
                 return JsonResponse({'error': 'Invalid action'}, status=400)
                 
@@ -745,9 +745,9 @@ class SelfStudyExamAPIView(View):
             logger.error(f"Error deleting quiz: {str(e)}")
             return JsonResponse({'error': str(e)}, status=500)
 
-    # FIXED: Question operations - USE REGULAR ENDPOINTS
+    # FIXED: Question operations
     def create_exam_question_direct(self, data):
-        """Create a new exam question - USE REGULAR ENDPOINT"""
+        """Create a new exam question"""
         try:
             AUTH_TOKEN = os.getenv('AUTH_TOKEN')
             domain = self.get_single_domain()
@@ -759,7 +759,6 @@ class SelfStudyExamAPIView(View):
             if not data.get('external_id'):
                 data['external_id'] = str(uuid.uuid4())
             
-            # Use the regular endpoint (NOT sync)
             url = f"{domain}/exam-questions/"
             headers = {
                 'Authorization': f'Token {AUTH_TOKEN}',
@@ -788,7 +787,7 @@ class SelfStudyExamAPIView(View):
             return JsonResponse({'error': str(e)}, status=500)
 
     def update_exam_question_direct(self, data):
-        """Update an existing exam question - USE REGULAR ENDPOINT"""
+        """Update an existing exam question"""
         try:
             AUTH_TOKEN = os.getenv('AUTH_TOKEN')
             domain = self.get_single_domain()
@@ -797,7 +796,6 @@ class SelfStudyExamAPIView(View):
             if not domain or not external_id:
                 return JsonResponse({'error': 'Missing domain or external_id'}, status=400)
             
-            # Use the regular endpoint (NOT sync)
             url = f"{domain}/exam-questions/{external_id}/"
             headers = {
                 'Authorization': f'Token {AUTH_TOKEN}',
@@ -826,7 +824,7 @@ class SelfStudyExamAPIView(View):
             return JsonResponse({'error': str(e)}, status=500)
 
     def delete_exam_question_direct(self, data):
-        """Delete an exam question - USE REGULAR ENDPOINT"""
+        """Delete an exam question"""
         try:
             AUTH_TOKEN = os.getenv('AUTH_TOKEN')
             domain = self.get_single_domain()
@@ -835,7 +833,6 @@ class SelfStudyExamAPIView(View):
             if not domain or not external_id:
                 return JsonResponse({'error': 'Missing domain or external_id'}, status=400)
             
-            # Use the regular endpoint (NOT sync)
             url = f"{domain}/exam-questions/{external_id}/"
             headers = {'Authorization': f'Token {AUTH_TOKEN}'}
             
@@ -861,7 +858,7 @@ class SelfStudyExamAPIView(View):
             return JsonResponse({'error': str(e)}, status=500)
 
     def create_quiz_question_direct(self, data):
-        """Create a new quiz question - USE REGULAR ENDPOINT"""
+        """Create a new quiz question"""
         try:
             AUTH_TOKEN = os.getenv('AUTH_TOKEN')
             domain = self.get_single_domain()
@@ -873,7 +870,6 @@ class SelfStudyExamAPIView(View):
             if not data.get('external_id'):
                 data['external_id'] = str(uuid.uuid4())
             
-            # Use the regular endpoint (NOT sync)
             url = f"{domain}/quiz-questions/"
             headers = {
                 'Authorization': f'Token {AUTH_TOKEN}',
@@ -902,7 +898,7 @@ class SelfStudyExamAPIView(View):
             return JsonResponse({'error': str(e)}, status=500)
 
     def update_quiz_question_direct(self, data):
-        """Update an existing quiz question - USE REGULAR ENDPOINT"""
+        """Update an existing quiz question"""
         try:
             AUTH_TOKEN = os.getenv('AUTH_TOKEN')
             domain = self.get_single_domain()
@@ -911,7 +907,6 @@ class SelfStudyExamAPIView(View):
             if not domain or not external_id:
                 return JsonResponse({'error': 'Missing domain or external_id'}, status=400)
             
-            # Use the regular endpoint (NOT sync)
             url = f"{domain}/quiz-questions/{external_id}/"
             headers = {
                 'Authorization': f'Token {AUTH_TOKEN}',
@@ -940,7 +935,7 @@ class SelfStudyExamAPIView(View):
             return JsonResponse({'error': str(e)}, status=500)
 
     def delete_quiz_question_direct(self, data):
-        """Delete a quiz question - USE REGULAR ENDPOINT"""
+        """Delete a quiz question"""
         try:
             AUTH_TOKEN = os.getenv('AUTH_TOKEN')
             domain = self.get_single_domain()
@@ -949,7 +944,6 @@ class SelfStudyExamAPIView(View):
             if not domain or not external_id:
                 return JsonResponse({'error': 'Missing domain or external_id'}, status=400)
             
-            # Use the regular endpoint (NOT sync)
             url = f"{domain}/quiz-questions/{external_id}/"
             headers = {'Authorization': f'Token {AUTH_TOKEN}'}
             
@@ -974,9 +968,9 @@ class SelfStudyExamAPIView(View):
             logger.error(f"Error deleting quiz question: {str(e)}")
             return JsonResponse({'error': str(e)}, status=500)
 
-    # FIXED: Answer operations - COMPLETELY REWRITTEN
+    # FIXED: Answer operations
     def create_exam_answer_fixed(self, data):
-        """Create a new exam answer - COMPLETELY FIXED"""
+        """Create a new exam answer"""
         try:
             AUTH_TOKEN = os.getenv('AUTH_TOKEN')
             domain = self.get_single_domain()
@@ -993,17 +987,15 @@ class SelfStudyExamAPIView(View):
             if not question_external_id:
                 return JsonResponse({'error': 'Question external_id is required'}, status=400)
             
-            # Use the regular endpoint with proper data structure
             url = f"{domain}/exam-answers/"
             headers = {
                 'Authorization': f'Token {AUTH_TOKEN}',
                 'Content-Type': 'application/json'
             }
             
-            # Prepare the payload with the question external_id
             payload = {
                 'external_id': data.get('external_id'),
-                'exam_question': question_external_id,  # This should be the UUID external_id
+                'exam_question': question_external_id,
                 'text': data.get('text'),
                 'is_correct': data.get('is_correct', False)
             }
@@ -1030,7 +1022,7 @@ class SelfStudyExamAPIView(View):
             return JsonResponse({'error': str(e)}, status=500)
 
     def update_exam_answer_fixed(self, data):
-        """Update an existing exam answer - FIXED VERSION"""
+        """Update an existing exam answer"""
         try:
             AUTH_TOKEN = os.getenv('AUTH_TOKEN')
             domain = self.get_single_domain()
@@ -1039,22 +1031,19 @@ class SelfStudyExamAPIView(View):
             if not domain or not external_id:
                 return JsonResponse({'error': 'Missing domain or external_id'}, status=400)
             
-            # Get the actual question external_id from the hidden field
             question_external_id = data.get('exam_question')
             if not question_external_id:
                 return JsonResponse({'error': 'Question external_id is required'}, status=400)
             
-            # Use the regular endpoint with ALL required fields
             url = f"{domain}/exam-answers/{external_id}/"
             headers = {
                 'Authorization': f'Token {AUTH_TOKEN}',
                 'Content-Type': 'application/json'
             }
             
-            # Prepare the payload with ALL required fields
             payload = {
-                'external_id': external_id,  # Required field
-                'exam_question': question_external_id,  # Required field
+                'external_id': external_id,
+                'exam_question': question_external_id,
                 'text': data.get('text'),
                 'is_correct': data.get('is_correct', False)
             }
@@ -1081,7 +1070,7 @@ class SelfStudyExamAPIView(View):
             return JsonResponse({'error': str(e)}, status=500)
 
     def delete_exam_answer_fixed(self, data):
-        """Delete an exam answer - COMPLETELY FIXED"""
+        """Delete an exam answer"""
         try:
             AUTH_TOKEN = os.getenv('AUTH_TOKEN')
             domain = self.get_single_domain()
@@ -1090,7 +1079,6 @@ class SelfStudyExamAPIView(View):
             if not domain or not external_id:
                 return JsonResponse({'error': 'Missing domain or external_id'}, status=400)
             
-            # Use the regular endpoint
             url = f"{domain}/exam-answers/{external_id}/"
             headers = {'Authorization': f'Token {AUTH_TOKEN}'}
             
@@ -1116,7 +1104,7 @@ class SelfStudyExamAPIView(View):
             return JsonResponse({'error': str(e)}, status=500)
 
     def create_quiz_answer_fixed(self, data):
-        """Create a new quiz answer - COMPLETELY FIXED"""
+        """Create a new quiz answer"""
         try:
             AUTH_TOKEN = os.getenv('AUTH_TOKEN')
             domain = self.get_single_domain()
@@ -1128,22 +1116,19 @@ class SelfStudyExamAPIView(View):
             if not data.get('external_id'):
                 data['external_id'] = str(uuid.uuid4())
             
-            # Get the actual question external_id from the hidden field
             question_external_id = data.get('quiz_question')
             if not question_external_id:
                 return JsonResponse({'error': 'Question external_id is required'}, status=400)
             
-            # Use the regular endpoint with proper data structure
             url = f"{domain}/quiz-answers/"
             headers = {
                 'Authorization': f'Token {AUTH_TOKEN}',
                 'Content-Type': 'application/json'
             }
             
-            # Prepare the payload with the question external_id
             payload = {
                 'external_id': data.get('external_id'),
-                'quiz_question': question_external_id,  # This should be the UUID external_id
+                'quiz_question': question_external_id,
                 'text': data.get('text'),
                 'is_correct': data.get('is_correct', False)
             }
@@ -1170,7 +1155,7 @@ class SelfStudyExamAPIView(View):
             return JsonResponse({'error': str(e)}, status=500)
 
     def update_quiz_answer_fixed(self, data):
-        """Update an existing quiz answer - FIXED VERSION"""
+        """Update an existing quiz answer"""
         try:
             AUTH_TOKEN = os.getenv('AUTH_TOKEN')
             domain = self.get_single_domain()
@@ -1179,22 +1164,19 @@ class SelfStudyExamAPIView(View):
             if not domain or not external_id:
                 return JsonResponse({'error': 'Missing domain or external_id'}, status=400)
             
-            # Get the actual question external_id from the hidden field
             question_external_id = data.get('quiz_question')
             if not question_external_id:
                 return JsonResponse({'error': 'Question external_id is required'}, status=400)
             
-            # Use the regular endpoint with ALL required fields
             url = f"{domain}/quiz-answers/{external_id}/"
             headers = {
                 'Authorization': f'Token {AUTH_TOKEN}',
                 'Content-Type': 'application/json'
             }
             
-            # Prepare the payload with ALL required fields
             payload = {
-                'external_id': external_id,  # Required field
-                'quiz_question': question_external_id,  # Required field
+                'external_id': external_id,
+                'quiz_question': question_external_id,
                 'text': data.get('text'),
                 'is_correct': data.get('is_correct', False)
             }
@@ -1221,7 +1203,7 @@ class SelfStudyExamAPIView(View):
             return JsonResponse({'error': str(e)}, status=500)
 
     def delete_quiz_answer_fixed(self, data):
-        """Delete a quiz answer - COMPLETELY FIXED"""
+        """Delete a quiz answer"""
         try:
             AUTH_TOKEN = os.getenv('AUTH_TOKEN')
             domain = self.get_single_domain()
@@ -1230,7 +1212,6 @@ class SelfStudyExamAPIView(View):
             if not domain or not external_id:
                 return JsonResponse({'error': 'Missing domain or external_id'}, status=400)
             
-            # Use the regular endpoint
             url = f"{domain}/quiz-answers/{external_id}/"
             headers = {'Authorization': f'Token {AUTH_TOKEN}'}
             
@@ -1255,9 +1236,9 @@ class SelfStudyExamAPIView(View):
             logger.error(f"Error deleting quiz answer: {str(e)}")
             return JsonResponse({'error': str(e)}, status=500)
 
-    # FIXED: Exam appointment update method
-    def update_exam_appointment(self, data):
-        """Update an exam appointment - COMPLETELY FIXED"""
+    # COMPLETELY FIXED: Sync update operations - USE REGULAR ENDPOINTS
+    def update_exam_appointment_complete(self, data):
+        """Update an exam appointment - USE REGULAR ENDPOINT FOR SYNC"""
         try:
             AUTH_TOKEN = os.getenv('AUTH_TOKEN')
             domain = self.get_single_domain()
@@ -1266,7 +1247,14 @@ class SelfStudyExamAPIView(View):
             if not domain or not external_id:
                 return JsonResponse({'error': 'Missing domain or external_id'}, status=400)
             
-            # Use the sync endpoint which handles foreign key conversion
+            # Use the regular endpoint (NOT sync) - the sync will be handled by the selfstudyexam app
+            url = f"{domain}/exam-appointments/{external_id}/"
+            headers = {
+                'Authorization': f'Token {AUTH_TOKEN}',
+                'Content-Type': 'application/json'
+            }
+            
+            # Prepare complete payload
             payload = {
                 'appointment_status': data.get('appointment_status'),
                 'can_start': data.get('can_start', False),
@@ -1276,17 +1264,10 @@ class SelfStudyExamAPIView(View):
             
             # Remove empty proctor_id if not provided
             if not payload['proctor_id']:
-                del payload['proctor_id']
-            
-            # Use the sync endpoint for better foreign key handling
-            url = f"{domain}/sync/exam-appointments/{external_id}/"
-            headers = {
-                'Authorization': f'Token {AUTH_TOKEN}',
-                'Content-Type': 'application/json'
-            }
+                payload.pop('proctor_id', None)
             
             logger.info(f"Updating exam appointment with payload: {payload}")
-            response = requests.put(url, json=payload, headers=headers, timeout=10)
+            response = requests.patch(url, json=payload, headers=headers, timeout=10)
             
             if response.status_code in [200, 201]:
                 return JsonResponse({
@@ -1306,9 +1287,8 @@ class SelfStudyExamAPIView(View):
             logger.error(f"Error updating exam appointment: {str(e)}")
             return JsonResponse({'error': str(e)}, status=500)
 
-    # FIXED: User result update methods
-    def update_user_exam_result(self, data):
-        """Update a user exam result - COMPLETELY FIXED"""
+    def update_user_exam_result_complete(self, data):
+        """Update a user exam result - USE REGULAR ENDPOINT FOR SYNC"""
         try:
             AUTH_TOKEN = os.getenv('AUTH_TOKEN')
             domain = self.get_single_domain()
@@ -1317,7 +1297,14 @@ class SelfStudyExamAPIView(View):
             if not domain or not external_id:
                 return JsonResponse({'error': 'Missing domain or external_id'}, status=400)
             
-            # Use the sync endpoint which handles foreign key conversion
+            # Use the regular endpoint (NOT sync) - the sync will be handled by the selfstudyexam app
+            url = f"{domain}/user-exam-results/{external_id}/"
+            headers = {
+                'Authorization': f'Token {AUTH_TOKEN}',
+                'Content-Type': 'application/json'
+            }
+            
+            # Prepare complete payload
             payload = {
                 'score': data.get('score'),
                 'result_status': data.get('result_status'),
@@ -1326,17 +1313,10 @@ class SelfStudyExamAPIView(View):
             
             # Remove empty result_message if not provided
             if not payload['result_message']:
-                del payload['result_message']
-            
-            # Use the sync endpoint for better foreign key handling
-            url = f"{domain}/sync/user-exam-results/{external_id}/"
-            headers = {
-                'Authorization': f'Token {AUTH_TOKEN}',
-                'Content-Type': 'application/json'
-            }
+                payload.pop('result_message', None)
             
             logger.info(f"Updating user exam result with payload: {payload}")
-            response = requests.put(url, json=payload, headers=headers, timeout=10)
+            response = requests.patch(url, json=payload, headers=headers, timeout=10)
             
             if response.status_code in [200, 201]:
                 return JsonResponse({
@@ -1356,8 +1336,8 @@ class SelfStudyExamAPIView(View):
             logger.error(f"Error updating user exam result: {str(e)}")
             return JsonResponse({'error': str(e)}, status=500)
 
-    def update_user_quiz_result(self, data):
-        """Update a user quiz result - COMPLETELY FIXED"""
+    def update_user_quiz_result_complete(self, data):
+        """Update a user quiz result - USE REGULAR ENDPOINT FOR SYNC"""
         try:
             AUTH_TOKEN = os.getenv('AUTH_TOKEN')
             domain = self.get_single_domain()
@@ -1366,7 +1346,14 @@ class SelfStudyExamAPIView(View):
             if not domain or not external_id:
                 return JsonResponse({'error': 'Missing domain or external_id'}, status=400)
             
-            # Use the sync endpoint which handles foreign key conversion
+            # Use the regular endpoint (NOT sync) - the sync will be handled by the selfstudyexam app
+            url = f"{domain}/user-quiz-results/{external_id}/"
+            headers = {
+                'Authorization': f'Token {AUTH_TOKEN}',
+                'Content-Type': 'application/json'
+            }
+            
+            # Prepare complete payload
             payload = {
                 'score': data.get('score'),
                 'result_status': data.get('result_status'),
@@ -1375,17 +1362,10 @@ class SelfStudyExamAPIView(View):
             
             # Remove empty result_message if not provided
             if not payload['result_message']:
-                del payload['result_message']
-            
-            # Use the sync endpoint for better foreign key handling
-            url = f"{domain}/sync/user-quiz-results/{external_id}/"
-            headers = {
-                'Authorization': f'Token {AUTH_TOKEN}',
-                'Content-Type': 'application/json'
-            }
+                payload.pop('result_message', None)
             
             logger.info(f"Updating user quiz result with payload: {payload}")
-            response = requests.put(url, json=payload, headers=headers, timeout=10)
+            response = requests.patch(url, json=payload, headers=headers, timeout=10)
             
             if response.status_code in [200, 201]:
                 return JsonResponse({
