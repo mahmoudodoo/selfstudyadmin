@@ -265,6 +265,7 @@ class SelfStudyExamManager {
         this.updateAppointmentsTable();
         this.updateExamResultsTable();
         this.updateQuizResultsTable();
+        this.updateStatusBadges(); 
     }
 
     updateExamsTable() {
@@ -1558,6 +1559,27 @@ class SelfStudyExamManager {
             return dateString;
         }
     }
+
+
+    updateStatusBadges() {
+    // Apply status badge classes to all status elements
+    document.querySelectorAll('.status-badge').forEach(badge => {
+        const status = badge.textContent.toLowerCase();
+        if (status.includes('passed')) {
+            badge.className = 'status-badge status-passed';
+        } else if (status.includes('failed')) {
+            badge.className = 'status-badge status-failed';
+        } else if (status.includes('scheduled')) {
+            badge.className = 'status-badge status-scheduled';
+        } else if (status.includes('in progress')) {
+            badge.className = 'status-badge status-in-progress';
+        } else if (status.includes('completed')) {
+            badge.className = 'status-badge status-completed';
+        } else if (status.includes('cancelled')) {
+            badge.className = 'status-badge status-cancelled';
+        }
+    });
+}
 }
 
 // Global functions for HTML onclick handlers
@@ -1567,20 +1589,22 @@ function switchTab(tabName) {
         btn.classList.remove('active');
     });
     
-    // Find and activate the clicked tab
-    const tabs = document.querySelectorAll('.tab-btn');
-    for (let i = 0; i < tabs.length; i++) {
-        if (tabs[i].textContent.toLowerCase().includes(tabName.toLowerCase())) {
-            tabs[i].classList.add('active');
-            break;
-        }
-    }
-    
     // Update tab content
     document.querySelectorAll('.tab-content').forEach(content => {
         content.classList.remove('active');
     });
-    document.getElementById(`${tabName}-tab`).classList.add('active');
+    
+    // Activate the clicked tab button
+    const activeTabBtn = document.querySelector(`.tab-btn[data-tab="${tabName}"]`);
+    if (activeTabBtn) {
+        activeTabBtn.classList.add('active');
+    }
+    
+    // Activate the corresponding tab content
+    const tabContent = document.getElementById(`${tabName}-tab`);
+    if (tabContent) {
+        tabContent.classList.add('active');
+    }
     
     examManager.currentTab = tabName;
     examManager.loadTabData(tabName);
