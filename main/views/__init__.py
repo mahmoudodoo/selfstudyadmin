@@ -6,3 +6,5 @@ from .selfstudyuserlab import *
 from .selfstudycourse import *
 from .selfstudylivecourse import *
 from .selfstudyexam import *
+from .selfstudycertificate import *
+from .selfstudynotification import *

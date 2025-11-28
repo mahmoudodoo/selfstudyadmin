@@ -27,8 +27,13 @@ urlpatterns = [
     path('selfstudyexam/', views.SelfStudyExamView.as_view(), name='selfstudyexam'),
     path('selfstudyexam/api/', views.SelfStudyExamAPIView.as_view(), name='selfstudyexam_api'),
 
-    # Other Self Study URLs
+    # Certificate Management URLs
     path('selfstudycertificate/', views.SelfStudyCertificateView.as_view(), name='selfstudycertificate'),
+    path('selfstudycertificate/api/certificates/<str:certificate_type>/', views.CertificateAPIView.as_view(), name='certificate_api'),
+    path('selfstudycertificate/api/certificates/<str:certificate_type>/<str:certificate_id>/', views.CertificateAPIView.as_view(), name='certificate_api_detail'),
+    path('selfstudycertificate/api/lookup/<str:resource_type>/', views.LookupAPIView.as_view(), name='lookup_api'),
+
+    # Other Self Study URLs
     path('selfstudynotification/', views.SelfStudyNotificationView.as_view(), name='selfstudynotification'),
     path('selfstudypayment/', views.SelfStudyPaymentView.as_view(), name='selfstudypayment'),
     path('selfstudysubscriptions/', views.SelfStudySubscriptionsView.as_view(), name='selfstudysubscriptions'),

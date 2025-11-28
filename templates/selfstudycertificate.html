@@ -1,15 +1,248 @@
 {% extends 'base.html' %}
+{% load static %}
 
-{% block title %}Certificates{% endblock %}
+{% block title %}Certificates Management{% endblock %}
 {% block page_title %}Certificates Management{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="/static/css/selfstudycertificate.css">
+<link rel="stylesheet" href="{% static 'css/selfstudycertificate.css' %}">
 {% endblock %}
 
 {% block content %}
 <div class="page-content">
-    <h2>Certificates Management</h2>
-    <p>Manage certificates and awards.</p>
+    <!-- Header Section -->
+    <div class="header-section">
+        <h1>Certificates Management</h1>
+        <p>Manage course and exam certificates across all domains</p>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-certificate"></i>
+            </div>
+            <div class="stat-info">
+                <h3 id="course-cert-count">0</h3>
+                <span>Course Certificates</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-file-certificate"></i>
+            </div>
+            <div class="stat-info">
+                <h3 id="exam-cert-count">0</h3>
+                <span>Exam Certificates</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-users"></i>
+            </div>
+            <div class="stat-info">
+                <h3 id="user-count">0</h3>
+                <span>Total Users</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-globe"></i>
+            </div>
+            <div class="stat-info">
+                <h3 id="domain-count">0</h3>
+                <span>Active Domains</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="action-bar">
+        <button class="btn btn-primary" onclick="openCreateModal('course')">
+            <i class="fas fa-plus"></i> Create Course Certificate
+        </button>
+        <button class="btn btn-secondary" onclick="openCreateModal('exam')">
+            <i class="fas fa-plus"></i> Create Exam Certificate
+        </button>
+        <button class="btn btn-outline" onclick="refreshData()">
+            <i class="fas fa-sync-alt"></i> Refresh
+        </button>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs-container">
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('course')">Course Certificates</button>
+            <button class="tab-btn" onclick="switchTab('exam')">Exam Certificates</button>
+        </div>
+
+        <!-- Course Certificates Tab -->
+        <div id="course-tab" class="tab-content active">
+            <div class="table-container">
+                <table id="course-certificates-table" class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Certificate ID</th>
+                            <th>User</th>
+                            <th>Course</th>
+                            <th>Date</th>
+                            <th>Hours</th>
+                            <th>Message</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Data will be populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Exam Certificates Tab -->
+        <div id="exam-tab" class="tab-content">
+            <div class="table-container">
+                <table id="exam-certificates-table" class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Certificate ID</th>
+                            <th>User</th>
+                            <th>Exam</th>
+                            <th>Taken Date</th>
+                            <th>Expire Date</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Data will be populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 </div>
+
+<!-- Create/Edit Course Certificate Modal -->
+<div id="course-certificate-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="course-modal-title">Create Course Certificate</h3>
+            <span class="close" onclick="closeModal('course-certificate-modal')">&times;</span>
+        </div>
+        <form id="course-certificate-form" class="modal-form">
+            <input type="hidden" id="course-certificate-id">
+            
+            <div class="form-group">
+                <label for="course-user-id">User *</label>
+                <select id="course-user-id" required>
+                    <option value="">Select User</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="course-course-id">Course *</label>
+                <select id="course-course-id" required>
+                    <option value="">Select Course</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="course-date">Date *</label>
+                <input type="date" id="course-date" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="course-hours">Hours *</label>
+                <input type="number" id="course-hours" min="1" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="course-message">Message</label>
+                <textarea id="course-message" rows="3" placeholder="Optional message"></textarea>
+            </div>
+            
+            <div class="form-actions">
+                <button type="button" class="btn btn-outline" onclick="closeModal('course-certificate-modal')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save Certificate</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Create/Edit Exam Certificate Modal -->
+<div id="exam-certificate-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="exam-modal-title">Create Exam Certificate</h3>
+            <span class="close" onclick="closeModal('exam-certificate-modal')">&times;</span>
+        </div>
+        <form id="exam-certificate-form" class="modal-form">
+            <input type="hidden" id="exam-certificate-id">
+            
+            <div class="form-group">
+                <label for="exam-user-id">User *</label>
+                <select id="exam-user-id" required>
+                    <option value="">Select User</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="exam-exam-id">Exam *</label>
+                <select id="exam-exam-id" required>
+                    <option value="">Select Exam</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="exam-taken-date">Taken Date *</label>
+                <input type="date" id="exam-taken-date" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="exam-expire-date">Expire Date *</label>
+                <input type="date" id="exam-expire-date" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="exam-message">Message</label>
+                <textarea id="exam-message" rows="3" placeholder="Optional message"></textarea>
+            </div>
+            
+            <div class="form-actions">
+                <button type="button" class="btn btn-outline" onclick="closeModal('exam-certificate-modal')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save Certificate</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="delete-modal" class="modal">
+    <div class="modal-content confirm-modal">
+        <div class="modal-header">
+            <h3>Confirm Delete</h3>
+            <span class="close" onclick="closeModal('delete-modal')">&times;</span>
+        </div>
+        <div class="modal-body">
+            <p>Are you sure you want to delete this certificate? This action cannot be undone.</p>
+        </div>
+        <div class="form-actions">
+            <button type="button" class="btn btn-outline" onclick="closeModal('delete-modal')">Cancel</button>
+            <button type="button" class="btn btn-danger" id="confirm-delete-btn">Delete</button>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Overlay -->
+<div id="loading-overlay" class="loading-overlay">
+    <div class="loading-spinner"></div>
+    <p>Loading...</p>
+</div>
+
+<!-- Toast Notifications -->
+<div id="toast-container" class="toast-container"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/selfstudycertificate.js' %}"></script>
 {% endblock %}

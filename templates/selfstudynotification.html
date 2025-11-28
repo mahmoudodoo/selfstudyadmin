@@ -1,10 +1,11 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block title %}Notifications{% endblock %}
 {% block page_title %}Notifications Management{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="/static/css/selfstudynotification.css">
+<link rel="stylesheet" href="{% static 'css/selfstudynotification.css' %}">
 {% endblock %}
 
 {% block content %}

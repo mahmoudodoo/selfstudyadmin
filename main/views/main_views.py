@@ -4,18 +4,6 @@ from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
 
 
-
-
-@method_decorator(login_required, name='dispatch')
-class SelfStudyCertificateView(View):
-    def get(self, request):
-        return render(request, 'selfstudycertificate.html')
-
-@method_decorator(login_required, name='dispatch')
-class SelfStudyNotificationView(View):
-    def get(self, request):
-        return render(request, 'selfstudynotification.html')
-
 @method_decorator(login_required, name='dispatch')
 class SelfStudyPaymentView(View):
     def get(self, request):
