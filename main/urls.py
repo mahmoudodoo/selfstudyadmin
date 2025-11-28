@@ -10,7 +10,7 @@ urlpatterns = [
     path('', views.AdminDashboardView.as_view(), name='admin_dashboard'),
     path('users/create/', views.UserCreateView.as_view(), name='user_create'),
     path('users/<int:user_id>/update/', views.UserUpdateView.as_view(), name='user_update'),
-    path('users/<int:user_id>/delete/', views.UserDeleteView.as_view(), name='user_delete'),
+    path('users/<int:user_id>/delete/', views.UserDeleteView.as_view(), name='user_delete'),  # Fixed duplicate name
 
     # Self Study URLs
     path('selfstudyadmin/', views.SelfStudyAdminView.as_view(), name='selfstudyadmin'),
@@ -35,6 +35,14 @@ urlpatterns = [
 
     # Other Self Study URLs
     path('selfstudynotification/', views.SelfStudyNotificationView.as_view(), name='selfstudynotification'),
+    
+    # Notification API endpoints
+    path('selfstudynotification/api/', views.NotificationAPIView.as_view(), name='selfstudynotification_api'),
+    path('selfstudynotification/api/<str:notification_id>/', views.NotificationAPIView.as_view(), name='selfstudynotification_api_detail'),
+    
+    # Users API endpoint
+    path('selfstudynotification/api/users/', views.UserAPIView.as_view(), name='selfstudynotification_users_api'),
+    
     path('selfstudypayment/', views.SelfStudyPaymentView.as_view(), name='selfstudypayment'),
     path('selfstudysubscriptions/', views.SelfStudySubscriptionsView.as_view(), name='selfstudysubscriptions'),
     path('selfstudydomains/', views.SelfStudyDomainsView.as_view(), name='selfstudydomains'),

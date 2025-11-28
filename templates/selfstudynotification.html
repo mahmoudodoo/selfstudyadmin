@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Notifications{% endblock %}
+{% block title %}Notifications Management{% endblock %}
 {% block page_title %}Notifications Management{% endblock %}
 
 {% block extra_css %}
@@ -10,7 +10,317 @@
 
 {% block content %}
 <div class="page-content">
-    <h2>Notifications Management</h2>
-    <p>Manage notifications and alerts.</p>
+    <!-- Header Section -->
+    <div class="header-section">
+        <div class="header-content">
+            <h1>Notifications Management</h1>
+            <p>Manage and monitor system notifications across all domains</p>
+        </div>
+        <button class="btn btn-primary" id="createNotificationBtn">
+            <i class="fas fa-plus"></i> Create Notification
+        </button>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-bell"></i>
+            </div>
+            <div class="stat-content">
+                <h3 id="totalNotifications">0</h3>
+                <p>Total Notifications</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon warning">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <div class="stat-content">
+                <h3 id="generalNotifications">0</h3>
+                <p>General Notifications</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-card success">
+                <div class="stat-icon success">
+                    <i class="fas fa-user"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 id="personalNotifications">0</h3>
+                    <p>Personal Notifications</p>
+                </div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon info">
+                <i class="fas fa-users"></i>
+            </div>
+            <div class="stat-content">
+                <h3 id="groupNotifications">0</h3>
+                <p>Group Notifications</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notifications Table -->
+    <div class="table-container">
+        <div class="table-header">
+            <h2>All Notifications</h2>
+            <div class="table-controls">
+                <div class="search-box">
+                    <input type="text" id="searchInput" placeholder="Search notifications...">
+                    <i class="fas fa-search"></i>
+                </div>
+                <button class="btn btn-secondary" id="refreshBtn">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table id="notificationsTable" class="data-table">
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Message</th>
+                        <th>Type</th>
+                        <th>Sender</th>
+                        <th>Recipient</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="notificationsTableBody">
+                    {% for notification in notifications %}
+                    <tr data-id="{{ notification.notification_id }}">
+                        <td class="title-cell">{{ notification.title }}</td>
+                        <td class="message-cell">{{ notification.message|truncatewords:10 }}</td>
+                        <td>
+                            <span class="badge badge-{{ notification.notification_type }}">
+                                {{ notification.notification_type|title }}
+                            </span>
+                        </td>
+                        <td>{{ notification.sender }}</td>
+                        <td>{{ notification.recipient }}</td>
+                        <td>{{ notification.created_at|date:"M d, Y H:i" }}</td>
+                        <td class="actions-cell">
+                            <button class="btn-icon view-btn" data-id="{{ notification.notification_id }}" title="View">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="btn-icon edit-btn" data-id="{{ notification.notification_id }}" title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn-icon delete-btn" data-id="{{ notification.notification_id }}" title="Delete">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="no-data">
+                            <i class="fas fa-bell-slash"></i>
+                            <p>No notifications found</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="pagination" id="pagination">
+            <!-- Pagination will be populated by JavaScript -->
+        </div>
+    </div>
 </div>
+
+<!-- Create/Edit Notification Modal -->
+<div id="notificationModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="modalTitle">Create Notification</h2>
+            <button class="close-btn" id="closeModal">&times;</button>
+        </div>
+        <form id="notificationForm">
+            {% csrf_token %}  <!-- CSRF Token Added -->
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="title">Title *</label>
+                    <input type="text" id="title" name="title" required>
+                    <span class="error-message" id="titleError"></span>
+                </div>
+
+                <div class="form-group">
+                    <label for="message">Message *</label>
+                    <textarea id="message" name="message" rows="4" required></textarea>
+                    <span class="error-message" id="messageError"></span>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="notification_type">Type</label>
+                        <select id="notification_type" name="notification_type">
+                            <option value="general">General</option>
+                            <option value="personal">Personal</option>
+                            <option value="group">Group</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="sender">Sender</label>
+                        <input type="text" id="sender" name="sender" value="admin">
+                    </div>
+                </div>
+
+                <!-- Single User Selection for Personal Notifications -->
+                <div class="form-group" id="recipientGroup">
+                    <label for="recipient">Recipient *</label>
+                    <select id="recipient" name="recipient">
+                        <option value="">Select a user...</option>
+                        {% for user in users %}
+                        <option value="{{ user.username }}">{{ user.display_name }}</option>
+                        {% endfor %}
+                    </select>
+                    <span class="error-message" id="recipientError"></span>
+                </div>
+
+                <!-- Multi-User Selection for Group Notifications -->
+                <div class="form-group" id="multiUserGroup" style="display: none;">
+                    <label for="multiUserSelect">Select Users *</label>
+                    <select id="multiUserSelect" multiple style="height: 120px;">
+                        <option value="">Select users...</option>
+                        {% for user in users %}
+                        <option value="{{ user.username }}">{{ user.display_name }}</option>
+                        {% endfor %}
+                    </select>
+                    <div class="selected-users" id="selectedUsers" style="margin-top: 10px;"></div>
+                    <span class="error-message" id="multiUserSelectError"></span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="cancelBtn">Cancel</button>
+                <button type="submit" class="btn btn-primary" id="submitBtn">
+                    <span class="btn-text">Create Notification</span>
+                    <div class="btn-loader" style="display: none;">
+                        <div class="spinner"></div>
+                    </div>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- View Notification Modal -->
+<div id="viewModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Notification Details</h2>
+            <button class="close-btn" id="closeViewModal">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="detail-section">
+                <div class="detail-item">
+                    <label>Title:</label>
+                    <span id="viewTitle"></span>
+                </div>
+                <div class="detail-item">
+                    <label>Message:</label>
+                    <span id="viewMessage"></span>
+                </div>
+                <div class="detail-item">
+                    <label>Type:</label>
+                    <span id="viewType"></span>
+                </div>
+                <div class="detail-item">
+                    <label>Sender:</label>
+                    <span id="viewSender"></span>
+                </div>
+                <div class="detail-item">
+                    <label>Recipient:</label>
+                    <span id="viewRecipient"></span>
+                </div>
+                <div class="detail-item">
+                    <label>Created:</label>
+                    <span id="viewCreated"></span>
+                </div>
+                <div class="detail-item">
+                    <label>Last Updated:</label>
+                    <span id="viewUpdated"></span>
+                </div>
+                <div class="detail-item">
+                    <label>Notification ID:</label>
+                    <span id="viewId" class="uuid"></span>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" id="closeViewBtn">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="deleteModal" class="modal">
+    <div class="modal-content confirm-modal">
+        <div class="modal-header">
+            <h2>Confirm Deletion</h2>
+            <button class="close-btn" id="closeDeleteModal">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="warning-icon">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <p>Are you sure you want to delete this notification? This action cannot be undone.</p>
+            <p><strong id="deleteNotificationTitle"></strong></p>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" id="cancelDeleteBtn">Cancel</button>
+            <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
+                <span class="btn-text">Delete</span>
+                <div class="btn-loader" style="display: none;">
+                    <div class="spinner"></div>
+                </div>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Overlay -->
+<div id="loadingOverlay" class="loading-overlay">
+    <div class="loading-spinner">
+        <div class="spinner"></div>
+        <p>Loading notifications...</p>
+    </div>
+</div>
+
+<!-- Error Toast -->
+<div id="errorToast" class="toast error">
+    <div class="toast-content">
+        <i class="fas fa-exclamation-circle"></i>
+        <span id="toastMessage"></span>
+    </div>
+    <button class="toast-close">&times;</button>
+</div>
+
+<!-- Success Toast -->
+<div id="successToast" class="toast success">
+    <div class="toast-content">
+        <i class="fas fa-check-circle"></i>
+        <span id="successToastMessage"></span>
+    </div>
+    <button class="toast-close">&times;</button>
+</div>
+
+<!-- Hidden CSRF Token for JavaScript -->
+<input type="hidden" id="csrfToken" value="{{ csrf_token }}">
+{% endblock %}
+
+{% block extra_js %}
+<!-- Pass users data from Django template to JavaScript -->
+<script>
+// Properly serialize users data to JSON
+window.templateUsers = JSON.parse('{{ users_json|escapejs }}');
+</script>
+<script src="{% static 'js/selfstudynotification.js' %}"></script>
 {% endblock %}
