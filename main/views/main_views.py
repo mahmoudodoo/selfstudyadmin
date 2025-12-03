@@ -5,16 +5,6 @@ from django.utils.decorators import method_decorator
 
 
 @method_decorator(login_required, name='dispatch')
-class SelfStudyPaymentView(View):
-    def get(self, request):
-        return render(request, 'selfstudypayment.html')
-
-@method_decorator(login_required, name='dispatch')
-class SelfStudySubscriptionsView(View):
-    def get(self, request):
-        return render(request, 'selfstudysubscriptions.html')
-
-@method_decorator(login_required, name='dispatch')
 class SelfStudyDomainsView(View):
     def get(self, request):
         return render(request, 'selfstudydomains.html')

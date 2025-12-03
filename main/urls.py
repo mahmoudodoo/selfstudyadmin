@@ -10,7 +10,7 @@ urlpatterns = [
     path('', views.AdminDashboardView.as_view(), name='admin_dashboard'),
     path('users/create/', views.UserCreateView.as_view(), name='user_create'),
     path('users/<int:user_id>/update/', views.UserUpdateView.as_view(), name='user_update'),
-    path('users/<int:user_id>/delete/', views.UserDeleteView.as_view(), name='user_delete'),  # Fixed duplicate name
+    path('users/<int:user_id>/delete/', views.UserDeleteView.as_view(), name='user_delete'),
 
     # Self Study URLs
     path('selfstudyadmin/', views.SelfStudyAdminView.as_view(), name='selfstudyadmin'),
@@ -23,7 +23,7 @@ urlpatterns = [
     path('selfstudylivecourse/', views.SelfStudyLiveCourseView.as_view(), name='selfstudylivecourse'),
     path('selfstudylivecourse/api/data/', views.LiveCourseDataView.as_view(), name='selfstudylivecourse_api_data'),
 
-    # Self Study Exam URLs - UPDATED
+    # Self Study Exam URLs
     path('selfstudyexam/', views.SelfStudyExamView.as_view(), name='selfstudyexam'),
     path('selfstudyexam/api/', views.SelfStudyExamAPIView.as_view(), name='selfstudyexam_api'),
 
@@ -35,16 +35,22 @@ urlpatterns = [
 
     # Other Self Study URLs
     path('selfstudynotification/', views.SelfStudyNotificationView.as_view(), name='selfstudynotification'),
-    
+
     # Notification API endpoints
     path('selfstudynotification/api/', views.NotificationAPIView.as_view(), name='selfstudynotification_api'),
     path('selfstudynotification/api/<str:notification_id>/', views.NotificationAPIView.as_view(), name='selfstudynotification_api_detail'),
-    
+
     # Users API endpoint
     path('selfstudynotification/api/users/', views.UserAPIView.as_view(), name='selfstudynotification_users_api'),
-    
+
+    # Payment Management URLs
     path('selfstudypayment/', views.SelfStudyPaymentView.as_view(), name='selfstudypayment'),
+    path('selfstudypayment/api/', views.SelfStudyPaymentView.as_view(), name='selfstudypayment_api'),
+
+    # Subscription Management URLs
     path('selfstudysubscriptions/', views.SelfStudySubscriptionsView.as_view(), name='selfstudysubscriptions'),
+
+    # Other Self Study Service URLs
     path('selfstudydomains/', views.SelfStudyDomainsView.as_view(), name='selfstudydomains'),
     path('selfstudymedia/', views.SelfStudyMediaView.as_view(), name='selfstudymedia'),
     path('selfstudychat/', views.SelfStudyChatView.as_view(), name='selfstudychat'),
@@ -53,6 +59,7 @@ urlpatterns = [
     path('selfstudyrunbook/', views.SelfStudyRunbookView.as_view(), name='selfstudyrunbook'),
     path('selfstudyallauth/', views.SelfStudyAllAuthView.as_view(), name='selfstudyallauth'),
 
+    # User Lab URLs
     path('selfstudyuserlab/', views.SelfStudyUserLabView.as_view(), name='selfstudyuserlab'),
     path('selfstudyuserlab/api/', views.SelfStudyUserLabAPIView.as_view(), name='selfstudyuserlab_api'),
 ]

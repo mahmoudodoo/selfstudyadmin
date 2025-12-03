@@ -1,10 +1,11 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block title %}Subscriptions{% endblock %}
 {% block page_title %}Subscriptions Management{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="/static/css/selfstudysubscriptions.css">
+<link rel="stylesheet" href="{% static 'css/selfstudysubscriptions.css' %}">
 {% endblock %}
 
 {% block content %}

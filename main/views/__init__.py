@@ -8,3 +8,5 @@ from .selfstudylivecourse import *
 from .selfstudyexam import *
 from .selfstudycertificate import *
 from .selfstudynotification import *
+from .selfstudypayment import *
+from .selfstudysubscriptions import *
