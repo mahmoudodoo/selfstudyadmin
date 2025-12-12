@@ -47,8 +47,9 @@ urlpatterns = [
     path('selfstudypayment/', views.SelfStudyPaymentView.as_view(), name='selfstudypayment'),
     path('selfstudypayment/api/', views.SelfStudyPaymentView.as_view(), name='selfstudypayment_api'),
 
-    # Subscription Management URLs
+    # Subscription Management URLs - UPDATED
     path('selfstudysubscriptions/', views.SelfStudySubscriptionsView.as_view(), name='selfstudysubscriptions'),
+    path('selfstudysubscriptions/api/', views.SubscriptionAPIView.as_view(), name='selfstudysubscriptions_api'),
 
     # Other Self Study Service URLs
     path('selfstudydomains/', views.SelfStudyDomainsView.as_view(), name='selfstudydomains'),

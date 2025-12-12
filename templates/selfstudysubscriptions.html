@@ -1,16 +1,251 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Subscriptions{% endblock %}
+{% block title %}Subscriptions Management{% endblock %}
 {% block page_title %}Subscriptions Management{% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.dataTables.min.css">
 <link rel="stylesheet" href="{% static 'css/selfstudysubscriptions.css' %}">
 {% endblock %}
 
 {% block content %}
-<div class="page-content">
-    <h2>Subscriptions Management</h2>
-    <p>Manage user subscriptions and plans.</p>
+<div class="subscriptions-container">
+    <!-- Header with Stats -->
+    <div class="header-stats">
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-users"></i>
+            </div>
+            <div class="stat-info">
+                <h3 id="active-subscriptions">0</h3>
+                <p>Active Subscriptions</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-money-bill-wave"></i>
+            </div>
+            <div class="stat-info">
+                <h3 id="subscription-types">0</h3>
+                <p>Subscription Plans</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-star"></i>
+            </div>
+            <div class="stat-info">
+                <h3 id="total-features">0</h3>
+                <p>Features</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-globe"></i>
+            </div>
+            <div class="stat-info">
+                <h3 id="available-domains">0</h3>
+                <p>Available Domains</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Control Panel -->
+    <div class="control-panel">
+        <div class="panel-header">
+            <h3><i class="fas fa-cogs"></i> Control Panel</h3>
+            <div class="panel-actions">
+                <button class="btn btn-primary" onclick="loadDomains()">
+                    <i class="fas fa-sync-alt"></i> Refresh Domains
+                </button>
+                <button class="btn btn-success" onclick="showCreateModal('feature')">
+                    <i class="fas fa-plus"></i> New Feature
+                </button>
+                <button class="btn btn-success" onclick="showCreateModal('subscription_type')">
+                    <i class="fas fa-plus"></i> New Plan
+                </button>
+                <button class="btn btn-success" onclick="showCreateModal('subscription')">
+                    <i class="fas fa-plus"></i> New Subscription
+                </button>
+            </div>
+        </div>
+        
+        <div class="domain-status">
+            <div class="domain-info">
+                <span class="status-indicator active" id="service-status"></span>
+                <span id="current-domain">Fetching service domain...</span>
+            </div>
+            <div class="search-box">
+                <input type="text" id="user-search" placeholder="Search by user ID...">
+                <button class="btn btn-sm" onclick="searchByUser()">
+                    <i class="fas fa-search"></i>
+                </button>
+                <button class="btn btn-sm btn-secondary" onclick="clearSearch()">
+                    <i class="fas fa-times"></i> Clear
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs Navigation -->
+    <div class="tabs-container">
+        <div class="tabs-header">
+            <button class="tab-btn active" data-tab="features">
+                <i class="fas fa-star"></i> Features
+            </button>
+            <button class="tab-btn" data-tab="subscription-types">
+                <i class="fas fa-money-bill-wave"></i> Subscription Plans
+            </button>
+            <button class="tab-btn" data-tab="subscriptions">
+                <i class="fas fa-users"></i> Subscriptions
+            </button>
+            <button class="tab-btn" data-tab="domains">
+                <i class="fas fa-globe"></i> Service Domains
+            </button>
+        </div>
+
+        <!-- Features Tab -->
+        <div class="tab-content active" id="features-tab">
+            <div class="table-container">
+                <table id="features-table" class="display responsive" style="width:100%">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Description</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Data will be loaded dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Subscription Types Tab -->
+        <div class="tab-content" id="subscription-types-tab">
+            <div class="table-container">
+                <table id="subscription-types-table" class="display responsive" style="width:100%">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Title</th>
+                            <th>Description</th>
+                            <th>Price</th>
+                            <th>Features</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Data will be loaded dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Subscriptions Tab -->
+        <div class="tab-content" id="subscriptions-tab">
+            <div class="table-container">
+                <table id="subscriptions-table" class="display responsive" style="width:100%">
+                    <thead>
+                        <tr>
+                            <th>External ID</th>
+                            <th>Title</th>
+                            <th>User ID</th>
+                            <th>Subscription Type</th>
+                            <th>Status</th>
+                            <th>Created Date</th>
+                            <th>Expire Date</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Data will be loaded dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Domains Tab -->
+        <div class="tab-content" id="domains-tab">
+            <div class="domains-grid" id="domains-grid">
+                <!-- Domains will be loaded dynamically -->
+            </div>
+        </div>
+    </div>
 </div>
+
+<!-- Create/Edit Modals -->
+<div id="createModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="modal-title">Create New</h3>
+            <span class="close" onclick="closeModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form id="create-form">
+                <!-- Form fields will be loaded dynamically based on type -->
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+            <button type="button" class="btn btn-primary" id="submit-btn" onclick="submitForm()">Create</button>
+        </div>
+    </div>
+</div>
+
+<!-- User Selection Modal -->
+<div id="userModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Select User</h3>
+            <span class="close" onclick="closeUserModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div class="search-container">
+                <input type="text" id="user-search-modal" placeholder="Search users..." onkeyup="searchUsers()">
+            </div>
+            <div class="user-list" id="user-list">
+                <!-- Users will be loaded dynamically -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Confirmation Modal -->
+<div id="confirmModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="confirm-title">Confirm Action</h3>
+            <span class="close" onclick="closeConfirmModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <p id="confirm-message">Are you sure you want to perform this action?</p>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="closeConfirmModal()">Cancel</button>
+            <button type="button" class="btn btn-danger" id="confirm-action-btn">Confirm</button>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Overlay -->
+<div id="loadingOverlay" class="loading-overlay">
+    <div class="loading-content">
+        <div class="spinner"></div>
+        <p>Loading...</p>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
+<script src="{% static 'js/selfstudysubscriptions.js' %}"></script>
 {% endblock %}
