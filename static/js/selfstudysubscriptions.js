@@ -1,7 +1,7 @@
 /**
  * SelfStudy Subscriptions Management JavaScript
  * Handles dynamic domain discovery, CRUD operations, and UI interactions
- * Updated for external_id support
+ * Always uses external_id
  */
 
 // Global variables
@@ -31,7 +31,7 @@ function getCookie(name) {
 
 const csrftoken = getCookie('csrftoken');
 
-// DataTable configurations updated for external_id
+// DataTable configurations using external_id
 const tableConfigs = {
     features: {
         columns: [
@@ -194,13 +194,11 @@ function loadInitialData() {
 function loadStats() {
     // Load stats asynchronously
     setTimeout(() => {
-        // These would be updated from actual API responses
         updateStats();
     }, 500);
 }
 
 function updateStats() {
-    // This function would be called after data is loaded to update stats
     const featuresCount = $('#features-table').DataTable().data().count();
     const subscriptionsCount = $('#subscriptions-table').DataTable().data().count();
     const typesCount = $('#subscription-types-table').DataTable().data().count();
@@ -465,11 +463,6 @@ function getFormFields(resourceType) {
         case 'feature':
             return `
             <div class="form-group">
-            <label for="external_id">External ID (Optional)</label>
-            <input type="text" id="external_id" class="form-control">
-            <small class="form-text text-muted">Leave blank to auto-generate UUID</small>
-            </div>
-            <div class="form-group">
             <label for="name">Feature Name *</label>
             <input type="text" id="name" class="form-control" required>
             </div>
@@ -481,11 +474,6 @@ function getFormFields(resourceType) {
 
         case 'subscription_type':
             return `
-            <div class="form-group">
-            <label for="external_id">External ID (Optional)</label>
-            <input type="text" id="external_id" class="form-control">
-            <small class="form-text text-muted">Leave blank to auto-generate UUID</small>
-            </div>
             <div class="form-group">
             <label for="title">Plan Title *</label>
             <input type="text" id="title" class="form-control" required>
@@ -564,13 +552,11 @@ function loadFormDependencies(resourceType) {
 function populateEditForm(data, resourceType) {
     switch(resourceType) {
         case 'feature':
-            $('#external_id').val(data.external_id);
             $('#name').val(data.name);
             $('#description').val(data.description);
             break;
 
         case 'subscription_type':
-            $('#external_id').val(data.external_id);
             $('#title').val(data.title);
             $('#description').val(data.description);
             $('#price').val(data.price);
@@ -630,6 +616,7 @@ async function loadSubscriptionTypesForSelect(selectedType = null) {
         select.empty().append('<option value="">Select a plan</option>');
 
         response.forEach(type => {
+            // Use external_id as the value
             select.append(`
             <option value="${type.external_id}" ${selectedType === type.external_id ? 'selected' : ''}>
             ${type.title} ($${type.price})
@@ -787,13 +774,11 @@ function getFormData() {
 
     switch(currentResourceType) {
         case 'feature':
-            formData.external_id = $('#external_id').val() || undefined;
             formData.name = $('#name').val();
             formData.description = $('#description').val();
             break;
 
         case 'subscription_type':
-            formData.external_id = $('#external_id').val() || undefined;
             formData.title = $('#title').val();
             formData.description = $('#description').val();
             formData.price = $('#price').val();
@@ -804,6 +789,7 @@ function getFormData() {
             formData.external_id = $('#external_id').val();
             formData.title = $('#title').val();
             formData.user_id = $('#user_id').val();
+            // This should be the external_id of the subscription type
             formData.subscription_type = $('#subscription_type').val();
             formData.is_active = $('#is_active').val() === 'true';
             formData.expire_date = $('#expire_date').val();
@@ -867,6 +853,8 @@ function validateForm(data) {
 function resetForm() {
     currentResourceType = '';
     currentResourceId = '';
+    selectedUserId = '';
+    selectedUserEmail = '';
     $('#create-form').empty();
 }
 
@@ -910,22 +898,31 @@ async function loadUsers() {
         const userList = $('#user-list');
         userList.empty();
 
-        if (response.length === 0) {
+        if (!response || response.length === 0) {
             userList.html('<p class="no-data">No users found</p>');
             return;
         }
 
+        if (response.error) {
+            showNotification('Failed to load users: ' + response.error, 'error');
+            userList.html('<p class="error">Failed to load users</p>');
+            return;
+        }
+
         response.forEach(user => {
-            // Escape quotes in email for JS
             const safeEmail = (user.email || '').replace(/"/g, '&quot;');
+            const userId = user.user_id || user.id || '';
+            const userEmail = user.email || 'No email';
+            const username = user.username || userId;
+
             userList.append(`
-            <div class="user-item" data-user-id="${user.user_id}" data-email="${safeEmail}">
+            <div class="user-item" data-user-id="${userId}" data-email="${safeEmail}">
             <div class="user-info">
             <div class="user-details">
-            <div class="user-id">${user.user_id}</div>
-            <div class="user-email">${user.email || 'No email'}</div>
+            <div class="user-id">${username}</div>
+            <div class="user-email">${userEmail}</div>
             </div>
-            <button class="btn btn-sm btn-primary user-select-btn" onclick="selectUser('${user.user_id}', '${safeEmail}')">
+            <button class="btn btn-sm btn-primary user-select-btn" onclick="selectUser('${userId}', '${safeEmail}')">
             Select
             </button>
             </div>
@@ -935,6 +932,7 @@ async function loadUsers() {
 
     } catch (error) {
         console.error('Error loading users:', error);
+        showNotification('Failed to load users', 'error');
         $('#user-list').html('<p class="error">Failed to load users</p>');
     }
 }
@@ -942,7 +940,7 @@ async function loadUsers() {
 function searchUsers() {
     const searchTerm = $('#user-search-modal').val().toLowerCase();
     $('.user-item').each(function() {
-        const userId = $(this).data('user-id').toLowerCase();
+        const userId = $(this).data('user-id').toString().toLowerCase();
         const email = $(this).data('email').toLowerCase();
 
         if (userId.includes(searchTerm) || email.includes(searchTerm)) {
@@ -995,18 +993,21 @@ function closeConfirmModal() {
 function performDelete() {
     showLoading();
 
+    const deleteData = {
+        resource_type: currentResourceType,
+        id: currentResourceId
+    };
+
     $.ajax({
         url: '/selfstudysubscriptions/api/',
         type: 'DELETE',
-        data: {
-            resource_type: currentResourceType,
-           id: currentResourceId
-        },
-        beforeSend: function(xhr, settings) {
-            if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {
-                xhr.setRequestHeader("X-CSRFToken", csrftoken);
-            }
-        }
+        contentType: 'application/json',
+        data: JSON.stringify(deleteData),
+           beforeSend: function(xhr, settings) {
+               if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {
+                   xhr.setRequestHeader("X-CSRFToken", csrftoken);
+               }
+           }
     }).done(function(response) {
         showNotification('Deleted successfully!', 'success');
         closeConfirmModal();

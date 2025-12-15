@@ -86,15 +86,25 @@ class SubscriptionAPIView(View):
                     replica_urls = [replica['replica_url'].rstrip('/') for replica in app_data['replicas']]
                     logger.info(f"Successfully fetched {len(replica_urls)} domains for app {app_id}")
 
-                    # Health check each replica
+                    # Health check each replica - use appropriate endpoint based on app_id
                     healthy_replicas = []
                     for replica in replica_urls:
                         try:
-                            health_url = f"{replica}/features/"
+                            if app_id == 22:  # Subscription service
+                                health_url = f"{replica}/features/"
+                            elif app_id == 13:  # Userprofile service
+                                health_url = f"{replica}/profiles/"
+                            else:
+                                # Default health check
+                                health_url = f"{replica}/"
+
+                            logger.info(f"Checking health of {replica} at {health_url}")
                             health_response = requests.get(health_url, headers=headers, timeout=5)
-                            if health_response.status_code in [200, 401]:  # 401 means auth required, which is fine
+
+                            # Accept 200, 401 (auth required), or 403 (forbidden) as healthy
+                            if health_response.status_code in [200, 401, 403]:
                                 healthy_replicas.append(replica)
-                                logger.info(f"Replica {replica} is healthy")
+                                logger.info(f"Replica {replica} is healthy (status: {health_response.status_code})")
                             else:
                                 logger.warning(f"Replica {replica} failed health check: {health_response.status_code}")
                         except Exception as e:
@@ -124,13 +134,12 @@ class SubscriptionAPIView(View):
 
     def make_authenticated_request(self, method, url, data=None, app_id=22):
         """
-        Make authenticated request to subscription service
+        Make authenticated request to service
         """
         auth_token = self.get_auth_token()
         if not auth_token:
-            return JsonResponse({
-                'error': 'Authentication token not configured. Please set AUTH_TOKEN environment variable.'
-            }, status=503)
+            logger.error("AUTH_TOKEN not available for authenticated request")
+            return None
 
         headers = {
             'Authorization': f'Token {auth_token}',
@@ -147,19 +156,15 @@ class SubscriptionAPIView(View):
             elif method.upper() == 'DELETE':
                 response = requests.delete(url, headers=headers, timeout=10)
             else:
-                return JsonResponse({'error': f'Unsupported method: {method}'}, status=400)
+                logger.error(f"Unsupported HTTP method: {method}")
+                return None
 
-            # Try to parse JSON response
-            try:
-                response_data = response.json()
-            except:
-                response_data = {'detail': response.text}
-
-            return JsonResponse(response_data, status=response.status_code, safe=False)
+            logger.info(f"Request to {url} returned status {response.status_code}")
+            return response
 
         except requests.exceptions.RequestException as e:
             logger.error(f"Request error to {url}: {str(e)}")
-            return JsonResponse({'error': f'Service unavailable: {str(e)}'}, status=503)
+            return None
 
     def get(self, request, *args, **kwargs):
         """Handle GET requests for subscriptions data"""
@@ -184,23 +189,92 @@ class SubscriptionAPIView(View):
             # Get users from userprofile service
             userprofile_domain = self.get_working_domain(13)  # userprofile app ID
             if not userprofile_domain:
+                logger.error("Could not get working domain for userprofile service")
+                # Try direct domains as fallback
+                fallback_domains = [
+                    "https://selfstudyuserprofile.pythonanywhere.com",
+                    "https://selfstudyprofileuser2.pythonanywhere.com"
+                ]
+
+                for domain in fallback_domains:
+                    try:
+                        url = f"{domain}/profiles/"
+                        headers = {'Authorization': f'Token {self.get_auth_token()}'}
+                        response = requests.get(url, headers=headers, timeout=5)
+                        if response.status_code in [200, 401, 403]:
+                            userprofile_domain = domain
+                            logger.info(f"Using fallback domain: {domain}")
+                            break
+                    except:
+                        continue
+
+                if not userprofile_domain:
+                    return JsonResponse({
+                        'error': 'User profile service unavailable. Check AUTH_TOKEN environment variable.'
+                    }, status=503)
+
+            # Use profiles endpoint for userprofile service
+            url = f"{userprofile_domain}/profiles/"
+            logger.info(f"Fetching users from: {url}")
+
+            response = self.make_authenticated_request('GET', url, app_id=13)
+
+            if response is None:
                 return JsonResponse({
-                    'error': 'User profile service unavailable. Check AUTH_TOKEN environment variable.'
+                    'error': 'Failed to connect to user profile service'
                 }, status=503)
 
-            url = f"{userprofile_domain}/api/user-profiles/"
-            return self.make_authenticated_request('GET', url, app_id=13)
+            if response.status_code == 200:
+                try:
+                    users_data = response.json()
+                    # Transform the data to match expected format
+                    transformed_users = []
+                    for user in users_data:
+                        transformed_users.append({
+                            'user_id': user.get('user_id'),
+                            'username': user.get('username'),
+                            'email': user.get('email'),
+                            'first_name': user.get('first_name'),
+                            'last_name': user.get('last_name')
+                        })
+                    return JsonResponse(transformed_users, safe=False)
+                except Exception as e:
+                    logger.error(f"Error parsing user response: {str(e)}")
+                    return JsonResponse({
+                        'error': f'Error parsing user data: {str(e)}'
+                    }, status=500)
+            else:
+                logger.error(f"Failed to fetch users: {response.status_code} - {response.text}")
+                # Try to return empty list instead of error for better UX
+                return JsonResponse([], safe=False)
 
         elif action == 'features':
             # Get features
             domain = self.get_working_domain(22)
             if not domain:
+                logger.error("Could not get working domain for subscription service")
                 return JsonResponse({
                     'error': 'Subscription service unavailable. Check AUTH_TOKEN environment variable.'
                 }, status=503)
 
             url = f"{domain}/features/"
-            return self.make_authenticated_request('GET', url)
+            response = self.make_authenticated_request('GET', url, app_id=22)
+
+            if response is None:
+                return JsonResponse({
+                    'error': 'Failed to connect to subscription service'
+                }, status=503)
+
+            if response.status_code == 200:
+                try:
+                    return JsonResponse(response.json(), safe=False)
+                except:
+                    return JsonResponse({'error': 'Invalid response from service'}, status=500)
+            else:
+                logger.error(f"Failed to fetch features: {response.status_code} - {response.text}")
+                return JsonResponse({
+                    'error': f'Service returned error: {response.status_code}'
+                }, status=response.status_code)
 
         elif action == 'subscription-types':
             # Get subscription types
@@ -211,7 +285,23 @@ class SubscriptionAPIView(View):
                 }, status=503)
 
             url = f"{domain}/subscription-types/"
-            return self.make_authenticated_request('GET', url)
+            response = self.make_authenticated_request('GET', url, app_id=22)
+
+            if response is None:
+                return JsonResponse({
+                    'error': 'Failed to connect to subscription service'
+                }, status=503)
+
+            if response.status_code == 200:
+                try:
+                    return JsonResponse(response.json(), safe=False)
+                except:
+                    return JsonResponse({'error': 'Invalid response from service'}, status=500)
+            else:
+                logger.error(f"Failed to fetch subscription types: {response.status_code} - {response.text}")
+                return JsonResponse({
+                    'error': f'Service returned error: {response.status_code}'
+                }, status=response.status_code)
 
         elif action == 'subscriptions':
             # Get subscriptions
@@ -227,7 +317,23 @@ class SubscriptionAPIView(View):
             if user_id:
                 params['user_id'] = user_id
 
-            return self.make_authenticated_request('GET', url, data=params)
+            response = self.make_authenticated_request('GET', url, data=params, app_id=22)
+
+            if response is None:
+                return JsonResponse({
+                    'error': 'Failed to connect to subscription service'
+                }, status=503)
+
+            if response.status_code == 200:
+                try:
+                    return JsonResponse(response.json(), safe=False)
+                except:
+                    return JsonResponse({'error': 'Invalid response from service'}, status=500)
+            else:
+                logger.error(f"Failed to fetch subscriptions: {response.status_code} - {response.text}")
+                return JsonResponse({
+                    'error': f'Service returned error: {response.status_code}'
+                }, status=response.status_code)
 
         else:
             return JsonResponse({'error': 'Invalid action'}, status=400)
@@ -260,7 +366,19 @@ class SubscriptionAPIView(View):
         if 'resource_type' in data:
             del data['resource_type']
 
-        return self.make_authenticated_request('POST', url, data=data)
+        response = self.make_authenticated_request('POST', url, data=data, app_id=22)
+
+        if response is None:
+            return JsonResponse({'error': 'Failed to connect to service'}, status=503)
+
+        if response.status_code in [200, 201]:
+            try:
+                return JsonResponse(response.json(), safe=False, status=response.status_code)
+            except:
+                return JsonResponse({'detail': 'Created successfully'}, status=response.status_code)
+        else:
+            logger.error(f"Failed to create resource: {response.status_code} - {response.text}")
+            return JsonResponse({'error': f'Service returned error: {response.status_code}'}, status=response.status_code)
 
     def put(self, request, *args, **kwargs):
         """Handle PUT requests (update operations)"""
@@ -296,16 +414,39 @@ class SubscriptionAPIView(View):
         if 'id' in data:
             del data['id']
 
-        return self.make_authenticated_request('PUT', url, data=data)
+        response = self.make_authenticated_request('PUT', url, data=data, app_id=22)
+
+        if response is None:
+            return JsonResponse({'error': 'Failed to connect to service'}, status=503)
+
+        if response.status_code in [200, 201]:
+            try:
+                return JsonResponse(response.json(), safe=False, status=response.status_code)
+            except:
+                return JsonResponse({'detail': 'Updated successfully'}, status=response.status_code)
+        else:
+            logger.error(f"Failed to update resource: {response.status_code} - {response.text}")
+            return JsonResponse({'error': f'Service returned error: {response.status_code}'}, status=response.status_code)
 
     def delete(self, request, *args, **kwargs):
         """Handle DELETE requests"""
-        data = request.GET
+        try:
+            # For DELETE requests, data should be in request body
+            if request.body:
+                data = json.loads(request.body)
+            else:
+                # Fallback to query parameters for backward compatibility
+                data = request.GET.dict()
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+
         resource_type = data.get('resource_type')
         resource_id = data.get('id')
 
         if not resource_id:
             return JsonResponse({'error': 'Resource ID required'}, status=400)
+        if not resource_type:
+            return JsonResponse({'error': 'Resource type required'}, status=400)
 
         domain = self.get_working_domain(22)
         if not domain:
@@ -322,4 +463,13 @@ class SubscriptionAPIView(View):
         else:
             return JsonResponse({'error': 'Invalid resource type'}, status=400)
 
-        return self.make_authenticated_request('DELETE', url)
+        response = self.make_authenticated_request('DELETE', url, app_id=22)
+
+        if response is None:
+            return JsonResponse({'error': 'Failed to connect to service'}, status=503)
+
+        if response.status_code in [200, 204]:
+            return JsonResponse({'detail': 'Deleted successfully'}, status=response.status_code)
+        else:
+            logger.error(f"Failed to delete resource: {response.status_code} - {response.text}")
+            return JsonResponse({'error': f'Service returned error: {response.status_code}'}, status=response.status_code)
