@@ -1,15 +1,489 @@
 {% extends 'base.html' %}
+{% load static %}
 
-{% block title %}Domains{% endblock %}
-{% block page_title %}Domains Management{% endblock %}
+{% block title %}SelfStudy Domains Management{% endblock %}
+{% block page_title %}SelfStudy Domains Management{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="/static/css/selfstudydomains.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link rel="stylesheet" href="{% static 'css/selfstudydomains.css' %}">
 {% endblock %}
 
 {% block content %}
 <div class="page-content">
-    <h2>Domains Management</h2>
-    <p>Manage domains and DNS settings.</p>
+    <!-- Header Section -->
+    <div class="header-section">
+        <div class="header-left">
+            <h1><i class="fas fa-globe"></i> SelfStudy Domains Management</h1>
+            <p class="subtitle">Manage applications and their replicas across multiple domains</p>
+        </div>
+        <div class="header-right">
+            <button class="btn btn-primary" onclick="showRegistryStatus()">
+                <i class="fas fa-heartbeat"></i> Registry Status
+            </button>
+            <button class="btn btn-success" onclick="showCreateAppModal()">
+                <i class="fas fa-plus"></i> New App
+            </button>
+        </div>
+    </div>
+
+    <!-- Status Bar -->
+    <div class="status-bar" id="statusBar">
+        <div class="status-item">
+            <i class="fas fa-database status-icon"></i>
+            <span class="status-label">Registry:</span>
+            <span class="status-value" id="registryStatus">Checking...</span>
+        </div>
+        <div class="status-item">
+            <i class="fas fa-server status-icon"></i>
+            <span class="status-label">Apps:</span>
+            <span class="status-value" id="appsCount">0</span>
+        </div>
+        <div class="status-item">
+            <i class="fas fa-copy status-icon"></i>
+            <span class="status-label">Replicas:</span>
+            <span class="status-value" id="replicasCount">0</span>
+        </div>
+        <div class="status-item">
+            <i class="fas fa-sync-alt status-icon"></i>
+            <span class="status-label">Last Updated:</span>
+            <span class="status-value" id="lastUpdated">Just now</span>
+        </div>
+    </div>
+
+    <!-- Main Content Tabs -->
+    <div class="tabs-container">
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="apps-tab">
+                <i class="fas fa-th-large"></i> Applications
+            </button>
+            <button class="tab-btn" data-tab="replicas-tab">
+                <i class="fas fa-copy"></i> All Replicas
+            </button>
+            <button class="tab-btn" data-tab="health-tab">
+                <i class="fas fa-chart-line"></i> Health Dashboard
+            </button>
+        </div>
+    </div>
+
+    <!-- Search and Filter Section -->
+    <div class="filter-section">
+        <div class="search-box">
+            <i class="fas fa-search search-icon"></i>
+            <input type="text" id="globalSearch" placeholder="Search apps or replicas..." class="search-input">
+            <button class="btn btn-sm btn-secondary" onclick="clearSearch()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <div class="filter-controls">
+            <select id="appFilter" class="filter-select" onchange="filterReplicasByApp()">
+                <option value="">All Apps</option>
+                <!-- Will be populated dynamically -->
+            </select>
+            
+            <select id="statusFilter" class="filter-select">
+                <option value="">All Status</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+            </select>
+            
+            <button class="btn btn-sm btn-primary" onclick="refreshData()">
+                <i class="fas fa-sync-alt"></i> Refresh
+            </button>
+        </div>
+    </div>
+
+    <!-- Apps Tab Content -->
+    <div class="tab-content active" id="apps-tab">
+        <div class="card">
+            <div class="card-header">
+                <h3><i class="fas fa-th-large"></i> Applications List</h3>
+                <div class="card-actions">
+                    <button class="btn btn-sm btn-primary" onclick="showCreateAppModal()">
+                        <i class="fas fa-plus"></i> Add App
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="data-table" id="appsTable">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>App Name</th>
+                                <th>Description</th>
+                                <th>GitHub</th>
+                                <th>Replicas</th>
+                                <th>Created</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="appsTableBody">
+                            <!-- Apps will be loaded here -->
+                            <tr id="loadingRow">
+                                <td colspan="7" class="text-center">
+                                    <div class="loading-spinner">
+                                        <i class="fas fa-spinner fa-spin"></i> Loading applications...
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="table-footer" id="appsTableFooter">
+                    <div class="table-info">
+                        Showing <span id="appsShowing">0</span> of <span id="appsTotal">0</span> applications
+                    </div>
+                    <div class="table-pagination" id="appsPagination">
+                        <!-- Pagination will be added here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Replicas Tab Content -->
+    <div class="tab-content" id="replicas-tab">
+        <div class="card">
+            <div class="card-header">
+                <h3><i class="fas fa-copy"></i> All Replicas</h3>
+                <div class="card-actions">
+                    <button class="btn btn-sm btn-primary" onclick="showCreateReplicaModal()">
+                        <i class="fas fa-plus"></i> Add Replica
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="data-table" id="replicasTable">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>App</th>
+                                <th>Replica URL</th>
+                                <th>Credentials</th>
+                                <th>Database</th>
+                                <th>Created</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="replicasTableBody">
+                            <!-- Replicas will be loaded here -->
+                            <tr id="replicasLoadingRow">
+                                <td colspan="7" class="text-center">
+                                    <div class="loading-spinner">
+                                        <i class="fas fa-spinner fa-spin"></i> Loading replicas...
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="table-footer" id="replicasTableFooter">
+                    <div class="table-info">
+                        Showing <span id="replicasShowing">0</span> of <span id="replicasTotal">0</span> replicas
+                    </div>
+                    <div class="table-pagination" id="replicasPagination">
+                        <!-- Pagination will be added here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Health Dashboard Tab -->
+    <div class="tab-content" id="health-tab">
+        <div class="health-dashboard">
+            <div class="health-grid">
+                <!-- Registry Health -->
+                <div class="health-card">
+                    <div class="health-card-header">
+                        <h4><i class="fas fa-heartbeat"></i> Registry Health</h4>
+                    </div>
+                    <div class="health-card-body" id="registryHealth">
+                        <div class="loading-spinner">
+                            <i class="fas fa-spinner fa-spin"></i> Checking registry status...
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Load Balancer -->
+                <div class="health-card">
+                    <div class="health-card-header">
+                        <h4><i class="fas fa-random"></i> Load Balancer</h4>
+                    </div>
+                    <div class="health-card-body">
+                        <div class="form-group">
+                            <label for="lbAppSelect">Select Application:</label>
+                            <select id="lbAppSelect" class="form-control">
+                                <option value="">Loading apps...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <button class="btn btn-primary btn-block" onclick="selectRandomReplica()">
+                                <i class="fas fa-random"></i> Select Random Replica
+                            </button>
+                        </div>
+                        <div id="selectedReplica" class="selected-replica">
+                            <!-- Selected replica will appear here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Stats -->
+                <div class="health-card">
+                    <div class="health-card-header">
+                        <h4><i class="fas fa-chart-bar"></i> Quick Stats</h4>
+                    </div>
+                    <div class="health-card-body">
+                        <div class="stats-grid">
+                            <div class="stat-item">
+                                <div class="stat-value" id="totalApps">0</div>
+                                <div class="stat-label">Total Apps</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value" id="totalReplicas">0</div>
+                                <div class="stat-label">Total Replicas</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value" id="avgReplicas">0.0</div>
+                                <div class="stat-label">Avg Replicas/App</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value" id="latestApp">-</div>
+                                <div class="stat-label">Latest App</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- App Distribution Chart -->
+            <div class="health-card full-width">
+                <div class="health-card-header">
+                    <h4><i class="fas fa-chart-pie"></i> Replica Distribution</h4>
+                </div>
+                <div class="health-card-body">
+                    <div class="chart-container">
+                        <canvas id="replicaChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- View Replicas Modal -->
+    <div class="modal" id="viewReplicasModal">
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <h3><i class="fas fa-copy"></i> App Replicas: <span id="modalAppName"></span></h3>
+                <button class="modal-close" onclick="closeViewReplicasModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="app-info">
+                    <p><strong>Description:</strong> <span id="modalAppDescription"></span></p>
+                    <p><strong>GitHub:</strong> <a href="#" id="modalAppGithub" target="_blank"></a></p>
+                </div>
+                
+                <div class="replicas-list" id="appReplicasList">
+                    <!-- Replicas will be loaded here -->
+                    <div class="loading-spinner">
+                        <i class="fas fa-spinner fa-spin"></i> Loading replicas...
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="showCreateReplicaModalForApp()">
+                    <i class="fas fa-plus"></i> Add Replica to this App
+                </button>
+                <button class="btn btn-secondary" onclick="closeViewReplicasModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create/Edit App Modal -->
+    <div class="modal" id="appModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="appModalTitle"><i class="fas fa-plus"></i> Create New Application</h3>
+                <button class="modal-close" onclick="closeAppModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="appForm">
+                    <input type="hidden" id="appId" value="">
+                    
+                    <div class="form-group">
+                        <label for="appName">App Name *</label>
+                        <input type="text" id="appName" class="form-control" required 
+                               placeholder="Enter application name">
+                        <div class="form-error" id="appNameError"></div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="appDescription">Description</label>
+                        <textarea id="appDescription" class="form-control" rows="3"
+                                  placeholder="Enter application description"></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="appGithub">GitHub Repository URL</label>
+                        <input type="url" id="appGithub" class="form-control"
+                               placeholder="https://github.com/username/repository">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="submitAppForm()">
+                    <i class="fas fa-save"></i> Save Application
+                </button>
+                <button class="btn btn-secondary" onclick="closeAppModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create/Edit Replica Modal -->
+    <div class="modal" id="replicaModal">
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <h3 id="replicaModalTitle"><i class="fas fa-server"></i> Create New Replica</h3>
+                <button class="modal-close" onclick="closeReplicaModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="replicaForm">
+                    <input type="hidden" id="replicaId" value="">
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="replicaAppId">Application *</label>
+                            <select id="replicaAppId" class="form-control" required>
+                                <option value="">Select Application</option>
+                                <!-- Will be populated dynamically -->
+                            </select>
+                            <div class="form-error" id="replicaAppIdError"></div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="replicaUrl">Replica URL *</label>
+                            <input type="url" id="replicaUrl" class="form-control" required
+                                   placeholder="https://replica.example.com">
+                            <div class="form-error" id="replicaUrlError"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-section">
+                        <h4><i class="fas fa-user-shield"></i> Application Credentials</h4>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="replicaUsername">Username *</label>
+                                <input type="text" id="replicaUsername" class="form-control" required
+                                       placeholder="admin">
+                            </div>
+                            <div class="form-group">
+                                <label for="replicaPassword">Password *</label>
+                                <input type="password" id="replicaPassword" class="form-control" required
+                                       placeholder="••••••••">
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="adminUsername">Admin Username *</label>
+                                <input type="text" id="adminUsername" class="form-control" required
+                                       placeholder="superadmin">
+                            </div>
+                            <div class="form-group">
+                                <label for="adminPassword">Admin Password *</label>
+                                <input type="password" id="adminPassword" class="form-control" required
+                                       placeholder="••••••••">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-section">
+                        <h4><i class="fas fa-database"></i> Database Configuration</h4>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="dbHost">Database Host *</label>
+                                <input type="text" id="dbHost" class="form-control" required
+                                       placeholder="localhost or db.example.com">
+                            </div>
+                            <div class="form-group">
+                                <label for="dbName">Database Name *</label>
+                                <input type="text" id="dbName" class="form-control" required
+                                       placeholder="database_name">
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="dbUsername">Database Username *</label>
+                                <input type="text" id="dbUsername" class="form-control" required
+                                       placeholder="db_user">
+                            </div>
+                            <div class="form-group">
+                                <label for="dbPassword">Database Password *</label>
+                                <input type="password" id="dbPassword" class="form-control" required
+                                       placeholder="••••••••">
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="submitReplicaForm()">
+                    <i class="fas fa-save"></i> Save Replica
+                </button>
+                <button class="btn btn-secondary" onclick="closeReplicaModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div class="modal" id="deleteModal">
+        <div class="modal-content modal-sm">
+            <div class="modal-header">
+                <h3><i class="fas fa-exclamation-triangle"></i> Confirm Delete</h3>
+                <button class="modal-close" onclick="closeDeleteModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="deleteMessage">Are you sure you want to delete this item?</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-danger" onclick="confirmDelete()">
+                    <i class="fas fa-trash"></i> Delete
+                </button>
+                <button class="btn btn-secondary" onclick="closeDeleteModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Registry Status Modal -->
+    <div class="modal" id="registryStatusModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-heartbeat"></i> Registry Status</h3>
+                <button class="modal-close" onclick="closeRegistryStatusModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="registryStatusContent">
+                    <div class="loading-spinner">
+                        <i class="fas fa-spinner fa-spin"></i> Checking registry status...
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeRegistryStatusModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications Container -->
+    <div id="toastContainer"></div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{% static 'js/selfstudydomains.js' %}"></script>
 {% endblock %}

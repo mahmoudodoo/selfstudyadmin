@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from .views.selfstudydomains import SelfStudyDomainsView, SelfStudyDomainsAPIView
 
 urlpatterns = [
     # Authentication URLs
@@ -52,7 +53,8 @@ urlpatterns = [
     path('selfstudysubscriptions/api/', views.SubscriptionAPIView.as_view(), name='selfstudysubscriptions_api'),
 
     # Other Self Study Service URLs
-    path('selfstudydomains/', views.SelfStudyDomainsView.as_view(), name='selfstudydomains'),
+    path('selfstudydomains/', SelfStudyDomainsView.as_view(), name='selfstudydomains'),
+    path('selfstudydomains/api/', SelfStudyDomainsAPIView.as_view(), name='selfstudydomains_api'),
     path('selfstudymedia/', views.SelfStudyMediaView.as_view(), name='selfstudymedia'),
     path('selfstudychat/', views.SelfStudyChatView.as_view(), name='selfstudychat'),
     path('selfstudyotp/', views.SelfStudyOTPView.as_view(), name='selfstudyotp'),
