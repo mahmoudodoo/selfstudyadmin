@@ -1,6 +1,12 @@
 from django.urls import path
 from . import views
 from .views.selfstudydomains import SelfStudyDomainsView, SelfStudyDomainsAPIView
+from .views.selfstudymedia import (
+    SelfStudyMediaView,
+    SelfStudyMediaAPIView,
+    ExternalDataAPIView,
+    ReplicaAPIView
+)
 
 urlpatterns = [
     # Authentication URLs
@@ -52,10 +58,15 @@ urlpatterns = [
     path('selfstudysubscriptions/', views.SelfStudySubscriptionsView.as_view(), name='selfstudysubscriptions'),
     path('selfstudysubscriptions/api/', views.SubscriptionAPIView.as_view(), name='selfstudysubscriptions_api'),
 
+    # SelfStudy Media Management URLs - UPDATED
+    path('selfstudymedia/', SelfStudyMediaView.as_view(), name='selfstudymedia'),
+    path('selfstudymedia/api/media/', SelfStudyMediaAPIView.as_view(), name='selfstudymedia_api'),
+    path('selfstudymedia/api/external-data/', ExternalDataAPIView.as_view(), name='selfstudymedia_external_data'),
+    path('selfstudymedia/api/replicas/', ReplicaAPIView.as_view(), name='selfstudymedia_replicas'),
+
     # Other Self Study Service URLs
     path('selfstudydomains/', SelfStudyDomainsView.as_view(), name='selfstudydomains'),
     path('selfstudydomains/api/', SelfStudyDomainsAPIView.as_view(), name='selfstudydomains_api'),
-    path('selfstudymedia/', views.SelfStudyMediaView.as_view(), name='selfstudymedia'),
     path('selfstudychat/', views.SelfStudyChatView.as_view(), name='selfstudychat'),
     path('selfstudyotp/', views.SelfStudyOTPView.as_view(), name='selfstudyotp'),
     path('selfstudyproctor/', views.SelfStudyProctorView.as_view(), name='selfstudyproctor'),

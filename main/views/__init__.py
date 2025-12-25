@@ -11,3 +11,4 @@ from .selfstudynotification import *
 from .selfstudypayment import *
 from .selfstudysubscriptions import *
 from .selfstudydomains import *
+from .selfstudymedia import *

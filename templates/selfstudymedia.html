@@ -1,15 +1,214 @@
 {% extends 'base.html' %}
+{% load static %}
 
-{% block title %}Media{% endblock %}
+{% block title %}Media Management - SelfStudy Admin{% endblock %}
 {% block page_title %}Media Management{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="/static/css/selfstudymedia.css">
+<link rel="stylesheet" href="{% static 'css/selfstudymedia.css' %}">
 {% endblock %}
 
 {% block content %}
 <div class="page-content">
-    <h2>Media Management</h2>
-    <p>Manage media files and uploads.</p>
+    <!-- Replica Selection -->
+    <div class="replica-selection">
+        <h3>Service Replica Selection</h3>
+        <div class="replica-controls">
+            <div class="replica-selector">
+                <label for="replica-url">Select Replica:</label>
+                <select id="replica-url" class="replica-dropdown">
+                    <option value="">-- Select a replica --</option>
+                    {% for replica in replicas %}
+                        <option value="{{ replica }}" {% if replica == random_replica %}selected{% endif %}>
+                            {{ replica }}
+                        </option>
+                    {% endfor %}
+                </select>
+                <button id="refresh-replicas" class="btn-refresh">⟳ Refresh</button>
+            </div>
+            <div class="replica-status">
+                <span id="replica-status" class="status-indicator">{% if random_replica %}Connected ✓{% else %}No replica selected{% endif %}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Media Management Dashboard -->
+    <div class="dashboard-grid">
+        <!-- Media Type Selector -->
+        <div class="media-type-selector">
+            <h3>Media Type</h3>
+            <div class="type-buttons">
+                <button class="type-btn active" data-type="profile_images">Profile Images</button>
+                <button class="type-btn" data-type="course_images">Course Images</button>
+                <button class="type-btn" data-type="lesson_images">Lesson Images</button>
+                <button class="type-btn" data-type="lesson_videos">Lesson Videos</button>
+                <button class="type-btn" data-type="instruction_videos">Instruction Videos</button>
+            </div>
+        </div>
+
+        <!-- Media List -->
+        <div class="media-list-container">
+            <div class="list-header">
+                <h3 id="list-title">Profile Images</h3>
+                <div class="list-controls">
+                    <input type="text" id="search-media" placeholder="Search..." class="search-input">
+                    <button id="add-media" class="btn-primary">+ Add New</button>
+                </div>
+            </div>
+            
+            <div class="media-table-container">
+                <table id="media-table" class="media-table">
+                    <thead>
+                        <tr id="table-headers">
+                            <!-- Headers will be dynamically set based on media type -->
+                        </tr>
+                    </thead>
+                    <tbody id="media-table-body">
+                        <!-- Media items will be loaded here -->
+                        <tr>
+                            <td colspan="5" class="empty-state">
+                                {% if random_replica %}
+                                    Select a media type to load data
+                                {% else %}
+                                    Select a replica first
+                                {% endif %}
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="pagination">
+                <button id="prev-page" class="btn-pagination" disabled>← Previous</button>
+                <span id="page-info">Page 1 of 1</span>
+                <button id="next-page" class="btn-pagination" disabled>Next →</button>
+            </div>
+        </div>
+
+        <!-- Media Preview -->
+        <div class="media-preview">
+            <h3>Preview</h3>
+            <div id="media-preview-content" class="preview-content">
+                <div class="preview-placeholder">
+                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                        <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                        <polyline points="21 15 16 10 5 21"></polyline>
+                    </svg>
+                    <p>Select a media item to preview</p>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+
+<!-- Add/Edit Media Modal -->
+<div id="media-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="modal-title">Add Media</h2>
+            <button class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="media-form" enctype="multipart/form-data">
+                <input type="hidden" id="media-id" name="id">
+                <input type="hidden" id="media-type" name="media_type">
+                <input type="hidden" id="form-replica-url" name="replica_url">
+                
+                <div class="form-group">
+                    <label id="reference-label" for="reference-id">User ID:</label>
+                    <div class="reference-selector">
+                        <input type="text" id="reference-id" name="reference_id" required>
+                        <button type="button" id="lookup-reference" class="btn-lookup">Lookup</button>
+                    </div>
+                    <div id="reference-details" class="reference-details"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="media-file">Media File:</label>
+                    <div class="file-upload">
+                        <input type="file" id="media-file" name="file" accept="image/*,video/*" required>
+                        <div class="file-info">
+                            <span id="file-name">No file selected</span>
+                            <button type="button" id="clear-file" class="btn-clear">Clear</button>
+                        </div>
+                        <div class="file-preview" id="file-preview"></div>
+                    </div>
+                    <div class="file-hint">
+                        <small>Max size: 100MB. Images will be auto-optimized. Videos will be compressed.</small>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary modal-cancel">Cancel</button>
+                    <button type="submit" class="btn-primary">Save Media</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Reference Lookup Modal -->
+<div id="lookup-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="lookup-title">Lookup Reference</h2>
+            <button class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="lookup-tabs">
+                <button class="lookup-tab active" data-type="users">Users</button>
+                <button class="lookup-tab" data-type="courses">Courses</button>
+                <button class="lookup-tab" data-type="lessons">Lessons</button>
+                <button class="lookup-tab" data-type="exams">Exams</button>
+            </div>
+            
+            <div class="lookup-content">
+                <div class="lookup-search">
+                    <input type="text" id="lookup-search" placeholder="Search..." class="search-input">
+                    <button id="search-lookup" class="btn-primary">Search</button>
+                </div>
+                
+                <div class="lookup-results">
+                    <table id="lookup-table" class="lookup-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th>Select</th>
+                            </tr>
+                        </thead>
+                        <tbody id="lookup-results-body">
+                            <!-- Results will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Confirm Delete Modal -->
+<div id="delete-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Confirm Delete</h2>
+            <button class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p id="delete-message">Are you sure you want to delete this media item?</p>
+            <div class="form-actions">
+                <button type="button" class="btn-secondary modal-cancel">Cancel</button>
+                <button type="button" id="confirm-delete" class="btn-danger">Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Notification -->
+<div id="toast" class="toast"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/selfstudymedia.js' %}"></script>
 {% endblock %}
