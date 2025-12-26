@@ -13,6 +13,8 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 import re
 import uuid
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from collections import defaultdict
 
 logger = logging.getLogger(__name__)
 
@@ -177,6 +179,70 @@ class MediaServiceClient:
         except Exception as e:
             logger.error(f"Request failed: {str(e)}")
             raise
+    
+    def fetch_all_pages(self, endpoint, params=None):
+        """Fetch all pages of data from a paginated endpoint"""
+        all_data = []
+        next_url = endpoint
+        page_count = 0
+        max_pages = 10  # Safety limit to prevent infinite loops
+        
+        while next_url and page_count < max_pages:
+            try:
+                # Handle both relative and absolute URLs
+                if next_url.startswith('http'):
+                    url = next_url
+                else:
+                    url = f"{self.current_replica}/{next_url.lstrip('/')}"
+                
+                response = requests.get(
+                    url,
+                    headers=self.headers,
+                    params=params if page_count == 0 else None,  # Only include params on first call
+                    timeout=30
+                )
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    
+                    # Handle different response formats
+                    if isinstance(data, dict):
+                        if 'results' in data:
+                            # Django REST Framework pagination
+                            all_data.extend(data['results'])
+                            next_url = data.get('next')
+                        elif 'data' in data:
+                            # Custom pagination
+                            all_data.extend(data['data'])
+                            next_url = data.get('next')
+                        else:
+                            # Non-paginated dict response
+                            all_data.append(data)
+                            next_url = None
+                    elif isinstance(data, list):
+                        # Non-paginated list response
+                        all_data.extend(data)
+                        next_url = None
+                    else:
+                        # Single item response
+                        all_data.append(data)
+                        next_url = None
+                    
+                    page_count += 1
+                    
+                    # If no next URL or empty results, break
+                    if not next_url or not data.get('results'):
+                        break
+                else:
+                    logger.error(f"Failed to fetch page: {response.status_code}")
+                    break
+                    
+            except Exception as e:
+                logger.error(f"Error fetching page {page_count}: {str(e)}")
+                break
+        
+        logger.info(f"Fetched {len(all_data)} items in {page_count} pages from {endpoint}")
+        return all_data
 
 @method_decorator(login_required, name='dispatch')
 class SelfStudyMediaView(View):
@@ -474,6 +540,10 @@ class SelfStudyMediaAPIView(View):
 class ExternalDataAPIView(View):
     """API view for fetching external data (users, courses, exams)"""
     
+    def __init__(self):
+        super().__init__()
+        self.course_cache = {'data': [], 'timestamp': 0, 'ttl': 300000}  # 5 minutes cache
+    
     def get(self, request, *args, **kwargs):
         """Fetch data from other services"""
         try:
@@ -483,366 +553,13 @@ class ExternalDataAPIView(View):
             
             # Determine which service to query
             if data_type == 'users':
-                # Query selfstudyuserprofile app (app_id=13)
-                user_replicas = client.fetch_replicas('selfstudyuserprofile')
-                if not user_replicas:
-                    return JsonResponse({
-                        'status': 'error',
-                        'message': 'No user service replicas found'
-                    }, status=404)
-                
-                # Use first healthy replica
-                for replica in user_replicas:
-                    if client.health_check(replica):
-                        client.current_replica = replica
-                        response = client.make_request('GET', 'profiles/')
-                        if response.status_code == 200:
-                            users = response.json()
-                            # Handle paginated response
-                            if isinstance(users, dict) and 'results' in users:
-                                users = users['results']
-                            
-                            user_data = []
-                            for user in users:
-                                user_data.append({
-                                    'id': user.get('user_id'),
-                                    'username': user.get('username'),
-                                    'email': user.get('email'),
-                                    'first_name': user.get('first_name', ''),
-                                    'last_name': user.get('last_name', ''),
-                                    'full_name': f"{user.get('first_name', '')} {user.get('last_name', '')}".strip() or user.get('username')
-                                })
-                            
-                            return JsonResponse({
-                                'status': 'success',
-                                'data': user_data
-                            })
-                
-                return JsonResponse({
-                    'status': 'error',
-                    'message': 'Failed to fetch users from any replica'
-                }, status=500)
-                
+                return self._fetch_users(client)
             elif data_type == 'courses':
-                # Query selfstudycourse app (app_id=19)
-                course_replicas = client.fetch_replicas('selfstudycourse')
-                if not course_replicas:
-                    return JsonResponse({
-                        'status': 'error',
-                        'message': 'No course service replicas found'
-                    }, status=404)
-                
-                # Use first healthy replica
-                for replica in course_replicas:
-                    if client.health_check(replica):
-                        client.current_replica = replica
-                        response = client.make_request('GET', 'courses/')
-                        if response.status_code == 200:
-                            courses = response.json()
-                            # Handle paginated response
-                            if isinstance(courses, dict) and 'results' in courses:
-                                courses = courses['results']
-                            
-                            course_data = []
-                            for course in courses:
-                                # Extract course ID - handle different field names
-                                course_id = None
-                                
-                                # Try to get external_course_id first (UUID)
-                                if 'external_course_id' in course:
-                                    course_id = course.get('external_course_id')
-                                # Then try id field
-                                elif 'id' in course:
-                                    course_id = str(course.get('id'))
-                                # Then try course_id field
-                                elif 'course_id' in course:
-                                    course_id = course.get('course_id')
-                                # Then try uuid field
-                                elif 'uuid' in course:
-                                    course_id = str(course.get('uuid'))
-                                # Finally try pk field
-                                elif 'pk' in course:
-                                    course_id = str(course.get('pk'))
-                                
-                                if not course_id:
-                                    continue
-                                
-                                # Extract course title - handle different field names
-                                course_title = None
-                                
-                                # Try different possible title fields in order of priority
-                                if course.get('title') and str(course.get('title')).strip():
-                                    course_title = str(course.get('title')).strip()
-                                elif course.get('name') and str(course.get('name')).strip():
-                                    course_title = str(course.get('name')).strip()
-                                elif course.get('course_title') and str(course.get('course_title')).strip():
-                                    course_title = str(course.get('course_title')).strip()
-                                elif course.get('display_name') and str(course.get('display_name')).strip():
-                                    course_title = str(course.get('display_name')).strip()
-                                elif course.get('description') and str(course.get('description')).strip():
-                                    # Use description as title if no proper title
-                                    description = str(course.get('description')).strip()
-                                    if len(description) > 60:
-                                        course_title = description[:60] + '...'
-                                    else:
-                                        course_title = description
-                                else:
-                                    # If nothing found, use a generic name with ID
-                                    course_title = f"Course {str(course_id)[:8]}"
-                                
-                                # Clean the course title - remove any UUID-looking strings
-                                uuid_pattern = r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
-                                
-                                # Check if title looks like a UUID
-                                if re.match(uuid_pattern, course_title, re.I):
-                                    # Title is a UUID, use description or generic name
-                                    if course.get('description') and str(course.get('description')).strip():
-                                        description = str(course.get('description')).strip()
-                                        if len(description) > 60:
-                                            course_title = description[:60] + '...'
-                                        else:
-                                            course_title = description
-                                    else:
-                                        course_title = "Unnamed Course"
-                                
-                                # Check if title is same as course_id
-                                if course_title == str(course_id):
-                                    if course.get('description') and str(course.get('description')).strip():
-                                        description = str(course.get('description')).strip()
-                                        if len(description) > 60:
-                                            course_title = description[:60] + '...'
-                                        else:
-                                            course_title = description
-                                    else:
-                                        course_title = f"Course {str(course_id)[:8]}"
-                                
-                                # Final cleanup: remove any "ID:" prefix if present
-                                if course_title.startswith('ID:'):
-                                    course_title = course_title[3:].strip()
-                                
-                                # Ensure title is not empty
-                                if not course_title or course_title.lower() in ['none', 'null', '']:
-                                    course_title = f"Course {str(course_id)[:8]}"
-                                
-                                course_data.append({
-                                    'id': str(course_id).strip(),
-                                    'title': course_title,
-                                    'description': course.get('description', '')
-                                })
-                            
-                            return JsonResponse({
-                                'status': 'success',
-                                'data': course_data
-                            })
-                
-                return JsonResponse({
-                    'status': 'error',
-                    'message': 'Failed to fetch courses from any replica'
-                }, status=500)
-                
+                return self._fetch_courses(client)
             elif data_type == 'lessons':
-                # Query selfstudycourse app for lessons (app_id=19)
-                course_replicas = client.fetch_replicas('selfstudycourse')
-                if not course_replicas:
-                    return JsonResponse({
-                        'status': 'error',
-                        'message': 'No course service replicas found'
-                    }, status=404)
-                
-                # Use first healthy replica
-                for replica in course_replicas:
-                    if client.health_check(replica):
-                        client.current_replica = replica
-                        response = client.make_request('GET', 'lessons/')
-                        if response.status_code == 200:
-                            lessons = response.json()
-                            # Handle paginated response
-                            if isinstance(lessons, dict) and 'results' in lessons:
-                                lessons = lessons['results']
-                            
-                            lesson_data = []
-                            for lesson in lessons:
-                                # Extract lesson details
-                                lesson_id = None
-                                
-                                # Try to get external_lesson_id first
-                                if 'external_lesson_id' in lesson:
-                                    lesson_id = lesson.get('external_lesson_id')
-                                elif 'id' in lesson:
-                                    lesson_id = str(lesson.get('id'))
-                                elif 'lesson_id' in lesson:
-                                    lesson_id = lesson.get('lesson_id')
-                                elif 'uuid' in lesson:
-                                    lesson_id = str(lesson.get('uuid'))
-                                elif 'pk' in lesson:
-                                    lesson_id = str(lesson.get('pk'))
-                                
-                                if not lesson_id:
-                                    continue
-                                
-                                # Extract lesson title
-                                lesson_title = None
-                                
-                                if lesson.get('title') and str(lesson.get('title')).strip():
-                                    lesson_title = str(lesson.get('title')).strip()
-                                elif lesson.get('name') and str(lesson.get('name')).strip():
-                                    lesson_title = str(lesson.get('name')).strip()
-                                elif lesson.get('lesson_title') and str(lesson.get('lesson_title')).strip():
-                                    lesson_title = str(lesson.get('lesson_title')).strip()
-                                elif lesson.get('description') and str(lesson.get('description')).strip():
-                                    description = str(lesson.get('description')).strip()
-                                    if len(description) > 60:
-                                        lesson_title = description[:60] + '...'
-                                    else:
-                                        lesson_title = description
-                                else:
-                                    lesson_title = f"Lesson {str(lesson_id)[:8]}"
-                                
-                                # Clean the lesson title
-                                uuid_pattern = r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
-                                if re.match(uuid_pattern, lesson_title, re.I) or lesson_title == str(lesson_id):
-                                    if lesson.get('description') and str(lesson.get('description')).strip():
-                                        description = str(lesson.get('description')).strip()
-                                        if len(description) > 60:
-                                            lesson_title = description[:60] + '...'
-                                        else:
-                                            lesson_title = description
-                                    else:
-                                        lesson_title = f"Lesson {str(lesson_id)[:8]}"
-                                
-                                # Extract course ID
-                                course_id = None
-                                
-                                if 'course_external_id' in lesson:
-                                    course_id = lesson.get('course_external_id')
-                                elif 'course' in lesson:
-                                    course_info = lesson.get('course')
-                                    if isinstance(course_info, dict):
-                                        if 'external_course_id' in course_info:
-                                            course_id = course_info.get('external_course_id')
-                                        elif 'id' in course_info:
-                                            course_id = str(course_info.get('id'))
-                                        elif 'course_id' in course_info:
-                                            course_id = course_info.get('course_id')
-                                        elif 'uuid' in course_info:
-                                            course_id = str(course_info.get('uuid'))
-                                        elif 'pk' in course_info:
-                                            course_id = str(course_info.get('pk'))
-                                    elif course_info:
-                                        course_id = str(course_info)
-                                elif 'course_id' in lesson:
-                                    course_id = lesson.get('course_id')
-                                
-                                # Get course name for this lesson
-                                course_name = None
-                                if course_id:
-                                    # Try to get course data to get course name
-                                    course_response = client.make_request('GET', f'courses/{course_id}/')
-                                    if course_response.status_code == 200:
-                                        course = course_response.json()
-                                        course_name = course.get('title') or course.get('name') or f"Course {course_id[:8]}"
-                                
-                                lesson_data.append({
-                                    'id': str(lesson_id),
-                                    'title': lesson_title,
-                                    'course_id': str(course_id).strip() if course_id else None,
-                                    'course_name': course_name
-                                })
-                            
-                            return JsonResponse({
-                                'status': 'success',
-                                'data': lesson_data
-                            })
-                
-                return JsonResponse({
-                    'status': 'error',
-                    'message': 'Failed to fetch lessons from any replica'
-                }, status=500)
-                
+                return self._fetch_lessons(client)
             elif data_type == 'exams':
-                # Query selfstudyexam app (app_id=20)
-                exam_replicas = client.fetch_replicas('selfstudyexam')
-                if not exam_replicas:
-                    return JsonResponse({
-                        'status': 'error',
-                        'message': 'No exam service replicas found'
-                    }, status=404)
-                
-                # Use first healthy replica
-                for replica in exam_replicas:
-                    if client.health_check(replica):
-                        client.current_replica = replica
-                        response = client.make_request('GET', 'exams/')
-                        if response.status_code == 200:
-                            exams = response.json()
-                            # Handle paginated response
-                            if isinstance(exams, dict) and 'results' in exams:
-                                exams = exams['results']
-                            
-                            exam_data = []
-                            for exam in exams:
-                                exam_id = None
-                                
-                                if 'external_id' in exam:
-                                    exam_id = exam.get('external_id')
-                                elif 'id' in exam:
-                                    exam_id = str(exam.get('id'))
-                                elif 'exam_id' in exam:
-                                    exam_id = exam.get('exam_id')
-                                elif 'uuid' in exam:
-                                    exam_id = str(exam.get('uuid'))
-                                elif 'pk' in exam:
-                                    exam_id = str(exam.get('pk'))
-                                
-                                if not exam_id:
-                                    continue
-                                    
-                                exam_title = None
-                                
-                                if exam.get('title') and str(exam.get('title')).strip():
-                                    exam_title = str(exam.get('title')).strip()
-                                elif exam.get('name') and str(exam.get('name')).strip():
-                                    exam_title = str(exam.get('name')).strip()
-                                elif exam.get('exam_title') and str(exam.get('exam_title')).strip():
-                                    exam_title = str(exam.get('exam_title')).strip()
-                                elif exam.get('description') and str(exam.get('description')).strip():
-                                    description = str(exam.get('description')).strip()
-                                    if len(description) > 60:
-                                        exam_title = description[:60] + '...'
-                                    else:
-                                        exam_title = description
-                                else:
-                                    exam_title = f"Exam {str(exam_id)[:8]}"
-                                
-                                # Clean exam title
-                                uuid_pattern = r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
-                                if re.match(uuid_pattern, exam_title, re.I) or exam_title == str(exam_id):
-                                    if exam.get('description') and str(exam.get('description')).strip():
-                                        description = str(exam.get('description')).strip()
-                                        if len(description) > 60:
-                                            exam_title = description[:60] + '...'
-                                        else:
-                                            exam_title = description
-                                    else:
-                                        exam_title = f"Exam {str(exam_id)[:8]}"
-                                
-                                exam_data.append({
-                                    'id': str(exam_id),
-                                    'title': exam_title,
-                                    'course_id': exam.get('course_id'),
-                                    'exam_duration': exam.get('exam_duration')
-                                })
-                            
-                            return JsonResponse({
-                                'status': 'success',
-                                'data': exam_data
-                            })
-                
-                return JsonResponse({
-                    'status': 'error',
-                    'message': 'Failed to fetch exams from any replica'
-                }, status=500)
-                
+                return self._fetch_exams(client)
             else:
                 return JsonResponse({
                     'status': 'error',
@@ -855,6 +572,418 @@ class ExternalDataAPIView(View):
                 'status': 'error',
                 'message': str(e)
             }, status=500)
+    
+    def _fetch_users(self, client):
+        """Fetch users from selfstudyuserprofile app"""
+        user_replicas = client.fetch_replicas('selfstudyuserprofile')
+        if not user_replicas:
+            return JsonResponse({
+                'status': 'error',
+                'message': 'No user service replicas found'
+            }, status=404)
+        
+        # Use first healthy replica
+        for replica in user_replicas:
+            if client.health_check(replica):
+                client.current_replica = replica
+                try:
+                    users = client.fetch_all_pages('profiles/')
+                    
+                    user_data = []
+                    for user in users:
+                        user_data.append({
+                            'id': user.get('user_id'),
+                            'username': user.get('username'),
+                            'email': user.get('email'),
+                            'first_name': user.get('first_name', ''),
+                            'last_name': user.get('last_name', ''),
+                            'full_name': f"{user.get('first_name', '')} {user.get('last_name', '')}".strip() or user.get('username')
+                        })
+                    
+                    return JsonResponse({
+                        'status': 'success',
+                        'data': user_data
+                    })
+                except Exception as e:
+                    logger.error(f"Failed to fetch users from {replica}: {str(e)}")
+                    continue
+        
+        return JsonResponse({
+            'status': 'error',
+            'message': 'Failed to fetch users from any replica'
+        }, status=500)
+    
+    def _fetch_courses(self, client):
+        """Fetch courses from selfstudycourse app"""
+        course_replicas = client.fetch_replicas('selfstudycourse')
+        if not course_replicas:
+            return JsonResponse({
+                'status': 'error',
+                'message': 'No course service replicas found'
+            }, status=404)
+        
+        # Use first healthy replica
+        for replica in course_replicas:
+            if client.health_check(replica):
+                client.current_replica = replica
+                try:
+                    courses = client.fetch_all_pages('courses/')
+                    
+                    course_data = self._process_courses(courses)
+                    
+                    # Update cache
+                    self.course_cache = {
+                        'data': course_data,
+                        'timestamp': self._current_timestamp(),
+                        'ttl': 300000
+                    }
+                    
+                    return JsonResponse({
+                        'status': 'success',
+                        'data': course_data
+                    })
+                except Exception as e:
+                    logger.error(f"Failed to fetch courses from {replica}: {str(e)}")
+                    continue
+        
+        return JsonResponse({
+            'status': 'error',
+            'message': 'Failed to fetch courses from any replica'
+        }, status=500)
+    
+    def _fetch_lessons(self, client):
+        """Fetch lessons from selfstudycourse app - OPTIMIZED VERSION"""
+        course_replicas = client.fetch_replicas('selfstudycourse')
+        if not course_replicas:
+            return JsonResponse({
+                'status': 'error',
+                'message': 'No course service replicas found'
+            }, status=404)
+        
+        # Use first healthy replica
+        for replica in course_replicas:
+            if client.health_check(replica):
+                client.current_replica = replica
+                try:
+                    # Fetch all courses first (use cache if available)
+                    courses = self._get_courses_with_cache(client, replica)
+                    
+                    # Create course mapping for quick lookup
+                    course_map = {}
+                    for course in courses:
+                        course_id = self._extract_course_id(course)
+                        if course_id:
+                            course_title = self._extract_course_title(course, course_id)
+                            course_map[course_id] = course_title
+                    
+                    # Fetch all lessons
+                    lessons = client.fetch_all_pages('lessons/')
+                    
+                    lesson_data = []
+                    for lesson in lessons:
+                        lesson_item = self._process_lesson(lesson, course_map)
+                        if lesson_item:
+                            lesson_data.append(lesson_item)
+                    
+                    return JsonResponse({
+                        'status': 'success',
+                        'data': lesson_data
+                    })
+                except Exception as e:
+                    logger.error(f"Failed to fetch lessons from {replica}: {str(e)}")
+                    continue
+        
+        return JsonResponse({
+            'status': 'error',
+            'message': 'Failed to fetch lessons from any replica'
+        }, status=500)
+    
+    def _fetch_exams(self, client):
+        """Fetch exams from selfstudyexam app"""
+        exam_replicas = client.fetch_replicas('selfstudyexam')
+        if not exam_replicas:
+            return JsonResponse({
+                'status': 'error',
+                'message': 'No exam service replicas found'
+            }, status=404)
+        
+        # Use first healthy replica
+        for replica in exam_replicas:
+            if client.health_check(replica):
+                client.current_replica = replica
+                try:
+                    exams = client.fetch_all_pages('exams/')
+                    
+                    exam_data = []
+                    for exam in exams:
+                        exam_item = self._process_exam(exam)
+                        if exam_item:
+                            exam_data.append(exam_item)
+                    
+                    return JsonResponse({
+                        'status': 'success',
+                        'data': exam_data
+                    })
+                except Exception as e:
+                    logger.error(f"Failed to fetch exams from {replica}: {str(e)}")
+                    continue
+        
+        return JsonResponse({
+            'status': 'error',
+            'message': 'Failed to fetch exams from any replica'
+        }, status=500)
+    
+    def _get_courses_with_cache(self, client, replica):
+        """Get courses from cache or fetch fresh"""
+        now = self._current_timestamp()
+        
+        # Check cache validity
+        if (self.course_cache['data'] and 
+            (now - self.course_cache['timestamp']) < self.course_cache['ttl']):
+            return self.course_cache['data']
+        
+        # Fetch fresh courses
+        client.current_replica = replica
+        courses = client.fetch_all_pages('courses/')
+        processed_courses = self._process_courses(courses)
+        
+        # Update cache
+        self.course_cache = {
+            'data': processed_courses,
+            'timestamp': now,
+            'ttl': 300000
+        }
+        
+        return processed_courses
+    
+    def _process_courses(self, courses):
+        """Process courses data"""
+        course_data = []
+        for course in courses:
+            course_item = self._process_course(course)
+            if course_item:
+                course_data.append(course_item)
+        return course_data
+    
+    def _process_course(self, course):
+        """Process individual course"""
+        # Extract course ID
+        course_id = self._extract_course_id(course)
+        if not course_id:
+            return None
+        
+        # Extract course title
+        course_title = self._extract_course_title(course, course_id)
+        
+        return {
+            'id': str(course_id).strip(),
+            'title': course_title,
+            'description': course.get('description', '')
+        }
+    
+    def _extract_course_id(self, course):
+        """Extract course ID from course data"""
+        course_id = None
+        
+        # Try different fields in order of priority
+        if 'external_course_id' in course:
+            course_id = course.get('external_course_id')
+        elif 'id' in course:
+            course_id = str(course.get('id'))
+        elif 'course_id' in course:
+            course_id = course.get('course_id')
+        elif 'uuid' in course:
+            course_id = str(course.get('uuid'))
+        elif 'pk' in course:
+            course_id = str(course.get('pk'))
+        
+        return course_id
+    
+    def _extract_course_title(self, course, course_id):
+        """Extract course title from course data"""
+        course_title = None
+        
+        # Try different possible title fields in order of priority
+        if course.get('title') and str(course.get('title')).strip():
+            course_title = str(course.get('title')).strip()
+        elif course.get('name') and str(course.get('name')).strip():
+            course_title = str(course.get('name')).strip()
+        elif course.get('course_title') and str(course.get('course_title')).strip():
+            course_title = str(course.get('course_title')).strip()
+        elif course.get('display_name') and str(course.get('display_name')).strip():
+            course_title = str(course.get('display_name')).strip()
+        elif course.get('description') and str(course.get('description')).strip():
+            description = str(course.get('description')).strip()
+            if len(description) > 60:
+                course_title = description[:60] + '...'
+            else:
+                course_title = description
+        else:
+            course_title = f"Course {str(course_id)[:8]}"
+        
+        # Clean the course title
+        course_title = self._clean_title(course_title, course_id, "Course")
+        
+        return course_title
+    
+    def _process_lesson(self, lesson, course_map):
+        """Process individual lesson"""
+        # Extract lesson details
+        lesson_id = self._extract_lesson_id(lesson)
+        if not lesson_id:
+            return None
+        
+        # Extract lesson title
+        lesson_title = self._extract_lesson_title(lesson, lesson_id)
+        
+        # Extract course ID and name
+        course_id = self._extract_lesson_course_id(lesson)
+        course_name = course_map.get(course_id) if course_id else None
+        
+        return {
+            'id': str(lesson_id),
+            'title': lesson_title,
+            'course_id': str(course_id).strip() if course_id else None,
+            'course_name': course_name
+        }
+    
+    def _extract_lesson_id(self, lesson):
+        """Extract lesson ID from lesson data"""
+        lesson_id = None
+        
+        if 'external_lesson_id' in lesson:
+            lesson_id = lesson.get('external_lesson_id')
+        elif 'id' in lesson:
+            lesson_id = str(lesson.get('id'))
+        elif 'lesson_id' in lesson:
+            lesson_id = lesson.get('lesson_id')
+        elif 'uuid' in lesson:
+            lesson_id = str(lesson.get('uuid'))
+        elif 'pk' in lesson:
+            lesson_id = str(lesson.get('pk'))
+        
+        return lesson_id
+    
+    def _extract_lesson_title(self, lesson, lesson_id):
+        """Extract lesson title from lesson data"""
+        lesson_title = None
+        
+        if lesson.get('title') and str(lesson.get('title')).strip():
+            lesson_title = str(lesson.get('title')).strip()
+        elif lesson.get('name') and str(lesson.get('name')).strip():
+            lesson_title = str(lesson.get('name')).strip()
+        elif lesson.get('lesson_title') and str(lesson.get('lesson_title')).strip():
+            lesson_title = str(lesson.get('lesson_title')).strip()
+        elif lesson.get('description') and str(lesson.get('description')).strip():
+            description = str(lesson.get('description')).strip()
+            if len(description) > 60:
+                lesson_title = description[:60] + '...'
+            else:
+                lesson_title = description
+        else:
+            lesson_title = f"Lesson {str(lesson_id)[:8]}"
+        
+        # Clean the lesson title
+        lesson_title = self._clean_title(lesson_title, lesson_id, "Lesson")
+        
+        return lesson_title
+    
+    def _extract_lesson_course_id(self, lesson):
+        """Extract course ID from lesson data"""
+        course_id = None
+        
+        if 'course_external_id' in lesson:
+            course_id = lesson.get('course_external_id')
+        elif 'course' in lesson:
+            course_info = lesson.get('course')
+            if isinstance(course_info, dict):
+                if 'external_course_id' in course_info:
+                    course_id = course_info.get('external_course_id')
+                elif 'id' in course_info:
+                    course_id = str(course_info.get('id'))
+                elif 'course_id' in course_info:
+                    course_id = course_info.get('course_id')
+                elif 'uuid' in course_info:
+                    course_id = str(course_info.get('uuid'))
+                elif 'pk' in course_info:
+                    course_id = str(course_info.get('pk'))
+            elif course_info:
+                course_id = str(course_info)
+        elif 'course_id' in lesson:
+            course_id = lesson.get('course_id')
+        
+        return course_id
+    
+    def _process_exam(self, exam):
+        """Process individual exam"""
+        exam_id = None
+        
+        if 'external_id' in exam:
+            exam_id = exam.get('external_id')
+        elif 'id' in exam:
+            exam_id = str(exam.get('id'))
+        elif 'exam_id' in exam:
+            exam_id = exam.get('exam_id')
+        elif 'uuid' in exam:
+            exam_id = str(exam.get('uuid'))
+        elif 'pk' in exam:
+            exam_id = str(exam.get('pk'))
+        
+        if not exam_id:
+            return None
+        
+        exam_title = None
+        
+        if exam.get('title') and str(exam.get('title')).strip():
+            exam_title = str(exam.get('title')).strip()
+        elif exam.get('name') and str(exam.get('name')).strip():
+            exam_title = str(exam.get('name')).strip()
+        elif exam.get('exam_title') and str(exam.get('exam_title')).strip():
+            exam_title = str(exam.get('exam_title')).strip()
+        elif exam.get('description') and str(exam.get('description')).strip():
+            description = str(exam.get('description')).strip()
+            if len(description) > 60:
+                exam_title = description[:60] + '...'
+            else:
+                exam_title = description
+        else:
+            exam_title = f"Exam {str(exam_id)[:8]}"
+        
+        # Clean exam title
+        exam_title = self._clean_title(exam_title, exam_id, "Exam")
+        
+        return {
+            'id': str(exam_id),
+            'title': exam_title,
+            'course_id': exam.get('course_id'),
+            'exam_duration': exam.get('exam_duration')
+        }
+    
+    def _clean_title(self, title, item_id, default_prefix):
+        """Clean title by removing UUIDs and improving readability"""
+        if not title:
+            return f"{default_prefix} {str(item_id)[:8]}"
+        
+        # Check if title looks like a UUID
+        uuid_pattern = r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+        
+        if re.match(uuid_pattern, title, re.I) or title == str(item_id):
+            return f"{default_prefix} {str(item_id)[:8]}"
+        
+        # Remove any "ID:" prefix if present
+        if title.startswith('ID:'):
+            title = title[3:].strip()
+        
+        # Ensure title is not empty
+        if not title or title.lower() in ['none', 'null', '']:
+            return f"{default_prefix} {str(item_id)[:8]}"
+        
+        return title
+    
+    def _current_timestamp(self):
+        """Get current timestamp in milliseconds"""
+        import time
+        return int(time.time() * 1000)
 
 @method_decorator(login_required, name='dispatch')
 class ReplicaAPIView(View):
