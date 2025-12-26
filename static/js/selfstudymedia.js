@@ -9,20 +9,28 @@ class MediaManager {
         this.selectedMediaId = null;
         this.selectedReferenceId = null;
         this.mediaData = [];
-        this.externalData = {
-            users: [],
-            courses: [],
-            lessons: [],
-            exams: []
+        
+        // Cache for external data
+        this.externalDataCache = {
+            users: { data: [], timestamp: 0, ttl: 300000 }, // 5 minutes
+            courses: { data: [], timestamp: 0, ttl: 300000 },
+            lessons: { data: [], timestamp: 0, ttl: 300000 },
+            exams: { data: [], timestamp: 0, ttl: 300000 }
         };
         
-        // Store reference names for display
-        this.referenceNames = {
+        // Cache for reference names (course_id -> course_name)
+        this.referenceCache = {
             users: {},
             courses: {},
             lessons: {},
             exams: {}
         };
+        
+        // Track course IDs for lessons
+        this.lessonToCourseMap = {};
+        
+        // Flag to prevent multiple simultaneous fetches
+        this.isFetchingExternalData = false;
         
         this.init();
     }
@@ -160,7 +168,7 @@ class MediaManager {
             }
         });
         
-        // Modal close buttons - only close specific modal
+        // Modal close buttons
         document.querySelectorAll('.modal-close').forEach(btn => {
             btn.addEventListener('click', () => {
                 this.closeModal(btn.closest('.modal'));
@@ -206,7 +214,7 @@ class MediaManager {
                     select.appendChild(option);
                 });
                 
-                // Select first healthy replica
+                // Select random healthy replica
                 const healthyReplicas = data.data.filter(r => r.healthy);
                 if (healthyReplicas.length > 0) {
                     const randomIndex = Math.floor(Math.random() * healthyReplicas.length);
@@ -271,8 +279,8 @@ class MediaManager {
         if (data.status === 'success') {
             this.mediaData = Array.isArray(data.data) ? data.data : [data.data];
             
-            // Load external reference data for display
-            await this.loadReferenceData();
+            // Load reference data for all media items at once
+            await this.loadReferenceDataForMedia();
             
             this.renderMediaTable();
             this.updatePagination();
@@ -281,63 +289,218 @@ class MediaManager {
         }
     }
     
-    async loadReferenceData() {
-        // Load reference data based on media type
-        try {
-            if (this.currentMediaType === 'profile_images') {
-                await this.loadExternalData('users');
-            } else if (this.currentMediaType === 'course_images') {
-                await this.loadExternalData('courses');
-            } else if (this.currentMediaType === 'lesson_images' || this.currentMediaType === 'lesson_videos') {
-                await this.loadExternalData('lessons');
-                await this.loadExternalData('courses'); // For course name display
-            } else if (this.currentMediaType === 'instruction_videos') {
-                await this.loadExternalData('exams');
-            }
-        } catch (error) {
-            console.error('Failed to load reference data:', error);
+    async loadReferenceDataForMedia() {
+        // Determine what external data we need based on media type
+        let dataTypes = [];
+        
+        switch(this.currentMediaType) {
+            case 'profile_images':
+                dataTypes = ['users'];
+                break;
+            case 'course_images':
+                dataTypes = ['courses'];
+                break;
+            case 'lesson_images':
+            case 'lesson_videos':
+                dataTypes = ['lessons', 'courses'];
+                break;
+            case 'instruction_videos':
+                dataTypes = ['exams'];
+                break;
         }
+        
+        // Load all required data types
+        for (const type of dataTypes) {
+            await this.loadExternalData(type);
+        }
+        
+        // Build reference cache for all media items
+        this.buildReferenceCache();
     }
     
     async loadExternalData(type) {
-        if (this.externalData[type].length === 0) {
+        // Check cache first
+        const cache = this.externalDataCache[type];
+        const now = Date.now();
+        
+        if (cache.data.length > 0 && (now - cache.timestamp) < cache.ttl && !this.isFetchingExternalData) {
+            return cache.data;
+        }
+        
+        try {
+            this.isFetchingExternalData = true;
             const response = await fetch(`/selfstudymedia/api/external-data/?type=${type}`);
             const data = await response.json();
             
             if (data.status === 'success') {
-                this.externalData[type] = data.data;
+                cache.data = data.data;
+                cache.timestamp = now;
                 
-                // Build reference name map
+                // Clear old reference cache for this type
+                this.referenceCache[type] = {};
+                
+                // Process and cache the data
                 data.data.forEach(item => {
-                    this.referenceNames[type][item.id] = item.title || item.full_name || item.username;
+                    if (!item.id) return;
+                    
+                    let name = '';
+                    switch(type) {
+                        case 'users':
+                            name = item.full_name || item.username || `User ${item.id.substring(0, 8)}`;
+                            break;
+                        case 'courses':
+                            name = item.title || `Course ${item.id.substring(0, 8)}`;
+                            break;
+                        case 'lessons':
+                            name = item.title || `Lesson ${item.id.substring(0, 8)}`;
+                            if (item.course_id) {
+                                this.lessonToCourseMap[item.id] = item.course_id;
+                            }
+                            if (item.course_name) {
+                                this.referenceCache.courses[item.course_id] = item.course_name;
+                            }
+                            break;
+                        case 'exams':
+                            name = item.title || `Exam ${item.id.substring(0, 8)}`;
+                            break;
+                    }
+                    
+                    // Store in reference cache
+                    this.referenceCache[type][item.id] = name;
                 });
+                
+                return cache.data;
+            }
+        } catch (error) {
+            console.error(`Failed to load ${type}:`, error);
+            // Don't clear cache on error, use existing cache if available
+        } finally {
+            this.isFetchingExternalData = false;
+        }
+        
+        return cache.data || [];
+    }
+    
+    buildReferenceCache() {
+        // This method ensures all media items have their reference names cached
+        for (const media of this.mediaData) {
+            let referenceId, type;
+            
+            switch(this.currentMediaType) {
+                case 'profile_images':
+                    referenceId = media.user_id;
+                    type = 'users';
+                    // Also check if media has username field
+                    if (media.username && !this.referenceCache[type][referenceId]) {
+                        this.referenceCache[type][referenceId] = media.username;
+                    }
+                    break;
+                case 'course_images':
+                    referenceId = media.course_id;
+                    type = 'courses';
+                    // Also check if media has course_name field
+                    if (media.course_name && !this.referenceCache[type][referenceId]) {
+                        this.referenceCache[type][referenceId] = media.course_name;
+                    }
+                    break;
+                case 'lesson_images':
+                case 'lesson_videos':
+                    referenceId = media.lesson_id;
+                    type = 'lessons';
+                    // Also check if media has lesson_name field
+                    if (media.lesson_name && !this.referenceCache[type][referenceId]) {
+                        this.referenceCache[type][referenceId] = media.lesson_name;
+                    }
+                    // Also check if media has course_name field
+                    if (media.course_name) {
+                        const courseId = this.lessonToCourseMap[referenceId];
+                        if (courseId && !this.referenceCache.courses[courseId]) {
+                            this.referenceCache.courses[courseId] = media.course_name;
+                        }
+                    }
+                    break;
+                case 'instruction_videos':
+                    referenceId = media.exam_id;
+                    type = 'exams';
+                    // Also check if media has exam_name field
+                    if (media.exam_name && !this.referenceCache[type][referenceId]) {
+                        this.referenceCache[type][referenceId] = media.exam_name;
+                    }
+                    break;
+            }
+            
+            if (referenceId && !this.referenceCache[type][referenceId]) {
+                // If not in cache, create a placeholder
+                let placeholder = '';
+                switch(type) {
+                    case 'users':
+                        placeholder = `User ${referenceId.substring(0, 8)}`;
+                        break;
+                    case 'courses':
+                        placeholder = `Course ${referenceId.substring(0, 8)}`;
+                        break;
+                    case 'lessons':
+                        placeholder = `Lesson ${referenceId.substring(0, 8)}`;
+                        break;
+                    case 'exams':
+                        placeholder = `Exam ${referenceId.substring(0, 8)}`;
+                        break;
+                }
+                this.referenceCache[type][referenceId] = placeholder;
             }
         }
     }
     
     getReferenceName(referenceId) {
-        // Get reference name based on media type
+        if (!referenceId) return 'Unknown';
+        
         let type = '';
-        if (this.currentMediaType === 'profile_images') {
-            type = 'users';
-        } else if (this.currentMediaType === 'course_images') {
-            type = 'courses';
-        } else if (this.currentMediaType === 'lesson_images' || this.currentMediaType === 'lesson_videos') {
-            type = 'lessons';
-        } else if (this.currentMediaType === 'instruction_videos') {
-            type = 'exams';
+        switch(this.currentMediaType) {
+            case 'profile_images':
+                type = 'users';
+                break;
+            case 'course_images':
+                type = 'courses';
+                break;
+            case 'lesson_images':
+            case 'lesson_videos':
+                type = 'lessons';
+                break;
+            case 'instruction_videos':
+                type = 'exams';
+                break;
         }
         
-        return this.referenceNames[type]?.[referenceId] || referenceId;
+        // Check if we have a cached name
+        const cachedName = this.referenceCache[type][referenceId];
+        if (cachedName) {
+            // Don't return IDs that look like UUIDs
+            const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+            if (uuidPattern.test(cachedName) || cachedName.startsWith('ID:')) {
+                return `Unknown ${type.slice(0, -1)}`;
+            }
+            return cachedName;
+        }
+        
+        return `Unknown ${type.slice(0, -1)}`;
     }
     
     getCourseNameForLesson(lessonId) {
-        // Find course for lesson (this is simplified - you may need to adjust based on your API)
-        const lesson = this.externalData.lessons.find(l => l.id === lessonId);
-        if (lesson && lesson.course_id) {
-            return this.referenceNames.courses?.[lesson.course_id] || lesson.course_id;
+        if (!lessonId) return 'No Course';
+        
+        const courseId = this.lessonToCourseMap[lessonId];
+        if (!courseId) return 'No Course';
+        
+        const courseName = this.referenceCache.courses[courseId];
+        if (!courseName) return 'No Course';
+        
+        // Don't return IDs that look like UUIDs
+        const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (uuidPattern.test(courseName) || courseName.startsWith('ID:')) {
+            return 'Unnamed Course';
         }
-        return 'N/A';
+        
+        return courseName;
     }
     
     renderMediaTable() {
@@ -358,34 +521,58 @@ class MediaManager {
             let referenceName = '';
             let courseName = '';
             
+            // Get reference name from media fields first, then from cache
             if (this.currentMediaType === 'profile_images') {
                 referenceId = media.user_id;
-                referenceName = this.getReferenceName(referenceId);
+                referenceName = media.username || this.getReferenceName(referenceId);
             } else if (this.currentMediaType === 'course_images') {
                 referenceId = media.course_id;
-                referenceName = this.getReferenceName(referenceId);
+                referenceName = media.course_name || this.getReferenceName(referenceId);
             } else if (this.currentMediaType === 'lesson_images' || this.currentMediaType === 'lesson_videos') {
                 referenceId = media.lesson_id;
-                referenceName = this.getReferenceName(referenceId);
-                courseName = this.getCourseNameForLesson(referenceId);
+                referenceName = media.lesson_name || this.getReferenceName(referenceId);
+                courseName = media.course_name || this.getCourseNameForLesson(referenceId);
             } else if (this.currentMediaType === 'instruction_videos') {
                 referenceId = media.exam_id;
-                referenceName = this.getReferenceName(referenceId);
+                referenceName = media.exam_name || this.getReferenceName(referenceId);
             }
             
-            // Get file URL and create thumbnail
+            // Get file URL
             const fileUrl = media.image || media.video;
             const isVideo = this.currentMediaType.includes('video');
+            const initials = this.getInitials(referenceName);
             
+            // Create thumbnail
             let thumbnailHtml = '';
             if (fileUrl) {
-                if (isVideo) {
-                    thumbnailHtml = `<div class="video-thumbnail" data-url="${fileUrl}"></div>`;
-                } else {
-                    thumbnailHtml = `<img src="${fileUrl}" alt="Thumbnail" class="media-thumbnail" data-url="${fileUrl}">`;
-                }
+                // Create image element that will show fallback only on error
+                thumbnailHtml = `
+                    <div class="media-thumbnail ${isVideo ? 'video-thumbnail' : ''}" 
+                         data-url="${fileUrl}" data-name="${referenceName}">
+                        ${!isVideo ? `
+                            <img src="${fileUrl}" alt="${referenceName}" 
+                                 class="thumbnail-image"
+                                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                            <div class="thumbnail-initials" style="background-color: ${this.getColorForInitials(initials)}; display: none;">
+                                ${initials}
+                            </div>
+                        ` : `
+                            <div class="thumbnail-initials" style="background-color: ${this.getColorForInitials(initials)}">
+                                ${initials}
+                            </div>
+                            <div class="play-icon">▶</div>
+                        `}
+                    </div>
+                `;
             } else {
-                thumbnailHtml = '<span>N/A</span>';
+                // No file URL - show fallback immediately
+                thumbnailHtml = `
+                    <div class="media-thumbnail no-file" style="background-color: ${this.getColorForInitials(initials)}">
+                        <div class="thumbnail-initials">
+                            ${initials}
+                        </div>
+                    </div>
+                `;
             }
             
             // Build row HTML based on media type
@@ -477,12 +664,43 @@ class MediaManager {
         });
         
         // Add event listeners to thumbnails
-        tbody.querySelectorAll('.media-thumbnail, .video-thumbnail').forEach(thumbnail => {
+        tbody.querySelectorAll('.media-thumbnail').forEach(thumbnail => {
             thumbnail.addEventListener('click', (e) => {
-                const fileUrl = e.target.dataset.url || e.currentTarget.dataset.url;
-                this.viewMediaByUrl(fileUrl);
+                const fileUrl = e.currentTarget.dataset.url;
+                const name = e.currentTarget.dataset.name;
+                if (fileUrl) {
+                    this.viewMediaByUrl(fileUrl, name);
+                }
             });
         });
+    }
+    
+    getInitials(name) {
+        if (!name) return '??';
+        
+        // Remove any numbers or special characters for initials
+        const letters = name.match(/[A-Za-z]/g);
+        if (letters && letters.length >= 2) {
+            return (letters[0] + letters[1]).toUpperCase();
+        }
+        
+        // Fallback to first two characters
+        const cleanName = name.replace(/[^A-Za-z0-9]/g, '');
+        if (cleanName.length >= 2) {
+            return cleanName.substring(0, 2).toUpperCase();
+        }
+        
+        return '??';
+    }
+    
+    getColorForInitials(initials) {
+        const colors = [
+            '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
+            '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9'
+        ];
+        if (!initials || initials === '??') return '#6c757d';
+        const index = (initials.charCodeAt(0) + (initials.charCodeAt(1) || 0)) % colors.length;
+        return colors[index];
     }
     
     updateTableHeaders() {
@@ -555,6 +773,45 @@ class MediaManager {
         `;
     }
     
+    async loadMedia() {
+        try {
+            this.showTableLoading();
+            await this.fetchMedia();
+        } catch (error) {
+            console.error('Failed to load media:', error);
+            this.showToast(`Failed to load media: ${error.message}`, 'error');
+            this.renderEmptyTable('Failed to load media data');
+        }
+    }
+    
+    updateUI() {
+        this.updateListTitle();
+        this.updateTableHeaders();
+        this.updatePagination();
+    }
+    
+    updateListTitle() {
+        const title = document.getElementById('list-title');
+        const typeLabels = {
+            'profile_images': 'Profile Images',
+            'course_images': 'Course Images',
+            'lesson_images': 'Lesson Images',
+            'lesson_videos': 'Lesson Videos',
+            'instruction_videos': 'Instruction Videos'
+        };
+        title.textContent = typeLabels[this.currentMediaType] || 'Media';
+    }
+    
+    updatePagination() {
+        const prevBtn = document.getElementById('prev-page');
+        const nextBtn = document.getElementById('next-page');
+        const pageInfo = document.getElementById('page-info');
+        
+        prevBtn.disabled = this.currentPage <= 1;
+        nextBtn.disabled = this.currentPage >= this.totalPages;
+        pageInfo.textContent = `Page ${this.currentPage} of ${this.totalPages}`;
+    }
+    
     async viewMedia(referenceId) {
         const media = this.mediaData.find(m => {
             if (this.currentMediaType === 'profile_images') return m.user_id === referenceId;
@@ -567,33 +824,72 @@ class MediaManager {
         if (!media) return;
         
         const fileUrl = media.image || media.video;
+        let referenceName = '';
+        if (this.currentMediaType === 'profile_images') {
+            referenceName = media.username || this.getReferenceName(referenceId);
+        } else if (this.currentMediaType === 'course_images') {
+            referenceName = media.course_name || this.getReferenceName(referenceId);
+        } else if (this.currentMediaType === 'lesson_images' || this.currentMediaType === 'lesson_videos') {
+            referenceName = media.lesson_name || this.getReferenceName(referenceId);
+        } else if (this.currentMediaType === 'instruction_videos') {
+            referenceName = media.exam_name || this.getReferenceName(referenceId);
+        }
+        
         if (fileUrl) {
-            this.viewMediaByUrl(fileUrl);
+            this.viewMediaByUrl(fileUrl, referenceName);
+        } else {
+            this.showPreviewFallback(referenceName);
         }
     }
     
-    viewMediaByUrl(fileUrl) {
+    viewMediaByUrl(fileUrl, referenceName = '') {
         const preview = document.getElementById('media-preview-content');
         const extension = fileUrl.split('.').pop().toLowerCase();
         const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(extension);
         const isVideo = ['mp4', 'avi', 'mov', 'webm', 'mkv', 'flv', 'wmv'].includes(extension);
         
-        let mediaElement = '';
-        
         if (isImage) {
-            mediaElement = `<img src="${fileUrl}" alt="Media preview" class="preview-image">`;
+            const img = new Image();
+            img.src = fileUrl;
+            img.alt = referenceName;
+            img.className = 'preview-image';
+            img.onload = () => {
+                preview.innerHTML = '';
+                preview.appendChild(img);
+            };
+            img.onerror = () => {
+                this.showPreviewFallback(referenceName, false);
+            };
+            preview.innerHTML = '<div class="loading">Loading image...</div>';
         } else if (isVideo) {
-            mediaElement = `
-                <video controls class="preview-video">
-                    <source src="${fileUrl}" type="video/${extension === 'mov' ? 'quicktime' : extension}">
-                    Your browser does not support the video tag.
-                </video>
+            const video = document.createElement('video');
+            video.controls = true;
+            video.className = 'preview-video';
+            video.innerHTML = `
+                <source src="${fileUrl}" type="video/${extension === 'mov' ? 'quicktime' : extension}">
+                Your browser does not support the video tag.
             `;
+            video.addEventListener('error', () => {
+                this.showPreviewFallback(referenceName, true);
+            });
+            preview.innerHTML = '';
+            preview.appendChild(video);
         } else {
-            mediaElement = '<p>Preview not available for this file type</p>';
+            this.showPreviewFallback(referenceName, isVideo);
         }
+    }
+    
+    showPreviewFallback(name, isVideo = false) {
+        const preview = document.getElementById('media-preview-content');
+        const initials = this.getInitials(name);
         
-        preview.innerHTML = mediaElement;
+        preview.innerHTML = `
+            <div class="preview-fallback" style="background-color: ${this.getColorForInitials(initials)}">
+                <div class="preview-initials">${initials}</div>
+                <div class="preview-message">${isVideo ? 'Video' : 'Image'} not available</div>
+                ${name ? `<div class="preview-name">${name}</div>` : ''}
+            </div>
+        `;
     }
     
     showMediaModal(mode, referenceId = null) {
@@ -622,6 +918,9 @@ class MediaManager {
         document.getElementById('file-preview').innerHTML = '';
         document.getElementById('reference-details').classList.remove('active');
         
+        // Create hidden inputs for reference name and course name
+        this.removeHiddenInputs();
+        
         // Set label based on media type
         switch(this.currentMediaType) {
             case 'profile_images':
@@ -649,10 +948,40 @@ class MediaManager {
                 const details = document.getElementById('reference-details');
                 details.innerHTML = `<strong>Selected:</strong> ${referenceName}`;
                 details.classList.add('active');
+                
+                // Add hidden input for reference name
+                this.addHiddenInput('reference_name', referenceName);
+                
+                // For lessons, also add course name
+                if (this.currentMediaType === 'lesson_images' || this.currentMediaType === 'lesson_videos') {
+                    const courseName = this.getCourseNameForLesson(referenceId);
+                    if (courseName && courseName !== 'No Course') {
+                        this.addHiddenInput('course_name', courseName);
+                    }
+                }
             }
         }
         
         modal.classList.add('active');
+    }
+    
+    removeHiddenInputs() {
+        // Remove any existing hidden inputs
+        const existingHiddenInputs = document.querySelectorAll('input[type="hidden"]');
+        existingHiddenInputs.forEach(input => {
+            if (input.id !== 'media-id' && input.id !== 'media-type' && input.id !== 'form-replica-url') {
+                input.remove();
+            }
+        });
+    }
+    
+    addHiddenInput(name, value) {
+        const form = document.getElementById('media-form');
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = name;
+        input.value = value;
+        form.appendChild(input);
     }
     
     async saveMedia() {
@@ -771,16 +1100,13 @@ class MediaManager {
     
     async loadLookupData(type) {
         try {
-            const response = await fetch(`/selfstudymedia/api/external-data/?type=${type}`);
-            const data = await response.json();
+            const data = await this.loadExternalData(type);
             
-            if (data.status === 'success') {
-                this.externalData[type] = data.data;
-                this.renderLookupTable(type);
+            if (data.length > 0) {
+                this.renderLookupTable(type, data);
             } else {
-                throw new Error(data.message);
+                this.renderEmptyLookupTable();
             }
-            
         } catch (error) {
             console.error(`Failed to load ${type}:`, error);
             this.showToast(`Failed to load ${type}: ${error.message}`, 'error');
@@ -788,39 +1114,27 @@ class MediaManager {
         }
     }
     
-    renderLookupTable(type) {
+    renderLookupTable(type, data) {
         const tbody = document.getElementById('lookup-results-body');
-        const data = this.externalData[type];
-        
-        if (!data || data.length === 0) {
-            this.renderEmptyLookupTable('No data found');
-            return;
-        }
         
         tbody.innerHTML = '';
         
         data.forEach(item => {
             const row = document.createElement('tr');
             
-            let idField = item.id;
-            let nameField = '';
-            
-            switch(type) {
-                case 'users':
-                    nameField = item.full_name || item.username;
-                    break;
-                case 'courses':
-                case 'lessons':
-                case 'exams':
-                    nameField = item.title;
-                    break;
-            }
+            const idField = item.id || 'N/A';
+            const nameField = this.referenceCache[type][item.id] || item.id || 'Unknown';
+            // For lessons, include course name if available
+            const courseName = item.course_name || '';
             
             row.innerHTML = `
                 <td>${idField}</td>
-                <td>${nameField}</td>
                 <td>
-                    <button class="select-btn" data-id="${idField}" data-name="${nameField}">
+                    ${nameField}
+                    ${courseName ? `<div style="font-size: 0.8em; color: #666;">Course: ${courseName}</div>` : ''}
+                </td>
+                <td>
+                    <button class="select-btn" data-id="${idField}" data-name="${nameField}" data-course="${courseName}">
                         Select
                     </button>
                 </td>
@@ -834,7 +1148,8 @@ class MediaManager {
             btn.addEventListener('click', (e) => {
                 const id = e.target.dataset.id;
                 const name = e.target.dataset.name;
-                this.selectReference(id, name);
+                const courseName = e.target.dataset.course;
+                this.selectReference(id, name, courseName);
             });
         });
     }
@@ -850,13 +1165,28 @@ class MediaManager {
         `;
     }
     
-    selectReference(id, name) {
+    selectReference(id, name, courseName = '') {
         // Update reference ID field
         document.getElementById('reference-id').value = id;
         
+        // Remove existing hidden inputs
+        this.removeHiddenInputs();
+        
+        // Add reference name as hidden input
+        this.addHiddenInput('reference_name', name);
+        
+        // For lessons, also add course name if available
+        if (courseName && (this.currentMediaType === 'lesson_images' || this.currentMediaType === 'lesson_videos')) {
+            this.addHiddenInput('course_name', courseName);
+        }
+        
         // Show reference details
         const details = document.getElementById('reference-details');
-        details.innerHTML = `<strong>Selected:</strong> ${name}`;
+        let detailsHtml = `<strong>Selected:</strong> ${name}`;
+        if (courseName) {
+            detailsHtml += `<br><strong>Course:</strong> ${courseName}`;
+        }
+        details.innerHTML = detailsHtml;
         details.classList.add('active');
         
         // Close only the lookup modal
@@ -864,12 +1194,14 @@ class MediaManager {
     }
     
     searchLookupData(type, query) {
-        if (!query) {
-            this.renderLookupTable(type);
+        const data = this.externalDataCache[type].data;
+        
+        if (!query || !data || data.length === 0) {
+            this.renderLookupTable(type, data);
             return;
         }
         
-        const filtered = this.externalData[type].filter(item => {
+        const filtered = data.filter(item => {
             const searchable = JSON.stringify(item).toLowerCase();
             return searchable.includes(query.toLowerCase());
         });
@@ -879,45 +1211,7 @@ class MediaManager {
             return;
         }
         
-        const tbody = document.getElementById('lookup-results-body');
-        tbody.innerHTML = '';
-        
-        filtered.forEach(item => {
-            const row = document.createElement('tr');
-            let nameField = '';
-            
-            switch(type) {
-                case 'users':
-                    nameField = item.full_name || item.username;
-                    break;
-                case 'courses':
-                case 'lessons':
-                case 'exams':
-                    nameField = item.title;
-                    break;
-            }
-            
-            row.innerHTML = `
-                <td>${item.id}</td>
-                <td>${nameField}</td>
-                <td>
-                    <button class="select-btn" data-id="${item.id}" data-name="${nameField}">
-                        Select
-                    </button>
-                </td>
-            `;
-            
-            tbody.appendChild(row);
-        });
-        
-        // Add event listeners to select buttons
-        tbody.querySelectorAll('.select-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const id = e.target.dataset.id;
-                const name = e.target.dataset.name;
-                this.selectReference(id, name);
-            });
-        });
+        this.renderLookupTable(type, filtered);
     }
     
     updateFilePreview(file) {
@@ -977,53 +1271,12 @@ class MediaManager {
             return;
         }
         
-        // Re-render filtered data
+        // Re-render filtered data (simplified)
         filtered.forEach(media => {
-            // Similar rendering as in renderMediaTable
-            // This is simplified - in production, you'd want to reuse the rendering logic
             const row = document.createElement('tr');
-            row.innerHTML = '<td colspan="5">Filtered item (implementation omitted for brevity)</td>';
+            row.innerHTML = '<td colspan="6">Filtered item - use search with proper implementation</td>';
             tbody.appendChild(row);
         });
-    }
-    
-    async loadMedia() {
-        try {
-            this.showTableLoading();
-            await this.fetchMedia();
-        } catch (error) {
-            console.error('Failed to load media:', error);
-            this.showToast(`Failed to load media: ${error.message}`, 'error');
-            this.renderEmptyTable('Failed to load media data');
-        }
-    }
-    
-    updateUI() {
-        this.updateListTitle();
-        this.updateTableHeaders();
-        this.updatePagination();
-    }
-    
-    updateListTitle() {
-        const title = document.getElementById('list-title');
-        const typeLabels = {
-            'profile_images': 'Profile Images',
-            'course_images': 'Course Images',
-            'lesson_images': 'Lesson Images',
-            'lesson_videos': 'Lesson Videos',
-            'instruction_videos': 'Instruction Videos'
-        };
-        title.textContent = typeLabels[this.currentMediaType] || 'Media';
-    }
-    
-    updatePagination() {
-        const prevBtn = document.getElementById('prev-page');
-        const nextBtn = document.getElementById('next-page');
-        const pageInfo = document.getElementById('page-info');
-        
-        prevBtn.disabled = this.currentPage <= 1;
-        nextBtn.disabled = this.currentPage >= this.totalPages;
-        pageInfo.textContent = `Page ${this.currentPage} of ${this.totalPages}`;
     }
     
     closeModal(modal) {

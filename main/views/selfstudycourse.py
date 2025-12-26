@@ -195,10 +195,11 @@ class CourseAPIClient:
         if 'external_course_id' not in data:
             data['external_course_id'] = course_id
         
-        # Step 2: Upload image to media app with the actual course_id
+        # Step 2: Upload image to media app with course name
         image_url = None
         if image_file:
-            media_response = self.upload_course_image(image_file, course_id)
+            course_name = data.get('title', '')
+            media_response = self.upload_course_image(image_file, course_id, course_name)
             if media_response and 'image' in media_response:
                 image_url = media_response['image']
                 logger.info(f"Successfully uploaded image to media app: {image_url}")
@@ -219,10 +220,20 @@ class CourseAPIClient:
         return self._make_request('POST', '/courses/', data)
 
     def update_course(self, course_id, data, image_file=None):
-        # Step 1: Upload image to media app FIRST if provided
+        # Step 1: Get current course to get the title for media app
+        course_name = data.get('title', '')
+        if not course_name:
+            # Try to get current course title
+            course_response = self.get_course(course_id)
+            if not isinstance(course_response, dict) or 'error' in course_response:
+                logger.error(f"Failed to get course details for {course_id}")
+            else:
+                course_name = course_response.get('title', '')
+
+        # Step 2: Upload image to media app FIRST if provided
         image_url = None
         if image_file:
-            media_response = self.upload_course_image(image_file, course_id)
+            media_response = self.upload_course_image(image_file, course_id, course_name)
             if media_response and 'image' in media_response:
                 image_url = media_response['image']
                 logger.info(f"Successfully uploaded image to media app: {image_url}")
@@ -230,12 +241,12 @@ class CourseAPIClient:
                 logger.error(f"Failed to upload course image: {media_response['error']}")
                 return {'error': f"Media upload failed: {media_response['error']}"}
         
-        # Step 2: Add the image URL to course data if we have one
+        # Step 3: Add the image URL to course data if we have one
         if image_url:
             data['image_url'] = image_url
             logger.info(f"Added image_url to course data: {image_url}")
         
-        # Step 3: Update course with the new data
+        # Step 4: Update course with the new data
         logger.info(f"Updating course with data: {data}")
         return self._make_request('PUT', f'/courses/{course_id}/', data)
 
@@ -424,24 +435,25 @@ class CourseAPIClient:
     def delete_registration(self, registration_id):
         return self._make_request('DELETE', f'/registrations/{registration_id}/', expected_statuses=[200, 204])
 
-    # Media operations - UPDATED to accept course_id parameter
-
-    def upload_course_image(self, image_file, course_id=None):
+    # Media operations - UPDATED to accept course_name parameter
+    def upload_course_image(self, image_file, course_id=None, course_name=None):
         domain = self._get_random_domain(self.media_domains)
         if not domain:
             return {'error': 'No media domains available'}
 
         url = f"{domain}/course-images/"
         
-        # Prepare the data for media app - use the actual course_id if provided
+        # Prepare the data for media app - include course name
         files = {'image': image_file}
-        data = {'course_id': course_id}  # Remove the fallback UUID
+        data = {
+            'course_id': course_id,
+            'course_name': course_name if course_name else f'Course {course_id[:8]}'  # Provide fallback name
+        }
         
         # Debug logging
         logger.info(f"Uploading course image to: {url}")
-        logger.info(f"Auth token present: {bool(self.auth_token)}")
-        logger.info(f"Image file: {image_file.name if image_file else 'None'}")
         logger.info(f"Course ID for media: {data['course_id']}")
+        logger.info(f"Course Name for media: {data['course_name']}")
 
         try:
             response = requests.post(

@@ -63,7 +63,6 @@ urlpatterns = [
     path('selfstudymedia/api/media/', SelfStudyMediaAPIView.as_view(), name='selfstudymedia_api'),
     path('selfstudymedia/api/external-data/', ExternalDataAPIView.as_view(), name='selfstudymedia_external_data'),
     path('selfstudymedia/api/replicas/', ReplicaAPIView.as_view(), name='selfstudymedia_replicas'),
-
     # Other Self Study Service URLs
     path('selfstudydomains/', SelfStudyDomainsView.as_view(), name='selfstudydomains'),
     path('selfstudydomains/api/', SelfStudyDomainsAPIView.as_view(), name='selfstudydomains_api'),

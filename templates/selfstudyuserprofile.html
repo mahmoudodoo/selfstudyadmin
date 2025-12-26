@@ -33,7 +33,9 @@
                 <i class="fas fa-envelope"></i>
             </div>
             <div class="stat-info">
-                <h3>{{ users|length }}</h3>
+                {% with verified_count=users|length %}
+                <h3>{{ verified_count }}</h3>
+                {% endwith %}
                 <p>Verified Emails</p>
             </div>
         </div>
@@ -73,7 +75,15 @@
                 </thead>
                 <tbody>
                     {% for user in users %}
-                    <tr class="user-row">
+                    <tr class="user-row" data-user-id="{{ user.user_id }}" 
+                        data-username="{{ user.username }}" 
+                        data-email="{{ user.email }}"
+                        data-first-name="{{ user.first_name }}"
+                        data-last-name="{{ user.last_name }}"
+                        data-gender="{{ user.gender }}"
+                        data-image-url="{{ user.image_url|default:'' }}"
+                        data-lab-url="{{ user.lab_url|default:'' }}"
+                        data-verified="{{ user.is_email_verified|yesno:'true,false' }}">
                         <td>
                             <div class="user-avatar">
                                 {% if user.image_url %}
@@ -160,7 +170,7 @@
             <h2><i class="fas fa-user-plus"></i> Create New User</h2>
             <span class="close" onclick="closeCreateModal()">&times;</span>
         </div>
-        <form method="POST" class="modal-form">
+        <form method="POST" class="modal-form" enctype="multipart/form-data">
             {% csrf_token %}
             <input type="hidden" name="action" value="create">
             
@@ -194,8 +204,9 @@
                     </select>
                 </div>
                 <div class="form-group full-width">
-                    <label for="create_image_url">Profile Image URL</label>
-                    <input type="url" id="create_image_url" name="image_url" placeholder="https://example.com/image.jpg">
+                    <label for="create_profile_image">Profile Image</label>
+                    <input type="file" id="create_profile_image" name="profile_image" accept="image/*">
+                    <small>Upload profile image (will be stored in media app)</small>
                 </div>
                 <div class="form-group full-width">
                     <label for="create_lab_url">Virtual Lab URL</label>
@@ -224,7 +235,7 @@
             <h2><i class="fas fa-user-edit"></i> Edit User</h2>
             <span class="close" onclick="closeEditModal()">&times;</span>
         </div>
-        <form method="POST" class="modal-form">
+        <form method="POST" class="modal-form" enctype="multipart/form-data">
             {% csrf_token %}
             <input type="hidden" name="action" value="update">
             <input type="hidden" id="edit_user_id" name="user_id">
@@ -259,8 +270,9 @@
                     </select>
                 </div>
                 <div class="form-group full-width">
-                    <label for="edit_image_url">Profile Image URL</label>
-                    <input type="url" id="edit_image_url" name="image_url">
+                    <label for="edit_profile_image">Profile Image</label>
+                    <input type="file" id="edit_profile_image" name="profile_image" accept="image/*">
+                    <small>Upload new profile image (will update in media app)</small>
                 </div>
                 <div class="form-group full-width">
                     <label for="edit_lab_url">Virtual Lab URL</label>
@@ -319,14 +331,13 @@ function openEditModal(userId) {
     // Find the user row by data attribute
     const userRow = document.querySelector(`tr[data-user-id="${userId}"]`);
     if (userRow) {
-        // Populate the form fields
+        // Populate the form fields from data attributes
         document.getElementById('edit_user_id').value = userId;
         document.getElementById('edit_username').value = userRow.dataset.username || '';
         document.getElementById('edit_email').value = userRow.dataset.email || '';
         document.getElementById('edit_first_name').value = userRow.dataset.firstName || '';
         document.getElementById('edit_last_name').value = userRow.dataset.lastName || '';
         document.getElementById('edit_gender').value = userRow.dataset.gender || '';
-        document.getElementById('edit_image_url').value = userRow.dataset.imageUrl || '';
         document.getElementById('edit_lab_url').value = userRow.dataset.labUrl || '';
         document.getElementById('edit_is_email_verified').checked = userRow.dataset.verified === 'true';
         
@@ -359,64 +370,5 @@ window.onclick = function(event) {
         }
     }
 }
-
-// Add user data to rows for easy access
-document.addEventListener('DOMContentLoaded', function() {
-    const userRows = document.querySelectorAll('.user-row');
-    userRows.forEach(row => {
-        // Extract data from table cells
-        const cells = row.cells;
-        
-        // Get username from the second cell
-        const usernameElement = cells[1].querySelector('.user-username');
-        const username = usernameElement ? usernameElement.textContent.replace('@', '') : '';
-        
-        // Get email from the third cell
-        const emailElement = cells[2].querySelector('.email');
-        const email = emailElement ? emailElement.textContent.trim() : '';
-        
-        // Get name from the second cell
-        const nameElement = cells[1].querySelector('.user-name');
-        const nameParts = nameElement ? nameElement.textContent.split(' ') : [];
-        const firstName = nameParts[0] || '';
-        const lastName = nameParts.slice(1).join(' ') || '';
-        
-        // Get gender from the second cell
-        const genderElement = cells[1].querySelector('.user-gender');
-        let gender = '';
-        if (genderElement) {
-            if (genderElement.textContent.includes('Male')) gender = 'M';
-            else if (genderElement.textContent.includes('Female')) gender = 'F';
-        }
-        
-        // Get image URL from the first cell
-        const imgElement = cells[0].querySelector('img');
-        const imageUrl = imgElement ? imgElement.src : '';
-        
-        // Get lab URL from the third cell
-        const labLink = cells[2].querySelector('.lab-url a');
-        const labUrl = labLink ? labLink.href : '';
-        
-        // Get verification status from the fourth cell
-        const statusBadge = cells[3].querySelector('.status-badge');
-        const isVerified = statusBadge ? statusBadge.classList.contains('verified') : false;
-        
-        // Get user_id from the action buttons
-        const editButton = cells[5].querySelector('.btn-edit');
-        const userId = editButton ? editButton.getAttribute('onclick').match(/'([^']+)'/)[1] : '';
-        
-        // Set data attributes
-        row.dataset.userId = userId;
-        row.dataset.username = username;
-        row.dataset.email = email;
-        row.dataset.firstName = firstName;
-        row.dataset.lastName = lastName;
-        row.dataset.gender = gender;
-        row.dataset.imageUrl = imageUrl;
-        row.dataset.labUrl = labUrl;
-        row.dataset.verified = isVerified;
-    });
-});
-
 </script>
 {% endblock %}

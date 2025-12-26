@@ -894,3 +894,174 @@
 .media-table tbody tr {
     animation: fadeIn 0.3s ease;
 }
+
+/* Add these styles to the existing selfstudymedia.css file */
+
+/* Media Thumbnail */
+.media-thumbnail {
+    position: relative;
+    width: 60px;
+    height: 60px;
+    border-radius: 8px;
+    overflow: hidden;
+    cursor: pointer;
+    background-color: #f8f9fa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.media-thumbnail.video-thumbnail {
+    background-color: #000;
+}
+
+.media-thumbnail .thumbnail-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.media-thumbnail .thumbnail-initials {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    color: white;
+    font-size: 18px;
+    background-color: rgba(0, 0, 0, 0.7);
+}
+
+.media-thumbnail.no-file .thumbnail-initials {
+    display: flex;
+    background-color: #6c757d;
+}
+
+.media-thumbnail .play-icon {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-size: 20px;
+    z-index: 2;
+    opacity: 0.8;
+}
+
+/* Preview Fallback */
+.preview-fallback {
+    width: 100%;
+    height: 300px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    color: white;
+    padding: 20px;
+    text-align: center;
+}
+
+.preview-fallback .preview-initials {
+    font-size: 72px;
+    font-weight: bold;
+    margin-bottom: 20px;
+    opacity: 0.9;
+}
+
+.preview-fallback .preview-message {
+    font-size: 18px;
+    margin-bottom: 10px;
+    opacity: 0.9;
+}
+
+.preview-fallback .preview-name {
+    font-size: 14px;
+    opacity: 0.7;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Table Improvements */
+.media-table td {
+    vertical-align: middle;
+}
+
+.media-table .action-buttons {
+    display: flex;
+    gap: 6px;
+    flex-wrap: nowrap;
+}
+
+.media-table .btn-view,
+.media-table .btn-edit,
+.media-table .btn-delete {
+    padding: 4px 8px;
+    font-size: 12px;
+    min-width: 60px;
+}
+
+/* Loading state for preview */
+.preview-content .loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: #6c757d;
+    font-style: italic;
+}
+
+/* Ensure images display properly in preview */
+.preview-image {
+    max-width: 100%;
+    max-height: 400px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    object-fit: contain;
+    background-color: #f8f9fa;
+}
+
+.preview-video {
+    max-width: 100%;
+    max-height: 400px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    background-color: #000;
+}
+
+/* Error states for thumbnails */
+.media-thumbnail.error .thumbnail-initials {
+    display: flex !important;
+}
+
+.media-thumbnail.error .thumbnail-image {
+    display: none;
+}
+
+/* Better table layout */
+.media-table-container {
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.media-table thead {
+    position: sticky;
+    top: 0;
+    background: #f8f9fa;
+    z-index: 10;
+}
+
+/* Adjust table column widths based on media type */
+.media-table th:nth-child(1) { width: 80px; } /* ID */
+.media-table th:nth-child(2) { width: 200px; } /* Name */
+.media-table th:nth-child(3) { width: 200px; } /* Course Name (for lessons) or Video */
+.media-table th:nth-child(4) { width: 80px; } /* Thumbnail */
+.media-table th:nth-child(5) { width: 120px; } /* Created */
+.media-table th:nth-child(6) { width: 180px; } /* Actions */
