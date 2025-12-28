@@ -6,10 +6,6 @@ from django.utils.decorators import method_decorator
 
 
 
-@method_decorator(login_required, name='dispatch')
-class SelfStudyChatView(View):
-    def get(self, request):
-        return render(request, 'selfstudychat.html')
 
 @method_decorator(login_required, name='dispatch')
 class SelfStudyOTPView(View):

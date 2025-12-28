@@ -1,15 +1,257 @@
 {% extends 'base.html' %}
+{% load static %}
 
-{% block title %}Chat{% endblock %}
+{% block title %}Chat Management{% endblock %}
 {% block page_title %}Chat Management{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="/static/css/selfstudychat.css">
+<link rel="stylesheet" href="{% static 'css/selfstudychat.css' %}">
 {% endblock %}
 
 {% block content %}
 <div class="page-content">
-    <h2>Chat Management</h2>
-    <p>Manage chat sessions and conversations.</p>
+    <div class="chat-container">
+        <!-- Header with Stats -->
+        <div class="chat-header">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">💬</div>
+                    <div class="stat-content">
+                        <h3 id="total-rooms">{{ total_rooms }}</h3>
+                        <p>Active Chats</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">🌐</div>
+                    <div class="stat-content">
+                        <h3>{{ replica_urls|length }}</h3>
+                        <p>Replicas</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">🚫</div>
+                    <div class="stat-content">
+                        <h3 id="blocked-count">{{ blocked_ips|length }}</h3>
+                        <p>Blocked IPs</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls-section">
+            <div class="controls-grid">
+                <!-- Replica Selector -->
+                <div class="control-group">
+                    <label for="replica-select">Select Replica:</label>
+                    <select id="replica-select" class="form-select">
+                        <option value="all" {% if selected_replica == 'all' %}selected{% endif %}>All Replicas (Aggregate)</option>
+                        {% for replica in replica_urls %}
+                        <option value="{{ replica }}" {% if selected_replica == replica %}selected{% endif %}>
+                            {{ replica|truncatechars:40 }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Refresh Button -->
+                <div class="control-group">
+                    <button id="refresh-btn" class="btn-primary">
+                        <span class="btn-icon">🔄</span> <span id="refresh-text">Refresh</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Search Filters -->
+            <div class="filters-section">
+                <form id="search-form" class="filters-grid">
+                    <div class="filter-group">
+                        <input type="text" 
+                               id="room-id-filter" 
+                               placeholder="Room ID" 
+                               value="{{ filters.room_id }}"
+                               class="form-input">
+                    </div>
+                    
+                    <div class="filter-group">
+                        <input type="text" 
+                               id="ip-filter" 
+                               placeholder="IP Address" 
+                               value="{{ filters.ip }}"
+                               class="form-input">
+                    </div>
+                    
+                    <div class="filter-group">
+                        <select id="country-filter" class="form-select">
+                            <option value="">All Countries</option>
+                            {% for country in unique_countries %}
+                            <option value="{{ country }}" 
+                                    {% if filters.country == country %}selected{% endif %}>
+                                {{ country }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <input type="text" 
+                               id="message-filter" 
+                               placeholder="Search in messages" 
+                               value="{{ filters.message }}"
+                               class="form-input">
+                    </div>
+                    
+                    <div class="filter-group">
+                        <button type="submit" class="btn-secondary" id="search-btn">
+                            <span class="btn-icon">🔍</span> <span id="search-text">Search</span>
+                        </button>
+                        <button type="button" id="clear-filters" class="btn-outline">
+                            Clear
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Loading Indicator -->
+        <div id="loading-indicator" class="loading-indicator" style="display: none;">
+            <div class="loading-spinner"></div>
+            <span>Loading chat rooms...</span>
+        </div>
+
+        <!-- Chat Rooms Table -->
+        <div class="table-container">
+            <table id="chat-rooms-table" class="data-table">
+                <thead>
+                    <tr>
+                        <th>Room ID</th>
+                        <th>IP Address</th>
+                        <th>Country</th>
+                        <th>Replica</th>
+                        <th>Last Active</th>
+                        <th>Unread</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="chat-rooms-body">
+                    {% for room in chat_rooms %}
+                    <tr data-room-id="{{ room.id }}" data-replica="{{ room.replica_url }}" data-ip="{{ room.anonymous_user_ip }}">
+                        <td>{{ room.id }}</td>
+                        <td>
+                            <div class="ip-display">
+                                <span class="ip-value">{{ room.anonymous_user_ip }}</span>
+                                {% if room.anonymous_user_ip in blocked_ips %}
+                                <span class="badge badge-danger">Blocked</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            <div class="country-display">
+                                {% if room.flag_url %}
+                                <img src="{{ room.flag_url }}" alt="{{ room.country_name }}" class="flag-icon" onerror="this.style.display='none'">
+                                {% endif %}
+                                <span>{{ room.country_name|default:"Unknown" }}</span>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="replica-badge" title="{{ room.replica_url }}">
+                                {{ room.replica_url|truncatechars:20 }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if room.last_active %}
+                            <span class="timestamp" title="{{ room.last_active }}">
+                                {{ room.last_active|slice:":16" }}
+                            </span>
+                            {% else %}
+                            <span class="timestamp">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="unread-count {% if room.unseen_count > 0 %}has-unread{% endif %}">
+                                {{ room.unseen_count|default:0 }}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="action-buttons">
+                                <button class="btn-icon view-messages" title="View Messages">
+                                    👁️
+                                </button>
+                                <button class="btn-icon block-ip {% if room.anonymous_user_ip in blocked_ips %}blocked{% endif %}" 
+                                        title="{% if room.anonymous_user_ip in blocked_ips %}Unblock IP{% else %}Block IP{% endif %}">
+                                    {% if room.anonymous_user_ip in blocked_ips %}✅{% else %}🚫{% endif %}
+                                </button>
+                                <button class="btn-icon delete-room" title="Delete Room">
+                                    🗑️
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="no-data">
+                            {% if replica_urls %}
+                            No chat rooms found. Try adjusting your filters or select a different replica.
+                            {% else %}
+                            No replicas available. Please check your registry connection.
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="pagination">
+            <div class="pagination-info">
+                Showing <span id="showing-count">{{ chat_rooms|length }}</span> of 
+                <span id="total-count">{{ total_rooms }}</span> rooms
+            </div>
+        </div>
+    </div>
 </div>
+
+<!-- Messages Modal -->
+<div id="messages-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="modal-title">Chat Messages</h3>
+            <button class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div id="messages-loading" class="loading-indicator" style="display: none;">
+                <div class="loading-spinner"></div>
+                <span>Loading messages...</span>
+            </div>
+            <div class="messages-container" id="messages-container">
+                <!-- Messages will be loaded here -->
+            </div>
+            <div class="message-input-section">
+                <textarea id="message-input" placeholder="Type your message..." rows="3"></textarea>
+                <div class="input-actions">
+                    <button id="mark-seen-btn" class="btn-secondary">Mark as Seen</button>
+                    <button id="send-message-btn" class="btn-primary">Send</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Confirm Modal -->
+<div id="confirm-modal" class="modal">
+    <div class="modal-content confirm-modal">
+        <h3 id="confirm-title"></h3>
+        <p id="confirm-message"></p>
+        <div class="modal-actions">
+            <button id="confirm-cancel" class="btn-outline">Cancel</button>
+            <button id="confirm-ok" class="btn-danger">Confirm</button>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/selfstudychat.js' %}"></script>
 {% endblock %}
