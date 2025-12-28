@@ -1,24 +1,21 @@
-// Optimized SelfStudy Chat Management JavaScript
+// SelfStudy Chat Management - Working Version
 class ChatManager {
     constructor() {
         this.currentRoomId = null;
         this.currentReplicaUrl = null;
         this.blockedIPs = new Set();
-        this.isLoading = false;
-        this.debounceTimer = null;
         this.init();
     }
 
     init() {
         this.bindEvents();
+        this.loadChatRooms();
         this.setupAutoRefresh();
-        // Load initial data with slight delay to let page render
-        setTimeout(() => this.loadChatRooms(), 100);
     }
 
     bindEvents() {
         // Replica selector
-        document.getElementById('replica-select').addEventListener('change', (e) => {
+        document.getElementById('replica-select').addEventListener('change', () => {
             this.loadChatRooms();
         });
 
@@ -27,20 +24,20 @@ class ChatManager {
             this.loadChatRooms(true);
         });
 
-        // Search form with debounce
-        const searchInputs = [
-            'room-id-filter', 'ip-filter', 'country-filter', 'message-filter'
-        ];
-        
-        searchInputs.forEach(id => {
+        // Search filters
+        ['room-id-filter', 'ip-filter', 'country-filter', 'message-filter'].forEach(id => {
             const element = document.getElementById(id);
             if (element) {
                 element.addEventListener('input', () => {
-                    this.debouncedSearch();
+                    clearTimeout(this.searchTimer);
+                    this.searchTimer = setTimeout(() => {
+                        this.loadChatRooms();
+                    }, 500);
                 });
             }
         });
 
+        // Search form
         document.getElementById('search-form').addEventListener('submit', (e) => {
             e.preventDefault();
             this.loadChatRooms();
@@ -51,10 +48,8 @@ class ChatManager {
             this.clearFilters();
         });
 
-        // Table actions with event delegation
+        // Table actions
         document.getElementById('chat-rooms-body').addEventListener('click', (e) => {
-            if (this.isLoading) return;
-            
             const button = e.target.closest('button');
             if (!button) return;
             
@@ -75,9 +70,9 @@ class ChatManager {
         });
 
         // Modal events
-        document.querySelectorAll('.modal-close').forEach(closeBtn => {
-            closeBtn.addEventListener('click', () => {
-                this.closeModal(closeBtn.closest('.modal'));
+        document.querySelectorAll('.modal-close').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.closeModal(btn.closest('.modal'));
             });
         });
 
@@ -102,9 +97,13 @@ class ChatManager {
             }
         });
 
-        // Confirm modal OK button
+        // Confirm OK
         document.getElementById('confirm-ok').addEventListener('click', () => {
-            this.executeConfirmedAction();
+            if (this.pendingAction) {
+                this.pendingAction();
+                this.pendingAction = null;
+            }
+            this.closeModal(document.getElementById('confirm-modal'));
         });
 
         // Close modal on overlay click
@@ -117,32 +116,18 @@ class ChatManager {
         });
     }
 
-    debouncedSearch() {
-        clearTimeout(this.debounceTimer);
-        this.debounceTimer = setTimeout(() => {
-            this.loadChatRooms();
-        }, 300);
-    }
-
     async loadChatRooms(forceRefresh = false) {
-        if (this.isLoading) return;
-        
         const tableBody = document.getElementById('chat-rooms-body');
         const loadingIndicator = document.getElementById('loading-indicator');
         const refreshBtn = document.getElementById('refresh-btn');
-        const refreshText = document.getElementById('refresh-text');
         
         try {
-            this.isLoading = true;
-            
-            // Show loading state
-            if (forceRefresh || tableBody.children.length === 0) {
-                tableBody.innerHTML = '<tr><td colspan="7" class="loading-cell"><div class="loading-spinner"></div> Loading...</td></tr>';
+            // Show loading
+            if (tableBody.children.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="7">Loading...</td></tr>';
             }
-            
             loadingIndicator.style.display = 'flex';
-            refreshBtn.classList.add('loading');
-            refreshText.textContent = 'Loading...';
+            refreshBtn.disabled = true;
             
             // Get filters
             const filters = {
@@ -150,56 +135,37 @@ class ChatManager {
                 room_id: document.getElementById('room-id-filter').value,
                 ip: document.getElementById('ip-filter').value,
                 country: document.getElementById('country-filter').value,
-                message: document.getElementById('message-filter').value
             };
             
-            // Build query string
-            const queryParams = new URLSearchParams();
+            // Build query
+            const params = new URLSearchParams();
             Object.entries(filters).forEach(([key, value]) => {
-                if (value) queryParams.set(key, value);
+                if (value) params.set(key, value);
             });
             
-            // Add cache busting for force refresh
-            if (forceRefresh) {
-                queryParams.set('_', Date.now());
-            }
-            
-            // Make API request
-            const response = await fetch(`/selfstudychat/api/rooms/?${queryParams}`);
-            
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
-            }
-            
+            // Fetch rooms
+            const response = await fetch(`/selfstudychat/api/rooms/?${params}`);
             const data = await response.json();
             
             if (data.success) {
-                this.renderChatRooms(data.chat_rooms);
-                this.updateCounts(data.total_count);
-                this.loadBlockedIPs(data.chat_rooms);
+                this.renderChatRooms(data.rooms);
+                this.updateCounts(data.total);
+                
+                // Update blocked IPs
+                this.blockedIPs.clear();
+                data.blocked_ips.forEach(ip => this.blockedIPs.add(ip));
+                
+                // Update blocked count
+                document.getElementById('blocked-count').textContent = data.blocked_ips.length;
             } else {
-                throw new Error(data.error || 'Failed to load chat rooms');
+                throw new Error(data.error || 'Failed to load');
             }
         } catch (error) {
-            console.error('Error loading chat rooms:', error);
-            this.showError('Failed to load chat rooms: ' + error.message);
-            
-            // Show error in table
-            tableBody.innerHTML = `
-                <tr>
-                    <td colspan="7" class="error-message">
-                        Failed to load chat rooms. 
-                        <button onclick="window.chatManager.loadChatRooms(true)" class="btn-outline" style="margin-left: 10px;">
-                            Retry
-                        </button>
-                    </td>
-                </tr>
-            `;
+            console.error('Error loading rooms:', error);
+            this.showError('Failed to load chat rooms');
         } finally {
-            this.isLoading = false;
             loadingIndicator.style.display = 'none';
-            refreshBtn.classList.remove('loading');
-            refreshText.textContent = 'Refresh';
+            refreshBtn.disabled = false;
         }
     }
 
@@ -207,73 +173,63 @@ class ChatManager {
         const tableBody = document.getElementById('chat-rooms-body');
         
         if (rooms.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="7" class="no-data">No chat rooms found. Try adjusting your filters.</td></tr>';
+            tableBody.innerHTML = '<tr><td colspan="7" class="no-data">No chat rooms found</td></tr>';
             return;
         }
         
-        // Use DocumentFragment for better performance
-        const fragment = document.createDocumentFragment();
-        
+        let html = '';
         rooms.forEach(room => {
             const isBlocked = this.blockedIPs.has(room.anonymous_user_ip);
             const unreadCount = room.unseen_count || 0;
-            const lastActive = room.last_active ? this.formatTimestamp(room.last_active) : '-';
+            const lastActive = this.formatTime(room.last_active);
             
-            const row = document.createElement('tr');
-            row.dataset.roomId = room.id;
-            row.dataset.replica = room.replica_url;
-            row.dataset.ip = room.anonymous_user_ip;
-            
-            row.innerHTML = `
-                <td>${room.id}</td>
-                <td>
-                    <div class="ip-display">
-                        <span class="ip-value">${room.anonymous_user_ip}</span>
-                        ${isBlocked ? '<span class="badge badge-danger">Blocked</span>' : ''}
-                    </div>
-                </td>
-                <td>
-                    <div class="country-display">
-                        ${room.flag_url ? `<img src="${room.flag_url}" alt="${room.country_name}" class="flag-icon" onerror="this.style.display='none'">` : ''}
-                        <span>${room.country_name || 'Unknown'}</span>
-                    </div>
-                </td>
-                <td>
-                    <span class="replica-badge" title="${room.replica_url}">
-                        ${this.truncateText(room.replica_url, 20)}
-                    </span>
-                </td>
-                <td>
-                    <span class="timestamp" title="${room.last_active}">
-                        ${lastActive}
-                    </span>
-                </td>
-                <td>
-                    <span class="unread-count ${unreadCount > 0 ? 'has-unread' : ''}">
-                        ${unreadCount}
-                    </span>
-                </td>
-                <td>
-                    <div class="action-buttons">
-                        <button class="btn-icon view-messages" title="View Messages">
-                            👁️
-                        </button>
-                        <button class="btn-icon block-ip ${isBlocked ? 'blocked' : ''}" 
-                                title="${isBlocked ? 'Unblock IP' : 'Block IP'}">
-                            ${isBlocked ? '✅' : '🚫'}
-                        </button>
-                        <button class="btn-icon delete-room" title="Delete Room">
-                            🗑️
-                        </button>
-                    </div>
-                </td>
+            html += `
+                <tr data-room-id="${room.id}" data-replica="${room.replica_url}" data-ip="${room.anonymous_user_ip}">
+                    <td>${room.id}</td>
+                    <td>
+                        <div class="ip-display">
+                            <span class="ip-value">${room.anonymous_user_ip}</span>
+                            ${isBlocked ? '<span class="badge badge-danger">Blocked</span>' : ''}
+                        </div>
+                    </td>
+                    <td>
+                        <div class="country-display">
+                            ${room.flag_url ? `<img src="${room.flag_url}" alt="${room.country_name}" class="flag-icon">` : ''}
+                            <span>${room.country_name || 'Unknown'}</span>
+                        </div>
+                    </td>
+                    <td>
+                        <span class="replica-badge" title="${room.replica_url}">
+                            ${this.truncate(room.replica_url, 20)}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="timestamp">${lastActive}</span>
+                    </td>
+                    <td>
+                        <span class="unread-count ${unreadCount > 0 ? 'has-unread' : ''}">
+                            ${unreadCount}
+                        </span>
+                    </td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="btn-icon view-messages" title="View Messages">
+                                👁️
+                            </button>
+                            <button class="btn-icon block-ip ${isBlocked ? 'blocked' : ''}" 
+                                    title="${isBlocked ? 'Unblock IP' : 'Block IP'}">
+                                ${isBlocked ? '✅' : '🚫'}
+                            </button>
+                            <button class="btn-icon delete-room" title="Delete Room">
+                                🗑️
+                            </button>
+                        </div>
+                    </td>
+                </tr>
             `;
-            
-            fragment.appendChild(row);
         });
         
-        tableBody.innerHTML = '';
-        tableBody.appendChild(fragment);
+        tableBody.innerHTML = html;
     }
 
     async showMessages(roomId, replicaUrl) {
@@ -281,93 +237,89 @@ class ChatManager {
         this.currentReplicaUrl = replicaUrl;
         
         try {
-            // Show modal and loading
-            document.getElementById('modal-title').textContent = `Chat Room ${roomId}`;
             this.openModal('messages-modal');
+            document.getElementById('modal-title').textContent = `Chat Room ${roomId}`;
             
-            const messagesContainer = document.getElementById('messages-container');
-            messagesContainer.innerHTML = '<div class="loading-messages"><div class="loading-spinner"></div> Loading messages...</div>';
+            const container = document.getElementById('messages-container');
+            container.innerHTML = '<div class="loading">Loading messages...</div>';
             
-            // Load messages
-            const response = await fetch(`/selfstudychat/api/rooms/${roomId}/messages/?replica_url=${encodeURIComponent(replicaUrl)}`);
-            
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
-            }
+            // Fetch messages
+            const response = await fetch('/selfstudychat/api/rooms/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.getCsrfToken()
+                },
+                body: JSON.stringify({
+                    action: 'get-messages',
+                    replica_url: replicaUrl,
+                    room_id: roomId
+                })
+            });
             
             const data = await response.json();
             
             if (data.success) {
                 this.renderMessages(data.messages);
             } else {
-                throw new Error(data.error || 'Failed to load messages');
+                throw new Error(data.error);
             }
         } catch (error) {
             console.error('Error loading messages:', error);
             document.getElementById('messages-container').innerHTML = 
-                '<div class="error-message">Failed to load messages: ' + error.message + '</div>';
+                '<div class="error">Failed to load messages</div>';
         }
     }
 
     renderMessages(messages) {
         const container = document.getElementById('messages-container');
         
-        if (messages.length === 0) {
-            container.innerHTML = '<div class="no-messages">No messages yet</div>';
+        if (!messages || messages.length === 0) {
+            container.innerHTML = '<div class="no-messages">No messages</div>';
             return;
         }
         
-        // Use DocumentFragment for better performance
-        const fragment = document.createDocumentFragment();
-        
+        let html = '';
         messages.forEach(msg => {
-            const senderClass = `sender-${msg.sender}`;
-            const time = this.formatTimestamp(msg.timestamp);
-            const isUnseen = msg.is_seen === false;
-            
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `message-item ${isUnseen ? 'unseen' : ''}`;
-            messageDiv.innerHTML = `
-                <div class="message-bubble ${senderClass}">
-                    <div class="message-header">
-                        <span class="message-sender">${this.capitalize(msg.sender)}</span>
-                        <span class="message-time">${time}</span>
+            const time = this.formatTime(msg.timestamp);
+            html += `
+                <div class="message-item">
+                    <div class="message-bubble sender-${msg.sender}">
+                        <div class="message-header">
+                            <span class="message-sender">${this.capitalize(msg.sender)}</span>
+                            <span class="message-time">${time}</span>
+                        </div>
+                        <div class="message-text">${this.escapeHtml(msg.message)}</div>
                     </div>
-                    <div class="message-text">${this.escapeHtml(msg.message)}</div>
                 </div>
             `;
-            
-            fragment.appendChild(messageDiv);
         });
         
-        container.innerHTML = '';
-        container.appendChild(fragment);
-        
-        // Scroll to bottom
+        container.innerHTML = html;
         container.scrollTop = container.scrollHeight;
     }
 
     async toggleBlockIP(roomId, replicaUrl, ip, row, button) {
-        const isCurrentlyBlocked = button.classList.contains('blocked');
-        const action = isCurrentlyBlocked ? 'unblock-ip' : 'block-ip';
-        const confirmMessage = isCurrentlyBlocked 
-            ? `Unblock IP ${ip}?`
-            : `Block IP ${ip}? This will prevent this IP from sending messages.`;
+        const isBlocked = button.classList.contains('blocked');
+        const action = isBlocked ? 'unblock-ip' : 'block-ip';
+        const actionText = isBlocked ? 'unblock' : 'block';
         
         this.showConfirmModal(
-            isCurrentlyBlocked ? 'Unblock IP' : 'Block IP',
-            confirmMessage,
+            `${isBlocked ? 'Unblock' : 'Block'} IP`,
+            `Are you sure you want to ${actionText} IP ${ip}?`,
             async () => {
                 try {
-                    const response = await fetch(`/selfstudychat/api/${action}/`, {
+                    const response = await fetch('/selfstudychat/api/rooms/', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
                             'X-CSRFToken': this.getCsrfToken()
                         },
                         body: JSON.stringify({
+                            action: action,
+                            replica_url: replicaUrl,
                             room_id: roomId,
-                            replica_url: replicaUrl
+                            ip_address: ip
                         })
                     });
                     
@@ -375,16 +327,16 @@ class ChatManager {
                     
                     if (data.success) {
                         // Update UI
-                        if (isCurrentlyBlocked) {
+                        if (isBlocked) {
                             button.classList.remove('blocked');
                             button.title = 'Block IP';
-                            button.textContent = '🚫';
+                            button.innerHTML = '🚫';
                             this.blockedIPs.delete(ip);
                             row.querySelector('.badge-danger')?.remove();
                         } else {
                             button.classList.add('blocked');
                             button.title = 'Unblock IP';
-                            button.textContent = '✅';
+                            button.innerHTML = '✅';
                             this.blockedIPs.add(ip);
                             const ipDisplay = row.querySelector('.ip-display');
                             if (!ipDisplay.querySelector('.badge-danger')) {
@@ -392,15 +344,18 @@ class ChatManager {
                             }
                         }
                         
-                        this.showNotification(data.message || 'Operation successful', 'success');
+                        // Update other rows with same IP
+                        this.updateAllRowsForIP(ip, !isBlocked);
                         
-                        // Refresh blocked IPs for all rows with same IP
-                        this.updateAllRowsForIP(ip, !isCurrentlyBlocked);
+                        // Update blocked count
+                        document.getElementById('blocked-count').textContent = this.blockedIPs.size;
+                        
+                        this.showNotification(data.message, 'success');
                     } else {
-                        throw new Error(data.error || 'Operation failed');
+                        throw new Error(data.error);
                     }
                 } catch (error) {
-                    console.error('Error toggling block status:', error);
+                    console.error('Error toggling block:', error);
                     this.showNotification('Failed to update block status', 'error');
                 }
             }
@@ -408,7 +363,6 @@ class ChatManager {
     }
 
     updateAllRowsForIP(ip, isBlocked) {
-        // Update all rows with the same IP
         document.querySelectorAll(`tr[data-ip="${ip}"]`).forEach(row => {
             const button = row.querySelector('.block-ip');
             const badge = row.querySelector('.badge-danger');
@@ -416,14 +370,14 @@ class ChatManager {
             if (isBlocked) {
                 button?.classList.add('blocked');
                 button.title = 'Unblock IP';
-                button.textContent = '✅';
+                button.innerHTML = '✅';
                 if (!badge) {
                     row.querySelector('.ip-display').innerHTML += '<span class="badge badge-danger">Blocked</span>';
                 }
             } else {
                 button?.classList.remove('blocked');
                 button.title = 'Block IP';
-                button.textContent = '🚫';
+                button.innerHTML = '🚫';
                 badge?.remove();
             }
         });
@@ -432,32 +386,33 @@ class ChatManager {
     async deleteRoom(roomId, replicaUrl) {
         this.showConfirmModal(
             'Delete Chat Room',
-            `Are you sure you want to delete room ${roomId}? This action cannot be undone.`,
+            `Delete room ${roomId}? This cannot be undone.`,
             async () => {
                 try {
-                    const response = await fetch(`/selfstudychat/api/delete-room/`, {
+                    const response = await fetch('/selfstudychat/api/rooms/', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
                             'X-CSRFToken': this.getCsrfToken()
                         },
                         body: JSON.stringify({
-                            room_id: roomId,
-                            replica_url: replicaUrl
+                            action: 'delete-room',
+                            replica_url: replicaUrl,
+                            room_id: roomId
                         })
                     });
                     
                     const data = await response.json();
                     
                     if (data.success) {
-                        // Remove row from table
+                        // Remove row
                         const row = document.querySelector(`tr[data-room-id="${roomId}"][data-replica="${replicaUrl}"]`);
                         if (row) row.remove();
                         
-                        this.showNotification(data.message || 'Room deleted successfully', 'success');
+                        this.showNotification(data.message, 'success');
                         this.updateCounts();
                     } else {
-                        throw new Error(data.error || 'Delete failed');
+                        throw new Error(data.error);
                     }
                 } catch (error) {
                     console.error('Error deleting room:', error);
@@ -468,23 +423,25 @@ class ChatManager {
     }
 
     async sendMessage() {
-        const messageInput = document.getElementById('message-input');
-        const message = messageInput.value.trim();
+        const input = document.getElementById('message-input');
+        const message = input.value.trim();
         
         if (!message || !this.currentRoomId || !this.currentReplicaUrl) {
+            this.showNotification('Please enter a message', 'error');
             return;
         }
         
         try {
-            const response = await fetch(`/selfstudychat/api/send-message/`, {
+            const response = await fetch('/selfstudychat/api/rooms/', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRFToken': this.getCsrfToken()
                 },
                 body: JSON.stringify({
-                    room_id: this.currentRoomId,
+                    action: 'send-message',
                     replica_url: this.currentReplicaUrl,
+                    room_id: this.currentRoomId,
                     message: message
                 })
             });
@@ -492,12 +449,11 @@ class ChatManager {
             const data = await response.json();
             
             if (data.success) {
-                // Clear input and reload messages
-                messageInput.value = '';
+                input.value = '';
                 this.showMessages(this.currentRoomId, this.currentReplicaUrl);
-                this.showNotification('Message sent successfully', 'success');
+                this.showNotification('Message sent', 'success');
             } else {
-                throw new Error(data.error || 'Failed to send message');
+                throw new Error(data.error);
             }
         } catch (error) {
             console.error('Error sending message:', error);
@@ -506,20 +462,19 @@ class ChatManager {
     }
 
     async markMessagesAsSeen() {
-        if (!this.currentRoomId || !this.currentReplicaUrl) {
-            return;
-        }
+        if (!this.currentRoomId || !this.currentReplicaUrl) return;
         
         try {
-            const response = await fetch(`/selfstudychat/api/mark-seen/`, {
+            const response = await fetch('/selfstudychat/api/rooms/', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRFToken': this.getCsrfToken()
                 },
                 body: JSON.stringify({
-                    room_id: this.currentRoomId,
-                    replica_url: this.currentReplicaUrl
+                    action: 'mark-seen',
+                    replica_url: this.currentReplicaUrl,
+                    room_id: this.currentRoomId
                 })
             });
             
@@ -527,9 +482,9 @@ class ChatManager {
             
             if (data.success) {
                 this.showMessages(this.currentRoomId, this.currentReplicaUrl);
-                this.showNotification(data.message || 'Messages marked as seen', 'success');
+                this.showNotification(data.message, 'success');
             } else {
-                throw new Error(data.error || 'Failed to mark messages');
+                throw new Error(data.error);
             }
         } catch (error) {
             console.error('Error marking messages:', error);
@@ -537,13 +492,15 @@ class ChatManager {
         }
     }
 
-    loadBlockedIPs(rooms) {
-        this.blockedIPs.clear();
-        // Extract blocked IPs from badges
-        document.querySelectorAll('.badge-danger').forEach(badge => {
-            const ip = badge.closest('.ip-display').querySelector('.ip-value').textContent;
-            this.blockedIPs.add(ip);
-        });
+    updateCounts(total = null) {
+        const tableBody = document.getElementById('chat-rooms-body');
+        const rows = tableBody.querySelectorAll('tr:not(.no-data)').length;
+        
+        document.getElementById('showing-count').textContent = rows;
+        if (total !== null) {
+            document.getElementById('total-count').textContent = total;
+            document.getElementById('total-rooms').textContent = total;
+        }
     }
 
     clearFilters() {
@@ -551,52 +508,34 @@ class ChatManager {
         document.getElementById('ip-filter').value = '';
         document.getElementById('country-filter').value = '';
         document.getElementById('message-filter').value = '';
+        document.getElementById('replica-select').value = 'all';
         this.loadChatRooms();
     }
 
-    updateCounts(total = null) {
-        const tableBody = document.getElementById('chat-rooms-body');
-        const rows = tableBody.querySelectorAll('tr:not(.loading-cell):not(.no-data):not(.error-message)');
-        
-        document.getElementById('showing-count').textContent = rows.length;
-        
-        if (total !== null) {
-            document.getElementById('total-count').textContent = total;
-            document.getElementById('total-rooms').textContent = total;
-        }
-        
-        // Update blocked count
-        document.getElementById('blocked-count').textContent = this.blockedIPs.size;
-    }
-
     setupAutoRefresh() {
-        // Auto-refresh every 60 seconds when tab is visible
         setInterval(() => {
-            if (!document.hidden && !this.isLoading) {
+            if (!document.hidden) {
                 this.loadChatRooms();
             }
-        }, 60000);
+        }, 30000);
     }
 
     // Utility Methods
-    formatTimestamp(timestamp) {
+    formatTime(timestamp) {
         if (!timestamp) return '-';
         try {
             const date = new Date(timestamp);
             return date.toLocaleString();
-        } catch (e) {
+        } catch {
             return timestamp;
         }
     }
 
-    truncateText(text, maxLength) {
-        if (!text) return '';
-        if (text.length <= maxLength) return text;
-        return text.substring(0, maxLength - 3) + '...';
+    truncate(text, max) {
+        return text.length > max ? text.substring(0, max - 3) + '...' : text;
     }
 
     capitalize(text) {
-        if (!text) return '';
         return text.charAt(0).toUpperCase() + text.slice(1);
     }
 
@@ -629,23 +568,15 @@ class ChatManager {
         this.openModal('confirm-modal');
     }
 
-    executeConfirmedAction() {
-        if (this.pendingAction) {
-            this.pendingAction();
-            this.pendingAction = null;
-        }
-        this.closeModal(document.getElementById('confirm-modal'));
-    }
-
-    showNotification(message, type = 'info') {
-        // Remove existing notifications
+    showNotification(message, type) {
+        // Remove existing
         document.querySelectorAll('.notification').forEach(n => n.remove());
         
         const notification = document.createElement('div');
         notification.className = `notification notification-${type}`;
         notification.innerHTML = `
-            <span class="notification-icon">${type === 'success' ? '✓' : type === 'error' ? '✗' : 'ℹ'}</span>
-            <span class="notification-text">${message}</span>
+            <span class="notification-icon">${type === 'success' ? '✓' : '✗'}</span>
+            <span>${message}</span>
             <button class="notification-close">&times;</button>
         `;
         
@@ -667,7 +598,7 @@ class ChatManager {
     }
 }
 
-// Initialize when DOM is loaded
+// Initialize
 document.addEventListener('DOMContentLoaded', () => {
     window.chatManager = new ChatManager();
 });
