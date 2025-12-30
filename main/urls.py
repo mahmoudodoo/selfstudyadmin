@@ -8,6 +8,7 @@ from .views.selfstudymedia import (
     ReplicaAPIView
 )
 from .views.selfstudychat import SelfStudyChatView, ChatRoomAPIView
+from .views.selfstudyotp import SelfStudyOTPView
 
 urlpatterns = [
     # Authentication URLs
@@ -64,7 +65,7 @@ urlpatterns = [
     path('selfstudymedia/api/media/', SelfStudyMediaAPIView.as_view(), name='selfstudymedia_api'),
     path('selfstudymedia/api/external-data/', ExternalDataAPIView.as_view(), name='selfstudymedia_external_data'),
     path('selfstudymedia/api/replicas/', ReplicaAPIView.as_view(), name='selfstudymedia_replicas'),
-    
+
     # SelfStudy Chat Management URLs - UPDATED with correct patterns
     path('selfstudychat/', SelfStudyChatView.as_view(), name='selfstudychat'),
     path('selfstudychat/api/rooms/', ChatRoomAPIView.as_view(), name='selfstudychat_api_rooms'),
@@ -74,12 +75,20 @@ urlpatterns = [
     path('selfstudychat/api/delete-room/', ChatRoomAPIView.as_view(), {'action': 'delete-room'}, name='selfstudychat_api_delete_room'),
     path('selfstudychat/api/send-message/', ChatRoomAPIView.as_view(), {'action': 'send-message'}, name='selfstudychat_api_send_message'),
     path('selfstudychat/api/mark-seen/', ChatRoomAPIView.as_view(), {'action': 'mark-seen'}, name='selfstudychat_api_mark_seen'),
-    
+
+    # OTP Management URLs - NEW
+    path('selfstudyotp/', SelfStudyOTPView.as_view(), name='selfstudyotp'),
+
     # Other Self Study Service URLs
     path('selfstudydomains/', SelfStudyDomainsView.as_view(), name='selfstudydomains'),
     path('selfstudydomains/api/', SelfStudyDomainsAPIView.as_view(), name='selfstudydomains_api'),
-    path('selfstudyotp/', views.SelfStudyOTPView.as_view(), name='selfstudyotp'),
+
+    # SelfStudy Proctor URLs - NEW
     path('selfstudyproctor/', views.SelfStudyProctorView.as_view(), name='selfstudyproctor'),
+    path('selfstudyproctor/api/', views.SelfStudyProctorAPIView.as_view(), name='selfstudyproctor_api'),
+    path('selfstudyproctor/api/<str:proctor_id>/', views.SelfStudyProctorAPIView.as_view(), name='selfstudyproctor_api_detail'),
+
+
     path('selfstudyrunbook/', views.SelfStudyRunbookView.as_view(), name='selfstudyrunbook'),
     path('selfstudyallauth/', views.SelfStudyAllAuthView.as_view(), name='selfstudyallauth'),
 

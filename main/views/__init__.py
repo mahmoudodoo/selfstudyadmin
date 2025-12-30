@@ -13,3 +13,5 @@ from .selfstudysubscriptions import *
 from .selfstudydomains import *
 from .selfstudymedia import *
 from .selfstudychat import *
+from .selfstudyotp import *
+from .selfstudyproctor import *

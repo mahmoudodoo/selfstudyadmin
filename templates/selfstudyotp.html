@@ -1,15 +1,536 @@
 {% extends 'base.html' %}
+{% load static %}
 
-{% block title %}OTP{% endblock %}
-{% block page_title %}OTP Management{% endblock %}
+{% block title %}OTP Management - SelfStudy Admin{% endblock %}
+{% block page_title %}OTP Verification Management{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="/static/css/selfstudyotp.css">
+<link rel="stylesheet" href="{% static 'css/selfstudyotp.css' %}">
 {% endblock %}
 
 {% block content %}
 <div class="page-content">
-    <h2>OTP Management</h2>
-    <p>Manage OTP verification and security.</p>
+    <div class="dashboard-header">
+        <div class="header-info">
+            <h1 class="page-title">OTP Management</h1>
+            <p class="page-subtitle">Manage email verification and OTP codes across all domains</p>
+        </div>
+        <div class="header-actions">
+            <button class="btn btn-primary" id="generateOtpBtn">
+                <svg class="icon" viewBox="0 0 24 24" width="18" height="18">
+                    <path fill="currentColor" d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" />
+                </svg>
+                Generate OTP
+            </button>
+            <button class="btn btn-secondary" id="refreshDataBtn">
+                <svg class="icon" viewBox="0 0 24 24" width="18" height="18">
+                    <path fill="currentColor" d="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z" />
+                </svg>
+                Refresh Data
+            </button>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon otp-icon">
+                <svg viewBox="0 0 24 24" width="24" height="24">
+                    <path fill="currentColor" d="M12,17C10.89,17 10,16.1 10,15C10,13.89 10.89,13 12,13A2,2 0 0,1 14,15A2,2 0 0,1 12,17M18,20V10H6V20H18M18,8A2,2 0 0,1 20,10V20A2,2 0 0,1 18,22H6C4.89,22 4,21.1 4,20V10C4,8.89 4.89,8 6,8H7V6A5,5 0 0,1 12,1A5,5 0 0,1 17,6V8H18M12,3A3,3 0 0,0 9,6V8H15V6A3,3 0 0,0 12,3Z" />
+                </svg>
+            </div>
+            <div class="stat-content">
+                <h3 class="stat-title">OTP Domains</h3>
+                <p class="stat-value" id="otpDomainCount">{{ otp_domains|length }}</p>
+                <p class="stat-desc">Available replica domains</p>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon user-icon">
+                <svg viewBox="0 0 24 24" width="24" height="24">
+                    <path fill="currentColor" d="M12,4A4,4 0 0,1 16,8A4,4 0 0,1 12,12A4,4 0 0,1 8,8A4,4 0 0,1 12,4M12,14C16.42,14 20,15.79 20,18V20H4V18C4,15.79 7.58,14 12,14Z" />
+                </svg>
+            </div>
+            <div class="stat-content">
+                <h3 class="stat-title">Total Users</h3>
+                <p class="stat-value" id="totalUsersCount">{{ users_list|length }}</p>
+                <p class="stat-desc">Registered users</p>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon status-icon">
+                <svg viewBox="0 0 24 24" width="24" height="24">
+                    <path fill="currentColor" d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z" />
+                </svg>
+            </div>
+            <div class="stat-content">
+                <h3 class="stat-title">Active OTPs</h3>
+                <p class="stat-value" id="activeOtpsCount">{{ otp_list|length }}</p>
+                <p class="stat-desc">Currently active OTPs</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Grid -->
+    <div class="content-grid">
+        <!-- OTP Operations -->
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">OTP Operations</h2>
+                <div class="card-actions">
+                    <button class="btn btn-icon" id="refreshDomainsBtn" title="Refresh Domains">
+                        <svg viewBox="0 0 24 24" width="18" height="18">
+                            <path fill="currentColor" d="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="operations-grid">
+                    <button class="operation-btn" id="verifyOtpBtn">
+                        <div class="operation-icon verify-icon">
+                            <svg viewBox="0 0 24 24" width="24" height="24">
+                                <path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z" />
+                            </svg>
+                        </div>
+                        <div class="operation-content">
+                            <h3>Verify OTP</h3>
+                            <p>Verify an existing OTP code</p>
+                        </div>
+                        <div class="operation-arrow">
+                            <svg viewBox="0 0 24 24" width="16" height="16">
+                                <path fill="currentColor" d="M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z" />
+                            </svg>
+                        </div>
+                    </button>
+
+                    <button class="operation-btn" id="resendOtpBtn">
+                        <div class="operation-icon resend-icon">
+                            <svg viewBox="0 0 24 24" width="24" height="24">
+                                <path fill="currentColor" d="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z" />
+                            </svg>
+                        </div>
+                        <div class="operation-content">
+                            <h3>Resend OTP</h3>
+                            <p>Resend OTP to user's email</p>
+                        </div>
+                        <div class="operation-arrow">
+                            <svg viewBox="0 0 24 24" width="16" height="16">
+                                <path fill="currentColor" d="M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z" />
+                            </svg>
+                        </div>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- OTP List -->
+        <div class="card card-expanded">
+            <div class="card-header">
+                <h2 class="card-title">OTP Records</h2>
+                <div class="card-actions">
+                    <button class="btn btn-icon" id="refreshOtpListBtn" title="Refresh OTP List">
+                        <svg viewBox="0 0 24 24" width="18" height="18">
+                            <path fill="currentColor" d="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-container">
+                <table class="data-table" id="otpTable">
+                    <thead>
+                        <tr>
+                            <th>User ID</th>
+                            <th>Username</th>
+                            <th>Email</th>
+                            <th>Code</th>
+                            <th>Created</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="otpTableBody">
+                        {% if otp_list %}
+                            {% for otp in otp_list %}
+                            <tr data-user-id="{{ otp.user_id }}">
+                                <td><span class="text-monospace">{{ otp.user_id|truncatechars:12 }}</span></td>
+                                <td>{{ otp.username }}</td>
+                                <td>{{ otp.email }}</td>
+                                <td><span class="otp-code">{{ otp.code }}</span></td>
+                                <td>{{ otp.created_at|date:"Y-m-d H:i" }}</td>
+                                <td>
+                                    <span class="status-badge {% if otp.is_used %}status-used{% else %}status-active{% endif %}">
+                                        {% if otp.is_used %}Used{% else %}Active{% endif %}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="action-buttons">
+                                        <button class="btn btn-icon btn-sm action-btn copy-otp-btn" title="Copy OTP" data-code="{{ otp.code }}">
+                                            <svg viewBox="0 0 24 24" width="14" height="14">
+                                                <path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z" />
+                                            </svg>
+                                        </button>
+                                        <button class="btn btn-icon btn-sm action-btn delete-otp-btn" title="Delete OTP" data-user-id="{{ otp.user_id }}">
+                                            <svg viewBox="0 0 24 24" width="14" height="14">
+                                                <path fill="currentColor" d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="7" class="empty-table">
+                                    <div class="empty-state">
+                                        <svg viewBox="0 0 24 24" width="48" height="48">
+                                            <path fill="currentColor" d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M12,6A6,6 0 0,0 6,12A6,6 0 0,0 12,18A6,6 0 0,0 18,12A6,6 0 0,0 12,6Z" />
+                                        </svg>
+                                        <p>No OTP records found</p>
+                                        <p class="empty-subtext">Generate your first OTP to see records here</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Domain Status -->
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title">Domain Status</h2>
+        </div>
+        <div class="card-body">
+            <div class="domain-status">
+                <div class="domain-type">
+                    <h3 class="domain-type-title">OTP Domains (App ID: 14)</h3>
+                    <div class="domain-list" id="otpDomainList">
+                        {% for domain in otp_domains %}
+                        <div class="domain-item" data-domain="{{ domain }}">
+                            <span class="domain-status-indicator active"></span>
+                            <span class="domain-url">{{ domain }}</span>
+                            <button class="btn btn-icon btn-sm copy-domain-btn" data-domain="{{ domain }}" title="Copy URL">
+                                <svg viewBox="0 0 24 24" width="14" height="14">
+                                    <path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z" />
+                                </svg>
+                            </button>
+                        </div>
+                        {% empty %}
+                        <div class="empty-state">
+                            <svg viewBox="0 0 24 24" width="24" height="24">
+                                <path fill="currentColor" d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M12,6A6,6 0 0,0 6,12A6,6 0 0,0 12,18A6,6 0 0,0 18,12A6,6 0 0,0 12,6Z" />
+                            </svg>
+                            <p>No OTP domains available</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                <div class="domain-type">
+                    <h3 class="domain-type-title">UserProfile Domains (App ID: 13)</h3>
+                    <div class="domain-list" id="userDomainList">
+                        {% for domain in userprofile_domains %}
+                        <div class="domain-item" data-domain="{{ domain }}">
+                            <span class="domain-status-indicator active"></span>
+                            <span class="domain-url">{{ domain }}</span>
+                            <button class="btn btn-icon btn-sm copy-domain-btn" data-domain="{{ domain }}" title="Copy URL">
+                                <svg viewBox="0 0 24 24" width="14" height="14">
+                                    <path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z" />
+                                </svg>
+                            </button>
+                        </div>
+                        {% empty %}
+                        <div class="empty-state">
+                            <svg viewBox="0 0 24 24" width="24" height="24">
+                                <path fill="currentColor" d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M12,6A6,6 0 0,0 6,12A6,6 0 0,0 12,18A6,6 0 0,0 18,12A6,6 0 0,0 12,6Z" />
+                            </svg>
+                            <p>No UserProfile domains available</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+
+<!-- Generate OTP Modal -->
+<div class="modal" id="generateOtpModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="modal-title">Generate OTP</h2>
+            <button class="btn btn-icon modal-close">
+                <svg viewBox="0 0 24 24" width="24" height="24">
+                    <path fill="currentColor" d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" />
+                </svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <form id="generateOtpForm">
+                <div class="form-group">
+                    <label for="generateUsername" class="form-label">
+                        <span class="label-text">Select User</span>
+                        <span class="required">*</span>
+                    </label>
+                    <div class="user-select-container">
+                        <select id="generateUsername" name="username" class="form-control user-select" required>
+                            <option value="">-- Select a user --</option>
+                            {% for user in users_list %}
+                            <option value="{{ user.username }}" 
+                                    data-user-id="{{ user.user_id }}"
+                                    data-email="{{ user.email }}"
+                                    data-verified="{{ user.is_email_verified }}">
+                                {{ user.username }} ({{ user.email }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <button type="button" class="btn btn-secondary" id="refreshUsersBtn" title="Refresh users list">
+                            <svg viewBox="0 0 24 24" width="16" height="16">
+                                <path fill="currentColor" d="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z" />
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="form-hint">Select a user from the list of all registered users</div>
+                </div>
+
+                <div class="form-group">
+                    <label for="generateUserId" class="form-label">
+                        <span class="label-text">User ID</span>
+                        <span class="required">*</span>
+                    </label>
+                    <input type="text" 
+                           id="generateUserId" 
+                           name="user_id" 
+                           class="form-control"
+                           placeholder="User ID will auto-fill"
+                           readonly
+                           required>
+                </div>
+
+                <div class="form-group">
+                    <label for="generateEmail" class="form-label">
+                        <span class="label-text">Email</span>
+                        <span class="required">*</span>
+                    </label>
+                    <input type="email" 
+                           id="generateEmail" 
+                           name="email" 
+                           class="form-control"
+                           placeholder="Email will auto-fill"
+                           readonly
+                           required>
+                </div>
+
+                <div class="user-details">
+                    <div class="user-info">
+                        <div class="user-info-item">
+                            <span class="user-info-label">Name:</span>
+                            <span class="user-info-value" id="userFullName">-</span>
+                        </div>
+                        <div class="user-info-item">
+                            <span class="user-info-label">Status:</span>
+                            <span class="user-status-badge" id="userStatusBadge">Unknown</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="alert alert-info">
+                    <div class="alert-icon">
+                        <svg viewBox="0 0 24 24" width="18" height="18">
+                            <path fill="currentColor" d="M13,9H11V7H13M13,17H11V11H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z" />
+                        </svg>
+                    </div>
+                    <div class="alert-content">
+                        <p>A 6-digit OTP will be generated and sent to the user's email address. The OTP expires in 15 minutes.</p>
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary modal-close">Cancel</button>
+            <button type="button" class="btn btn-primary" id="submitGenerateOtp">Generate OTP</button>
+        </div>
+    </div>
+</div>
+
+<!-- Verify OTP Modal -->
+<div class="modal" id="verifyOtpModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="modal-title">Verify OTP</h2>
+            <button class="btn btn-icon modal-close">
+                <svg viewBox="0 0 24 24" width="24" height="24">
+                    <path fill="currentColor" d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" />
+                </svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <form id="verifyOtpForm">
+                <div class="form-group">
+                    <label for="verifyUserId" class="form-label">
+                        <span class="label-text">Select User</span>
+                        <span class="required">*</span>
+                    </label>
+                    <div class="user-select-container">
+                        <select id="verifyUserId" name="user_id" class="form-control user-select" required>
+                            <option value="">-- Select a user --</option>
+                            {% for user in users_list %}
+                            <option value="{{ user.user_id }}" 
+                                    data-username="{{ user.username }}"
+                                    data-email="{{ user.email }}">
+                                {{ user.username }} ({{ user.email }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <button type="button" class="btn btn-secondary" id="refreshUsersVerifyBtn" title="Refresh users list">
+                            <svg viewBox="0 0 24 24" width="16" height="16">
+                                <path fill="currentColor" d="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="verifyCode" class="form-label">
+                        <span class="label-text">OTP Code</span>
+                        <span class="required">*</span>
+                    </label>
+                    <input type="text" 
+                           id="verifyCode" 
+                           name="code" 
+                           class="form-control"
+                           placeholder="Enter 6-digit OTP code"
+                           maxlength="6"
+                           pattern="[0-9]{6}"
+                           required>
+                    <div class="form-hint">Enter the 6-digit code sent to user's email</div>
+                </div>
+
+                <div class="user-selected-info">
+                    <div class="selected-user" id="selectedUserInfo">
+                        <div class="selected-user-avatar">
+                            <svg viewBox="0 0 24 24" width="24" height="24">
+                                <path fill="currentColor" d="M12,4A4,4 0 0,1 16,8A4,4 0 0,1 12,12A4,4 0 0,1 8,8A4,4 0 0,1 12,4M12,14C16.42,14 20,15.79 20,18V20H4V18C4,15.79 7.58,14 12,14Z" />
+                            </svg>
+                        </div>
+                        <div class="selected-user-details">
+                            <div class="selected-user-name" id="selectedUserName">No user selected</div>
+                            <div class="selected-user-email" id="selectedUserEmail">-</div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary modal-close">Cancel</button>
+            <button type="button" class="btn btn-primary" id="submitVerifyOtp">Verify OTP</button>
+        </div>
+    </div>
+</div>
+
+<!-- Resend OTP Modal -->
+<div class="modal" id="resendOtpModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="modal-title">Resend OTP</h2>
+            <button class="btn btn-icon modal-close">
+                <svg viewBox="0 0 24 24" width="24" height="24">
+                    <path fill="currentColor" d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" />
+                </svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <form id="resendOtpForm">
+                <div class="form-group">
+                    <label for="resendUsername" class="form-label">
+                        <span class="label-text">Select User</span>
+                        <span class="required">*</span>
+                    </label>
+                    <div class="user-select-container">
+                        <select id="resendUsername" name="username" class="form-control user-select" required>
+                            <option value="">-- Select a user --</option>
+                            {% for user in users_list %}
+                            <option value="{{ user.username }}" 
+                                    data-user-id="{{ user.user_id }}"
+                                    data-email="{{ user.email }}"
+                                    data-verified="{{ user.is_email_verified }}">
+                                {{ user.username }} ({{ user.email }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <button type="button" class="btn btn-secondary" id="refreshUsersResendBtn" title="Refresh users list">
+                            <svg viewBox="0 0 24 24" width="16" height="16">
+                                <path fill="currentColor" d="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="resendUserId" class="form-label">
+                        <span class="label-text">User ID</span>
+                        <span class="required">*</span>
+                    </label>
+                    <input type="text" 
+                           id="resendUserId" 
+                           name="user_id" 
+                           class="form-control"
+                           placeholder="User ID will auto-fill"
+                           readonly
+                           required>
+                </div>
+
+                <div class="form-group">
+                    <label for="resendEmail" class="form-label">
+                        <span class="label-text">Email</span>
+                        <span class="required">*</span>
+                    </label>
+                    <input type="email" 
+                           id="resendEmail" 
+                           name="email" 
+                           class="form-control"
+                           placeholder="Email will auto-fill"
+                           readonly
+                           required>
+                </div>
+
+                <div class="alert alert-info">
+                    <div class="alert-icon">
+                        <svg viewBox="0 0 24 24" width="18" height="18">
+                            <path fill="currentColor" d="M13,9H11V7H13M13,17H11V11H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z" />
+                        </svg>
+                    </div>
+                    <div class="alert-content">
+                        <p>This will generate a new OTP and send it to the user's email address. Any existing OTP for this user will be invalidated.</p>
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary modal-close">Cancel</button>
+            <button type="button" class="btn btn-primary" id="submitResendOtp">Resend OTP</button>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Overlay -->
+<div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">Processing...</div>
+</div>
+
+<!-- Notification Toast -->
+<div class="toast-container" id="toastContainer"></div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/selfstudyotp.js' %}"></script>
 {% endblock %}
