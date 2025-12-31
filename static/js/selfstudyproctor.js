@@ -412,7 +412,7 @@ async function saveProctor() {
         
         if (currentProctorId) {
             // Update existing proctor
-            url = `${API_BASE}${currentProctorId}/`;
+            url = `${API_BASE}${currentProctorId}/?action=update`;
             method = 'PUT';
         }
         
@@ -715,8 +715,8 @@ async function toggleDayAvailability(dayId, isAvailable) {
     showLoading(true);
     
     try {
-        const response = await fetch(`${API_BASE}?action=update_availability`, {
-            method: 'POST',
+        const response = await fetch(`${API_BASE}?action=update_day`, {
+            method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
             },
@@ -744,8 +744,8 @@ async function toggleHourAvailability(hourId, isAvailable) {
     showLoading(true);
     
     try {
-        const response = await fetch(`${API_BASE}?action=update_availability`, {
-            method: 'POST',
+        const response = await fetch(`${API_BASE}?action=update_hour`, {
+            method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
             },

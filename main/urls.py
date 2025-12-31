@@ -83,11 +83,11 @@ urlpatterns = [
     path('selfstudydomains/', SelfStudyDomainsView.as_view(), name='selfstudydomains'),
     path('selfstudydomains/api/', SelfStudyDomainsAPIView.as_view(), name='selfstudydomains_api'),
 
-    # SelfStudy Proctor URLs - NEW
+    # SelfStudy Proctor URLs - UPDATED
     path('selfstudyproctor/', views.SelfStudyProctorView.as_view(), name='selfstudyproctor'),
     path('selfstudyproctor/api/', views.SelfStudyProctorAPIView.as_view(), name='selfstudyproctor_api'),
     path('selfstudyproctor/api/<str:proctor_id>/', views.SelfStudyProctorAPIView.as_view(), name='selfstudyproctor_api_detail'),
-
+    path('selfstudyproctor/api/availability/', views.SelfStudyProctorAPIView.as_view(), {'action': 'update_availability'}, name='selfstudyproctor_api_availability'),
 
     path('selfstudyrunbook/', views.SelfStudyRunbookView.as_view(), name='selfstudyrunbook'),
     path('selfstudyallauth/', views.SelfStudyAllAuthView.as_view(), name='selfstudyallauth'),
