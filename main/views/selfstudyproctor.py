@@ -467,14 +467,20 @@ class SelfStudyProctorAPIView(View):
             return JsonResponse({'error': 'No replicas available'}, status=503)
         
         day_id = data.get('day_id')
-        if not day_id:
-            return JsonResponse({'error': 'Day ID is required'}, status=400)
+        day_sync_id = data.get('day_sync_id')
         
-        # Try to update using PATCH on available-days endpoint
-        endpoint = f'available-days/{day_id}/'
+        if not day_id and not day_sync_id:
+            return JsonResponse({'error': 'Either day_id or day_sync_id is required'}, status=400)
+        
+        # Determine which endpoint to use
+        if day_id:
+            endpoint = f'available-days/{day_id}/'
+        else:
+            endpoint = f'available-days/{day_sync_id}/'
+        
         patch_data = {'is_available': data['is_available']}
         
-        print(f"🔍 Updating day availability: day_id={day_id}, is_available={data['is_available']}")
+        print(f"🔍 Updating day availability: day_id={day_id}, day_sync_id={day_sync_id}, is_available={data['is_available']}")
         
         response = self.try_all_replicas('PATCH', replicas, endpoint, patch_data)
         if response:
@@ -502,14 +508,20 @@ class SelfStudyProctorAPIView(View):
             return JsonResponse({'error': 'No replicas available'}, status=503)
         
         hour_id = data.get('hour_id')
-        if not hour_id:
-            return JsonResponse({'error': 'Hour ID is required'}, status=400)
+        hour_sync_id = data.get('hour_sync_id')
         
-        # Try to update using PATCH on available-hours endpoint
-        endpoint = f'available-hours/{hour_id}/'
+        if not hour_id and not hour_sync_id:
+            return JsonResponse({'error': 'Either hour_id or hour_sync_id is required'}, status=400)
+        
+        # Determine which endpoint to use
+        if hour_id:
+            endpoint = f'available-hours/{hour_id}/'
+        else:
+            endpoint = f'available-hours/{hour_sync_id}/'
+        
         patch_data = {'is_available': data['is_available']}
         
-        print(f"🔍 Updating hour availability: hour_id={hour_id}, is_available={data['is_available']}")
+        print(f"🔍 Updating hour availability: hour_id={hour_id}, hour_sync_id={hour_sync_id}, is_available={data['is_available']}")
         
         response = self.try_all_replicas('PATCH', replicas, endpoint, patch_data)
         if response:

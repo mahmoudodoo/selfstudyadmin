@@ -644,9 +644,14 @@ function displayAvailability(availabilityData) {
         return;
     }
     
+    // Store the availability data for quick updates
+    window.currentAvailabilityData = availabilityData;
+    
     availabilityData.forEach(day => {
         const dayCard = document.createElement('div');
         dayCard.className = `availability-day ${day.is_available ? '' : 'unavailable'}`;
+        dayCard.setAttribute('data-day-id', day.id);
+        dayCard.setAttribute('data-day-sync-id', day.sync_id || '');
         
         try {
             const dayDate = new Date(day.day);
@@ -661,16 +666,18 @@ function displayAvailability(availabilityData) {
             if (day.available_hours && Array.isArray(day.available_hours) && day.available_hours.length > 0) {
                 day.available_hours.forEach(hour => {
                     const hourId = hour.id || '';
+                    const hourSyncId = hour.sync_id || '';
                     const startTime = formatTime12Hour(hour.start_time);
                     const endTime = formatTime12Hour(hour.end_time);
                     
                     hoursHtml += `
-                        <div class="availability-hour">
+                        <div class="availability-hour" data-hour-id="${hourId}" data-hour-sync-id="${hourSyncId}">
                             <div class="hour-time">
                                 ${startTime} - ${endTime}
                             </div>
                             <div class="hour-toggle ${hour.is_available ? 'active' : ''}" 
-                                 onclick="toggleHourAvailability('${hourId}', ${!hour.is_available})">
+                                 data-is-available="${hour.is_available}"
+                                 onclick="toggleHourAvailability(${hourId}, '${hourSyncId}')">
                             </div>
                         </div>
                     `;
@@ -683,7 +690,8 @@ function displayAvailability(availabilityData) {
                 <div class="availability-day-header">
                     <div class="availability-date">${formattedDate}</div>
                     <div class="availability-toggle ${day.is_available ? 'active' : ''}"
-                         onclick="toggleDayAvailability(${day.id}, ${!day.is_available})">
+                         data-is-available="${day.is_available}"
+                         onclick="toggleDayAvailability(${day.id}, '${day.sync_id || ''}')">
                     </div>
                 </div>
                 <div class="availability-hours">
@@ -711,10 +719,27 @@ function formatTime12Hour(timeString) {
     }
 }
 
-async function toggleDayAvailability(dayId, isAvailable) {
+// FIXED: Toggle day availability - now reads current state from DOM and toggles it
+async function toggleDayAvailability(dayId, daySyncId) {
     showLoading(true);
     
     try {
+        // Get the current state from the DOM
+        const dayCard = document.querySelector(`.availability-day[data-day-id="${dayId}"]`);
+        if (!dayCard) return;
+        
+        const toggle = dayCard.querySelector('.availability-toggle');
+        if (!toggle) return;
+        
+        const currentState = toggle.getAttribute('data-is-available') === 'true';
+        const newState = !currentState;
+        
+        // Update UI immediately for better UX
+        toggle.classList.toggle('active', newState);
+        toggle.setAttribute('data-is-available', newState);
+        dayCard.classList.toggle('unavailable', !newState);
+        
+        // Send update to server
         const response = await fetch(`${API_BASE}?action=update_day`, {
             method: 'PUT',
             headers: {
@@ -722,14 +747,47 @@ async function toggleDayAvailability(dayId, isAvailable) {
             },
             body: JSON.stringify({
                 day_id: dayId,
-                is_available: isAvailable
+                day_sync_id: daySyncId,
+                is_available: newState  // Changed from isAvailable to is_available
             })
         });
         
         if (response.ok) {
+            const result = await response.json();
             showNotification('Success', 'Day availability updated');
-            await refreshAvailability();
+            
+            // Update the local data structure
+            if (window.currentAvailabilityData) {
+                const dayIndex = window.currentAvailabilityData.findIndex(
+                    day => (day.id === dayId || day.sync_id === daySyncId)
+                );
+                if (dayIndex !== -1) {
+                    window.currentAvailabilityData[dayIndex].is_available = newState;
+                    
+                    // Also update hours if needed
+                    if (newState === false) {
+                        // If day is set to unavailable, mark all hours as unavailable
+                        if (window.currentAvailabilityData[dayIndex].available_hours) {
+                            window.currentAvailabilityData[dayIndex].available_hours.forEach(hour => {
+                                hour.is_available = false;
+                            });
+                            
+                            // Update hour toggles in UI
+                            const hourToggles = dayCard.querySelectorAll('.hour-toggle');
+                            hourToggles.forEach(toggle => {
+                                toggle.classList.remove('active');
+                                toggle.setAttribute('data-is-available', false);
+                            });
+                        }
+                    }
+                }
+            }
         } else {
+            // Revert UI if failed
+            toggle.classList.toggle('active', currentState);
+            toggle.setAttribute('data-is-available', currentState);
+            dayCard.classList.toggle('unavailable', !currentState);
+            
             const error = await response.json();
             throw new Error(error.error || 'Failed to update availability');
         }
@@ -740,10 +798,26 @@ async function toggleDayAvailability(dayId, isAvailable) {
     }
 }
 
-async function toggleHourAvailability(hourId, isAvailable) {
+// FIXED: Toggle hour availability - now reads current state from DOM and toggles it
+async function toggleHourAvailability(hourId, hourSyncId) {
     showLoading(true);
     
     try {
+        // Get the current state from the DOM
+        const hourElement = document.querySelector(`.availability-hour[data-hour-id="${hourId}"]`);
+        if (!hourElement) return;
+        
+        const toggle = hourElement.querySelector('.hour-toggle');
+        if (!toggle) return;
+        
+        const currentState = toggle.getAttribute('data-is-available') === 'true';
+        const newState = !currentState;
+        
+        // Update UI immediately for better UX
+        toggle.classList.toggle('active', newState);
+        toggle.setAttribute('data-is-available', newState);
+        
+        // Send update to server
         const response = await fetch(`${API_BASE}?action=update_hour`, {
             method: 'PUT',
             headers: {
@@ -751,14 +825,35 @@ async function toggleHourAvailability(hourId, isAvailable) {
             },
             body: JSON.stringify({
                 hour_id: hourId,
-                is_available: isAvailable
+                hour_sync_id: hourSyncId,
+                is_available: newState  // Changed from isAvailable to is_available
             })
         });
         
         if (response.ok) {
+            const result = await response.json();
             showNotification('Success', 'Hour availability updated');
-            await refreshAvailability();
+            
+            // Update the local data structure
+            if (window.currentAvailabilityData) {
+                // Find the day containing this hour
+                for (let day of window.currentAvailabilityData) {
+                    if (day.available_hours && Array.isArray(day.available_hours)) {
+                        const hourIndex = day.available_hours.findIndex(
+                            hour => (hour.id === hourId || hour.sync_id === hourSyncId)
+                        );
+                        if (hourIndex !== -1) {
+                            day.available_hours[hourIndex].is_available = newState;
+                            break;
+                        }
+                    }
+                }
+            }
         } else {
+            // Revert UI if failed
+            toggle.classList.toggle('active', currentState);
+            toggle.setAttribute('data-is-available', currentState);
+            
             const error = await response.json();
             throw new Error(error.error || 'Failed to update hour availability');
         }
