@@ -1,15 +1,326 @@
 {% extends 'base.html' %}
+{% load static %}
 
-{% block title %}Runbook{% endblock %}
+{% block title %}Runbook Management{% endblock %}
 {% block page_title %}Runbook Management{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="/static/css/selfstudyrunbook.css">
+<link rel="stylesheet" href="{% static 'css/selfstudyrunbook.css' %}">
 {% endblock %}
 
 {% block content %}
-<div class="page-content">
-    <h2>Runbook Management</h2>
-    <p>Manage runbooks and operational procedures.</p>
+<div class="runbook-container">
+    <!-- Header Section -->
+    <div class="runbook-header">
+        <div class="header-info">
+            <h1><i class="icon-runbook"></i> Runbook Management</h1>
+            <p class="subtitle">Manage operational procedures and documentation across all replicas</p>
+        </div>
+        <div class="header-actions">
+            <button class="btn btn-primary" onclick="showCreateRunbookModal()">
+                <i class="icon-add"></i> New Runbook
+            </button>
+            <button class="btn btn-secondary" onclick="runbookManager.refreshData()">
+                <i class="icon-refresh"></i> Refresh
+            </button>
+            <div class="status-indicator">
+                <span class="status-dot" id="statusDot"></span>
+                <span id="statusText">Connecting...</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Service Status -->
+    <div class="service-status-card">
+        <div class="status-header">
+            <h3><i class="icon-server"></i> Service Status</h3>
+        </div>
+        <div class="status-content">
+            <div class="status-item">
+                <span class="label">Available Domains:</span>
+                <span class="value" id="domainCount">{{ domains|length }}</span>
+            </div>
+            <div class="status-item">
+                <span class="label">Current Domain:</span>
+                <span class="value" id="currentDomain">Selecting...</span>
+            </div>
+            <div class="status-item">
+                <span class="label">App ID:</span>
+                <span class="value">{{ app_id }}</span>
+            </div>
+            <div class="status-item">
+                <span class="label">Authentication:</span>
+                <span class="value status-{{ has_auth_token|yesno:'success,error' }}">
+                    {{ has_auth_token|yesno:'Configured,Not Configured' }}
+                </span>
+            </div>
+            <div class="status-item">
+                <span class="label">Sync Status:</span>
+                <span class="value status-success">Active</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="runbook-main">
+        <!-- Runbooks List -->
+        <div class="runbooks-section">
+            <div class="section-header">
+                <h2><i class="icon-list"></i> Runbooks</h2>
+                <div class="search-box">
+                    <input type="text" id="searchRunbooks" placeholder="Search runbooks...">
+                    <i class="icon-search"></i>
+                </div>
+            </div>
+            
+            <div class="runbooks-list" id="runbooksList">
+                <div class="loading-placeholder">
+                    <div class="loading-spinner"></div>
+                    <p>Loading runbooks...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sections List -->
+        <div class="sections-section" id="sectionsSection">
+            <div class="section-header">
+                <h2><i class="icon-sections"></i> Sections</h2>
+                <div class="section-actions">
+                    <button class="btn btn-small btn-primary" onclick="showCreateSectionModal()" id="addSectionBtn" disabled>
+                        <i class="icon-add"></i> Add Section
+                    </button>
+                    <button class="btn btn-small btn-secondary" onclick="runbookManager.toggleDragMode()" id="dragModeBtn">
+                        <i class="icon-drag"></i> Reorder
+                    </button>
+                </div>
+            </div>
+            
+            <div class="sections-list" id="sectionsList">
+                <div class="empty-state">
+                    <i class="icon-document"></i>
+                    <p>Select a runbook to view its sections</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Current Selection Info -->
+    <div class="selection-info" id="selectionInfo" style="display: none;">
+        <div class="selection-content">
+            <span class="selection-label">Selected Runbook:</span>
+            <span class="selection-value" id="selectedRunbookTitle">None</span>
+        </div>
+        <div class="selection-actions">
+            <button class="btn btn-small btn-warning" onclick="editSelectedRunbook()" id="editRunbookBtn" disabled>
+                <i class="icon-edit"></i> Edit
+            </button>
+            <button class="btn btn-small btn-danger" onclick="deleteSelectedRunbook()" id="deleteRunbookBtn" disabled>
+                <i class="icon-delete"></i> Delete
+            </button>
+        </div>
+    </div>
 </div>
+
+<!-- Modals -->
+<div id="createRunbookModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Create New Runbook</h2>
+            <button class="close-btn" onclick="closeModal('createRunbookModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="createRunbookForm" onsubmit="createRunbook(event)">
+                <div class="form-group">
+                    <label for="runbookTitle">Title *</label>
+                    <input type="text" id="runbookTitle" required 
+                           placeholder="Enter runbook title">
+                </div>
+                <div class="form-group">
+                    <p class="help-text"><small>A unique sync ID will be automatically generated for synchronization.</small></p>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" 
+                            onclick="closeModal('createRunbookModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Runbook</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div id="editRunbookModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Edit Runbook</h2>
+            <button class="close-btn" onclick="closeModal('editRunbookModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="editRunbookForm" onsubmit="updateRunbook(event)">
+                <input type="hidden" id="editRunbookId">
+                <input type="hidden" id="editRunbookSyncId">
+                <div class="form-group">
+                    <label for="editRunbookTitle">Title *</label>
+                    <input type="text" id="editRunbookTitle" required>
+                </div>
+                <div class="form-group">
+                    <p class="help-text"><small>Sync ID: <span id="syncIdDisplay"></span></small></p>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" 
+                            onclick="closeModal('editRunbookModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Runbook</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div id="createSectionModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Add New Section</h2>
+            <button class="close-btn" onclick="closeModal('createSectionModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="createSectionForm" onsubmit="createSection(event)">
+                <input type="hidden" id="sectionRunbookId">
+                <div class="form-group">
+                    <label for="sectionTitle">Title</label>
+                    <input type="text" id="sectionTitle" 
+                           placeholder="Optional section title">
+                </div>
+                <div class="form-group">
+                    <label for="sectionContent">Content *</label>
+                    <textarea id="sectionContent" rows="4" required 
+                              placeholder="Enter section content"></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="sectionIsCodeBlock" class="checkbox-label">
+                            <input type="checkbox" id="sectionIsCodeBlock">
+                            Code Block
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label for="sectionBgColor">Background Color</label>
+                        <input type="color" id="sectionBgColor" value="#ffffff">
+                    </div>
+                    <div class="form-group">
+                        <label for="sectionTextColor">Text Color</label>
+                        <input type="color" id="sectionTextColor" value="#000000">
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" 
+                            onclick="closeModal('createSectionModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Section</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div id="editSectionModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Edit Section</h2>
+            <button class="close-btn" onclick="closeModal('editSectionModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="editSectionForm" onsubmit="updateSection(event)">
+                <input type="hidden" id="editSectionId">
+                <input type="hidden" id="editSectionSyncId">
+                <div class="form-group">
+                    <label for="editSectionTitle">Title</label>
+                    <input type="text" id="editSectionTitle">
+                </div>
+                <div class="form-group">
+                    <label for="editSectionContent">Content *</label>
+                    <textarea id="editSectionContent" rows="4" required></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="editSectionIsCodeBlock" class="checkbox-label">
+                            <input type="checkbox" id="editSectionIsCodeBlock">
+                            Code Block
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label for="editSectionBgColor">Background Color</label>
+                        <input type="color" id="editSectionBgColor">
+                    </div>
+                    <div class="form-group">
+                        <label for="editSectionTextColor">Text Color</label>
+                        <input type="color" id="editSectionTextColor">
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" 
+                            onclick="closeModal('editSectionModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Section</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div id="deleteConfirmModal" class="modal">
+    <div class="modal-content confirm-modal">
+        <div class="modal-header">
+            <h2>Confirm Delete</h2>
+            <button class="close-btn" onclick="closeModal('deleteConfirmModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p id="deleteConfirmMessage">Are you sure you want to delete this item?</p>
+            <p class="help-text"><small>This action will be synchronized to all replicas.</small></p>
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" 
+                        onclick="closeModal('deleteConfirmModal')">Cancel</button>
+                <button type="button" class="btn btn-danger" 
+                        onclick="confirmDelete()">Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Overlay -->
+<div id="loadingOverlay" class="loading-overlay">
+    <div class="loading-content">
+        <div class="loading-spinner-large"></div>
+        <p id="loadingMessage">Processing...</p>
+    </div>
+</div>
+
+<!-- Toast Notification -->
+<div id="toast" class="toast"></div>
+
+<!-- Hidden Data -->
+<input type="hidden" id="authToken" value="{{ auth_token }}">
+<input type="hidden" id="domainsData" value="{{ domains|join:',' }}">
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/selfstudyrunbook.js' %}"></script>
+<script>
+// Update edit runbook modal to show sync ID
+function editSelectedRunbook() {
+    if (!runbookManager.selectedRunbook) return;
+    
+    // Get sync_id from DOM element
+    const runbookElement = document.querySelector(`[data-runbook-id="${runbookManager.selectedRunbook.id}"]`);
+    const syncId = runbookElement?.dataset.runbookSyncId;
+    
+    if (!syncId) {
+        runbookManager.showToast('Runbook sync ID not found', 'error');
+        return;
+    }
+    
+    document.getElementById('editRunbookId').value = runbookManager.selectedRunbook.id;
+    document.getElementById('editRunbookSyncId').value = syncId;
+    document.getElementById('editRunbookTitle').value = runbookManager.selectedRunbook.title;
+    document.getElementById('syncIdDisplay').textContent = syncId;
+    runbookManager.showModal('editRunbookModal');
+}
+</script>
 {% endblock %}

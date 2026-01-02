@@ -15,3 +15,4 @@ from .selfstudymedia import *
 from .selfstudychat import *
 from .selfstudyotp import *
 from .selfstudyproctor import *
+from .selfstudyrunbook import *

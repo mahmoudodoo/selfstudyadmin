@@ -9,6 +9,7 @@ from .views.selfstudymedia import (
 )
 from .views.selfstudychat import SelfStudyChatView, ChatRoomAPIView
 from .views.selfstudyotp import SelfStudyOTPView
+from .views.selfstudyrunbook import SelfStudyRunbookView
 
 urlpatterns = [
     # Authentication URLs
@@ -89,7 +90,9 @@ urlpatterns = [
     path('selfstudyproctor/api/<str:proctor_id>/', views.SelfStudyProctorAPIView.as_view(), name='selfstudyproctor_api_detail'),
     path('selfstudyproctor/api/availability/', views.SelfStudyProctorAPIView.as_view(), {'action': 'update_availability'}, name='selfstudyproctor_api_availability'),
 
-    path('selfstudyrunbook/', views.SelfStudyRunbookView.as_view(), name='selfstudyrunbook'),
+    # SelfStudy Runbook URLs - NEW with proper import
+    path('selfstudyrunbook/', SelfStudyRunbookView.as_view(), name='selfstudyrunbook'),
+    
     path('selfstudyallauth/', views.SelfStudyAllAuthView.as_view(), name='selfstudyallauth'),
 
     # User Lab URLs
