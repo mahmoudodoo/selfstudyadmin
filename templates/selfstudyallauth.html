@@ -123,9 +123,16 @@
                         <button class="btn-action" onclick="openEditModal('{{ token.token }}')" title="Edit">
                             <i class="fas fa-edit"></i>
                         </button>
-                        <button class="btn-action btn-danger" onclick="deleteToken('{{ token.token }}')" title="Delete">
+                        <button class="btn-action btn-danger" onclick="confirmDelete('{{ token.token }}')" title="Delete">
                             <i class="fas fa-trash"></i>
                         </button>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" style="text-align: center; padding: 40px;">
+                        <i class="fas fa-key" style="font-size: 3rem; color: #ddd; margin-bottom: 15px;"></i>
+                        <p style="color: #666; font-size: 1.1rem;">No tokens found. Create your first token!</p>
                     </td>
                 </tr>
                 {% endfor %}
@@ -158,14 +165,25 @@
         <div class="modal-body">
             <form id="createForm" onsubmit="event.preventDefault(); createToken();">
                 <div class="form-group">
-                    <label for="username">Username *</label>
-                    <div class="input-with-button">
-                        <input type="text" id="username" placeholder="Enter username" required>
-                        <button type="button" class="btn-sm" onclick="searchUser()">
-                            <i class="fas fa-search"></i> Find User
-                        </button>
-                    </div>
-                    <div class="user-autocomplete" id="userAutocomplete"></div>
+                    <label for="userSelect">Select User *</label>
+                    <select id="userSelect" class="user-select" onchange="onUserSelectChange(this)" required>
+                        <option value="">Select a user...</option>
+                        {% for user in users %}
+                        <option value="{{ user.user_id }}" 
+                                data-username="{{ user.username }}" 
+                                data-email="{{ user.email|default:'' }}"
+                                data-first-name="{{ user.first_name|default:'' }}"
+                                data-last-name="{{ user.last_name|default:'' }}">
+                            {{ user.username }} {% if user.email %}({{ user.email }}){% endif %}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <small class="form-help">Select a user from the list to auto-fill their details</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" placeholder="Username will auto-fill" readonly>
                 </div>
                 
                 <div class="form-group">
@@ -179,8 +197,14 @@
                 </div>
                 
                 <div class="form-group">
-                    <label for="expiresIn">Expires In (Days)</label>
-                    <input type="number" id="expiresIn" min="1" max="365" value="30">
+                    <label for="userFullName">Full Name</label>
+                    <input type="text" id="userFullName" readonly>
+                </div>
+                
+                <div class="form-group">
+                    <label for="expiresIn">Expires In (Days) *</label>
+                    <input type="number" id="expiresIn" min="1" max="365" value="30" required>
+                    <small class="form-help">Token validity period in days (1-365)</small>
                 </div>
                 
                 <div class="form-actions">
@@ -221,8 +245,14 @@
                 </div>
                 
                 <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="editUserEmail" readonly>
+                </div>
+                
+                <div class="form-group">
                     <label for="editExpiresIn">Extend Expiry (Days)</label>
                     <input type="number" id="editExpiresIn" min="1" max="365" value="30">
+                    <small class="form-help">Set new expiry period from today</small>
                 </div>
                 
                 <div class="form-group">
@@ -270,6 +300,10 @@
                     <span id="detailEmail"></span>
                 </div>
                 <div class="detail-item">
+                    <label>Full Name</label>
+                    <span id="detailFullName"></span>
+                </div>
+                <div class="detail-item">
                     <label>Created At</label>
                     <span id="detailCreatedAt"></span>
                 </div>
@@ -302,7 +336,7 @@
             <div class="validation-section">
                 <h3>Validate Token</h3>
                 <button class="btn-secondary" onclick="validateCurrentToken()">
-                    <i class="fas fa-check-circle"></i> Validate
+                    <i class="fas fa-check-circle"></i> Validate Token
                 </button>
                 <div id="validationResult" class="validation-result"></div>
             </div>
@@ -319,16 +353,18 @@
         </div>
         <div class="modal-body">
             <div class="replica-section">
-                <h3>Auth Service (App ID: 15)</h3>
+                <h3><i class="fas fa-key"></i> Auth Service (App ID: 15)</h3>
                 <div id="authReplicas" class="replica-list"></div>
             </div>
             <div class="replica-section">
-                <h3>User Profile Service (App ID: 13)</h3>
+                <h3><i class="fas fa-user"></i> User Profile Service (App ID: 13)</h3>
                 <div id="userReplicas" class="replica-list"></div>
             </div>
-            <button class="btn-primary" onclick="refreshReplicaInfo()">
-                <i class="fas fa-sync-alt"></i> Refresh Replica Info
-            </button>
+            <div class="form-actions">
+                <button class="btn-primary" onclick="refreshReplicaInfo()">
+                    <i class="fas fa-sync-alt"></i> Refresh Replica Info
+                </button>
+            </div>
         </div>
     </div>
 </div>
@@ -353,6 +389,7 @@
 <!-- Loading Overlay -->
 <div id="loadingOverlay" class="loading-overlay">
     <div class="loading-spinner"></div>
+    <div class="loading-text">Loading...</div>
 </div>
 
 {% endblock %}

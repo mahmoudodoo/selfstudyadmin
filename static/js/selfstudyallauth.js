@@ -1,24 +1,34 @@
+
 // SelfStudy All Auth Management JavaScript
 
 class SelfStudyAllAuthManager {
     constructor() {
         this.baseUrl = '/selfstudyallauth/api/';
         this.currentPage = 1;
-        this.pageSize = 20;
+        this.pageSize = 50;
         this.totalPages = 1;
-        this.currentSort = 'created_at';
         this.currentFilter = 'all';
         this.selectedToken = null;
         this.confirmAction = null;
+        this.userCache = new Map();
         
         this.init();
     }
     
     init() {
-        this.loadUsernames();
         this.setupEventListeners();
         this.checkExpirations();
         this.loadReplicaInfo();
+        
+        // Check if we have initial tokens from Django template
+        const initialTokens = document.querySelectorAll('#tokensTableBody tr[data-token]');
+        if (initialTokens.length > 0) {
+            // We have tokens from template, just load usernames
+            this.loadUsernames();
+        } else {
+            // No tokens in template, load via API
+            this.loadTokens(1);
+        }
     }
     
     setupEventListeners() {
@@ -30,14 +40,6 @@ class SelfStudyAllAuthManager {
                     this.searchTokens();
                 }
             });
-        }
-        
-        // Username search
-        const usernameInput = document.getElementById('username');
-        if (usernameInput) {
-            usernameInput.addEventListener('input', debounce(() => {
-                this.searchUsers(usernameInput.value);
-            }, 300));
         }
         
         // Close modals on background click
@@ -69,7 +71,8 @@ class SelfStudyAllAuthManager {
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRFToken': this.getCsrfToken()
-                }
+                },
+                credentials: 'same-origin'
             };
             
             if (method === 'GET') {
@@ -77,7 +80,9 @@ class SelfStudyAllAuthManager {
                 params.set('action', action);
                 if (data) {
                     Object.keys(data).forEach(key => {
-                        params.set(key, data[key]);
+                        if (data[key] !== null && data[key] !== undefined) {
+                            params.set(key, data[key]);
+                        }
                     });
                 }
                 url += `?${params.toString()}`;
@@ -89,18 +94,19 @@ class SelfStudyAllAuthManager {
             }
             
             const response = await fetch(url, options);
-            const result = await response.json();
-            
-            this.hideLoading();
             
             if (!response.ok) {
-                throw new Error(result.error || `HTTP ${response.status}`);
+                const errorText = await response.text();
+                throw new Error(`HTTP ${response.status}: ${errorText}`);
             }
             
+            const result = await response.json();
+            this.hideLoading();
             return result;
+            
         } catch (error) {
             this.hideLoading();
-            this.showError('Request failed', error.message);
+            console.error('API Request Error:', error);
             throw error;
         }
     }
@@ -109,21 +115,32 @@ class SelfStudyAllAuthManager {
     async loadTokens(page = 1) {
         try {
             const params = {
-                limit: this.pageSize,
-                offset: (page - 1) * this.pageSize,
-                sort_by: this.currentSort
+                limit: this.pageSize
             };
             
             const result = await this.makeRequest('list_tokens', 'GET', params);
             
-            if (result.data && result.data.tokens) {
-                this.renderTokens(result.data.tokens);
-                this.totalPages = Math.ceil(result.data.count / this.pageSize);
+            if (result.status_code === 200 && result.data) {
+                this.renderTokens(result.data.tokens || []);
+                this.totalPages = Math.ceil((result.data.count || 0) / this.pageSize);
                 this.renderPagination();
                 this.currentPage = page;
+                
+                // Load usernames for the tokens
+                this.loadUsernames();
+            } else {
+                console.error('Failed to load tokens:', result);
+                this.showError('Failed to load tokens', result.error || 'Unknown error');
             }
         } catch (error) {
             console.error('Failed to load tokens:', error);
+            this.showError('Failed to load tokens', error.message);
+            
+            // Check if we have any tokens from template
+            const hasTokens = document.querySelectorAll('#tokensTableBody tr[data-token]').length > 0;
+            if (!hasTokens) {
+                this.showNoTokensMessage();
+            }
         }
     }
     
@@ -134,12 +151,14 @@ class SelfStudyAllAuthManager {
             if (result.status_code === 201 || result.status_code === 200) {
                 this.showSuccess('Token created successfully');
                 this.closeCreateModal();
-                this.loadTokens();
+                this.loadTokens(1); // Reload tokens from API
+                return true;
             } else {
-                throw new Error(result.data?.error || 'Failed to create token');
+                throw new Error(result.data?.error || result.error || 'Failed to create token');
             }
         } catch (error) {
             this.showError('Failed to create token', error.message);
+            return false;
         }
     }
     
@@ -151,35 +170,52 @@ class SelfStudyAllAuthManager {
             if (result.status_code === 200) {
                 this.showSuccess('Token updated successfully');
                 this.closeEditModal();
-                this.loadTokens();
+                this.loadTokens(1);
+                return true;
             } else {
-                throw new Error(result.data?.error || 'Failed to update token');
+                throw new Error(result.data?.error || result.error || 'Failed to update token');
             }
         } catch (error) {
             this.showError('Failed to update token', error.message);
+            return false;
         }
     }
     
     async deleteToken(token) {
         try {
-            const result = await this.makeRequest('delete_token', 'DELETE', { token });
+            const data = { token: token };
+            const result = await this.makeRequest('delete_token', 'DELETE', data);
             
             if (result.status_code === 200) {
                 this.showSuccess('Token deleted successfully');
                 this.closeConfirmModal();
-                this.loadTokens();
+                
+                // Remove the token row from UI
+                const row = document.querySelector(`tr[data-token="${token}"]`);
+                if (row) {
+                    row.remove();
+                }
+                
+                // Check if we have any tokens left
+                const remainingTokens = document.querySelectorAll('#tokensTableBody tr[data-token]').length;
+                if (remainingTokens === 0) {
+                    this.showNoTokensMessage();
+                }
+                
+                return true;
             } else {
-                throw new Error(result.data?.error || 'Failed to delete token');
+                throw new Error(result.data?.error || result.error || 'Failed to delete token');
             }
         } catch (error) {
             this.showError('Failed to delete token', error.message);
+            return false;
         }
     }
     
     async searchTokens() {
         const query = document.getElementById('searchInput').value.trim();
         if (!query) {
-            this.loadTokens();
+            this.loadTokens(1);
             return;
         }
         
@@ -194,10 +230,11 @@ class SelfStudyAllAuthManager {
             
             if (result.status_code === 200) {
                 this.renderTokens(result.data.results || []);
-                this.renderPagination(true); // Hide pagination for search results
+                this.renderPagination(true);
             }
         } catch (error) {
             console.error('Search failed:', error);
+            this.showError('Search failed', error.message);
         }
     }
     
@@ -218,57 +255,77 @@ class SelfStudyAllAuthManager {
     }
     
     // User Management
-    async searchUsers(query) {
-        if (query.length < 3) {
-            this.clearAutocomplete();
-            return;
-        }
-        
-        try {
-            const result = await this.makeRequest('search_user', 'GET', { username: query });
-            
-            if (result.status_code === 200 && result.data) {
-                this.showUserAutocomplete([result.data]);
-            } else if (result.status_code === 404) {
-                this.clearAutocomplete();
-            }
-        } catch (error) {
-            console.error('User search failed:', error);
-        }
-    }
-    
     async loadUsernames() {
-        const usernameCells = document.querySelectorAll('.username-cell');
+        const usernameCells = document.querySelectorAll('.username-cell[data-user-id]');
         
-        usernameCells.forEach(async cell => {
+        if (usernameCells.length === 0) return;
+        
+        const promises = Array.from(usernameCells).map(async (cell) => {
             const userId = cell.dataset.userId;
             if (userId) {
                 try {
-                    // Try to get username from user profile service
-                    const result = await this.makeRequest('search_user', 'GET', { user_id: userId });
+                    // Check cache first
+                    if (this.userCache.has(userId)) {
+                        const user = this.userCache.get(userId);
+                        this.updateUsernameCell(cell, user);
+                        return;
+                    }
+                    
+                    // Fetch from API
+                    const result = await this.makeRequest('get_user_by_id', 'GET', { user_id: userId });
                     
                     if (result.status_code === 200 && result.data) {
                         const user = result.data;
-                        cell.innerHTML = `<span class="username">${user.username || 'N/A'}</span>`;
-                        if (user.email) {
-                            cell.innerHTML += `<br><small class="email">${user.email}</small>`;
-                        }
+                        this.userCache.set(userId, user);
+                        this.updateUsernameCell(cell, user);
                     } else {
-                        cell.innerHTML = '<span class="na">N/A</span>';
+                        cell.innerHTML = '<span class="na">User not found</span>';
                     }
                 } catch (error) {
-                    cell.innerHTML = '<span class="na">Error</span>';
+                    console.error(`Failed to load user ${userId}:`, error);
+                    cell.innerHTML = '<span class="error">Error</span>';
                 }
             }
         });
+        
+        await Promise.allSettled(promises);
     }
     
-    async getUserByUsername(username) {
+    updateUsernameCell(cell, user) {
+        const username = user.username || 'N/A';
+        const email = user.email || '';
+        const firstName = user.first_name || '';
+        const lastName = user.last_name || '';
+        const fullName = `${firstName} ${lastName}`.trim();
+        
+        let html = `<div class="user-info">`;
+        html += `<strong class="username">${username}</strong>`;
+        
+        if (email) {
+            html += `<br><small class="email">${email}</small>`;
+        }
+        
+        if (fullName) {
+            html += `<br><small class="name">${fullName}</small>`;
+        }
+        
+        html += `</div>`;
+        cell.innerHTML = html;
+    }
+    
+    async getUserById(userId) {
+        // Check cache first
+        if (this.userCache.has(userId)) {
+            return this.userCache.get(userId);
+        }
+        
         try {
-            const result = await this.makeRequest('search_user', 'GET', { username: username });
+            const result = await this.makeRequest('get_user_by_id', 'GET', { user_id: userId });
             
             if (result.status_code === 200 && result.data) {
-                return result.data;
+                const user = result.data;
+                this.userCache.set(userId, user);
+                return user;
             }
             return null;
         } catch (error) {
@@ -281,7 +338,6 @@ class SelfStudyAllAuthManager {
     async loadReplicaInfo() {
         try {
             const result = await this.makeRequest('get_replicas', 'GET');
-            
             if (result.auth_replicas && result.user_replicas) {
                 this.updateReplicaStatus(result);
             }
@@ -295,15 +351,17 @@ class SelfStudyAllAuthManager {
         const tbody = document.getElementById('tokensTableBody');
         if (!tbody) return;
         
+        if (tokens.length === 0) {
+            this.showNoTokensMessage();
+            return;
+        }
+        
         tbody.innerHTML = '';
         
         tokens.forEach(token => {
             const row = this.createTokenRow(token);
             tbody.appendChild(row);
         });
-        
-        // Load usernames for the new rows
-        setTimeout(() => this.loadUsernames(), 100);
     }
     
     createTokenRow(token) {
@@ -313,11 +371,12 @@ class SelfStudyAllAuthManager {
         const expiresDate = new Date(token.expires_at);
         const now = new Date();
         const daysRemaining = Math.ceil((expiresDate - now) / (1000 * 60 * 60 * 24));
+        const isExpiringSoon = daysRemaining > 0 && daysRemaining <= 7;
         
         row.innerHTML = `
             <td class="token-cell">
                 <code>${token.token.substring(0, 8)}...</code>
-                <button class="btn-copy" onclick="copyToClipboard('${token.token}')">
+                <button class="btn-copy" onclick="copyToClipboard('${token.token}')" title="Copy token">
                     <i class="far fa-copy"></i>
                 </button>
             </td>
@@ -326,7 +385,7 @@ class SelfStudyAllAuthManager {
                 <span class="loading">Loading...</span>
             </td>
             <td>${new Date(token.created_at).toLocaleDateString()}</td>
-            <td class="expiry-cell" data-expires="${token.expires_at}">
+            <td class="expiry-cell ${isExpiringSoon ? 'expiring-soon' : ''}" data-expires="${token.expires_at}">
                 ${new Date(token.expires_at).toLocaleDateString()}
                 ${daysRemaining > 0 ? `<br><small>(${daysRemaining} days)</small>` : ''}
             </td>
@@ -349,12 +408,21 @@ class SelfStudyAllAuthManager {
             </td>
         `;
         
-        // Highlight expiring soon
-        if (daysRemaining > 0 && daysRemaining <= 7) {
-            row.classList.add('expiring-soon');
-        }
-        
         return row;
+    }
+    
+    showNoTokensMessage() {
+        const tbody = document.getElementById('tokensTableBody');
+        if (!tbody) return;
+        
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" style="text-align: center; padding: 40px;">
+                    <i class="fas fa-key" style="font-size: 3rem; color: #ddd; margin-bottom: 15px;"></i>
+                    <p style="color: #666; font-size: 1.1rem;">No tokens found. Create your first token!</p>
+                </td>
+            </tr>
+        `;
     }
     
     renderPagination(hide = false) {
@@ -368,12 +436,10 @@ class SelfStudyAllAuthManager {
         
         let html = '';
         
-        // Previous button
         if (this.currentPage > 1) {
             html += `<button onclick="goToPage(${this.currentPage - 1})">Previous</button>`;
         }
         
-        // Page numbers
         const startPage = Math.max(1, this.currentPage - 2);
         const endPage = Math.min(this.totalPages, startPage + 4);
         
@@ -381,7 +447,6 @@ class SelfStudyAllAuthManager {
             html += `<button class="${i === this.currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
         }
         
-        // Next button
         if (this.currentPage < this.totalPages) {
             html += `<button onclick="goToPage(${this.currentPage + 1})">Next</button>`;
         }
@@ -389,43 +454,7 @@ class SelfStudyAllAuthManager {
         pagination.innerHTML = html;
     }
     
-    showUserAutocomplete(users) {
-        const container = document.getElementById('userAutocomplete');
-        if (!container) return;
-        
-        container.innerHTML = '';
-        
-        users.forEach(user => {
-            const div = document.createElement('div');
-            div.className = 'user-autocomplete-item';
-            div.innerHTML = `
-                <strong>${user.username}</strong><br>
-                <small>${user.email || 'No email'} • ${user.user_id.substring(0, 8)}...</small>
-            `;
-            div.onclick = () => this.selectUser(user);
-            container.appendChild(div);
-        });
-        
-        container.style.display = 'block';
-    }
-    
-    clearAutocomplete() {
-        const container = document.getElementById('userAutocomplete');
-        if (container) {
-            container.innerHTML = '';
-            container.style.display = 'none';
-        }
-    }
-    
-    selectUser(user) {
-        document.getElementById('username').value = user.username;
-        document.getElementById('userId').value = user.user_id;
-        document.getElementById('userEmail').value = user.email || '';
-        this.clearAutocomplete();
-    }
-    
     updateReplicaStatus(data) {
-        // Update auth replicas
         const authContainer = document.getElementById('authReplicas');
         if (authContainer && data.auth_replicas) {
             authContainer.innerHTML = data.auth_replicas.map(url => `
@@ -438,7 +467,6 @@ class SelfStudyAllAuthManager {
             `).join('');
         }
         
-        // Update user replicas
         const userContainer = document.getElementById('userReplicas');
         if (userContainer && data.user_replicas) {
             userContainer.innerHTML = data.user_replicas.map(url => `
@@ -455,13 +483,11 @@ class SelfStudyAllAuthManager {
     // Modal Management
     openCreateModal() {
         document.getElementById('createModal').classList.add('show');
-        document.getElementById('username').focus();
     }
     
     closeCreateModal() {
         document.getElementById('createModal').classList.remove('show');
         document.getElementById('createForm').reset();
-        this.clearAutocomplete();
     }
     
     async openEditModal(token) {
@@ -477,18 +503,10 @@ class SelfStudyAllAuthManager {
                 document.getElementById('editExpiresIn').value = 30;
                 document.getElementById('editIsActive').value = tokenData.is_active.toString();
                 
-                // Try to get username
-                const user = await this.getUserByUsernameFromId(tokenData.user_id);
+                const user = await this.getUserById(tokenData.user_id);
                 if (user) {
                     document.getElementById('editUsername').value = user.username || 'N/A';
-                } else {
-                    document.getElementById('editUsername').value = 'Loading...';
-                    setTimeout(async () => {
-                        const user = await this.getUserByUsernameFromId(tokenData.user_id);
-                        if (user) {
-                            document.getElementById('editUsername').value = user.username || 'N/A';
-                        }
-                    }, 1000);
+                    document.getElementById('editUserEmail').value = user.email || 'N/A';
                 }
                 
                 document.getElementById('editModal').classList.add('show');
@@ -509,7 +527,6 @@ class SelfStudyAllAuthManager {
             if (result.status_code === 200 && result.data) {
                 const tokenData = result.data;
                 
-                // Update details modal
                 document.getElementById('detailToken').textContent = token;
                 document.getElementById('detailUserId').textContent = tokenData.user_id;
                 document.getElementById('detailCreatedAt').textContent = new Date(tokenData.created_at).toLocaleString();
@@ -519,25 +536,19 @@ class SelfStudyAllAuthManager {
                 document.getElementById('detailStatus').textContent = tokenData.is_active ? 'Active' : 'Inactive';
                 document.getElementById('detailIsValid').textContent = tokenData.is_valid ? 'Yes' : 'No';
                 
-                // Calculate days remaining
                 const expiresDate = new Date(tokenData.expires_at);
                 const now = new Date();
                 const daysRemaining = Math.ceil((expiresDate - now) / (1000 * 60 * 60 * 24));
                 document.getElementById('detailDaysRemaining').textContent = daysRemaining > 0 ? `${daysRemaining} days` : 'Expired';
                 
-                // Try to get username and email
-                const user = await this.getUserByUsernameFromId(tokenData.user_id);
+                const user = await this.getUserById(tokenData.user_id);
                 if (user) {
                     document.getElementById('detailUsername').textContent = user.username || 'N/A';
                     document.getElementById('detailEmail').textContent = user.email || 'N/A';
-                } else {
-                    document.getElementById('detailUsername').textContent = 'Loading...';
-                    document.getElementById('detailEmail').textContent = 'Loading...';
+                    document.getElementById('detailFullName').textContent = `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'N/A';
                 }
                 
-                // Store token for validation
                 this.selectedToken = token;
-                
                 document.getElementById('detailsModal').classList.add('show');
             }
         } catch (error) {
@@ -574,16 +585,21 @@ class SelfStudyAllAuthManager {
             modal.classList.remove('show');
         });
         this.selectedToken = null;
-        this.clearAutocomplete();
     }
     
     // Utility Methods
     showLoading() {
-        document.getElementById('loadingOverlay').classList.add('show');
+        const overlay = document.getElementById('loadingOverlay');
+        if (overlay) {
+            overlay.classList.add('show');
+        }
     }
     
     hideLoading() {
-        document.getElementById('loadingOverlay').classList.remove('show');
+        const overlay = document.getElementById('loadingOverlay');
+        if (overlay) {
+            overlay.classList.remove('show');
+        }
     }
     
     showSuccess(message) {
@@ -595,7 +611,6 @@ class SelfStudyAllAuthManager {
     }
     
     showNotification(message, type = 'info') {
-        // Create notification element
         const notification = document.createElement('div');
         notification.className = `notification notification-${type}`;
         notification.innerHTML = `
@@ -603,7 +618,6 @@ class SelfStudyAllAuthManager {
             <button onclick="this.parentElement.remove()">&times;</button>
         `;
         
-        // Add styles
         notification.style.cssText = `
             position: fixed;
             top: 20px;
@@ -624,7 +638,6 @@ class SelfStudyAllAuthManager {
         
         document.body.appendChild(notification);
         
-        // Auto-remove after 5 seconds
         setTimeout(() => {
             if (notification.parentElement) {
                 notification.remove();
@@ -649,7 +662,6 @@ class SelfStudyAllAuthManager {
     }
     
     checkExpirations() {
-        // Check for tokens expiring soon
         const expiryCells = document.querySelectorAll('.expiry-cell');
         const now = new Date();
         
@@ -658,37 +670,18 @@ class SelfStudyAllAuthManager {
             const daysRemaining = Math.ceil((expiresAt - now) / (1000 * 60 * 60 * 24));
             
             if (daysRemaining <= 3 && daysRemaining > 0) {
-                cell.style.color = '#e74c3c';
-                cell.style.fontWeight = 'bold';
+                cell.classList.add('expiring-soon');
             }
         });
         
-        // Check again in 1 minute
         setTimeout(() => this.checkExpirations(), 60000);
-    }
-    
-    async getUserByUsernameFromId(userId) {
-        // This is a simplified version - in production, you'd need an endpoint
-        // that can get user by ID from the user profile service
-        try {
-            // Try to get from local cache first
-            const cached = sessionStorage.getItem(`user_${userId}`);
-            if (cached) {
-                return JSON.parse(cached);
-            }
-            
-            // If not cached, we can't easily get username from ID without proper endpoint
-            return null;
-        } catch (error) {
-            return null;
-        }
     }
     
     async validateCurrentToken() {
         if (!this.selectedToken) return;
         
-        const result = await this.validateToken(this.selectedToken);
         const container = document.getElementById('validationResult');
+        const result = await this.validateToken(this.selectedToken);
         
         if (result && result.is_valid) {
             container.className = 'validation-result success';
@@ -709,32 +702,41 @@ class SelfStudyAllAuthManager {
 }
 
 // Utility Functions
-function debounce(func, wait) {
-    let timeout;
-    return function executedFunction(...args) {
-        const later = () => {
-            clearTimeout(timeout);
-            func(...args);
-        };
-        clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
-    };
+function onUserSelectChange(select) {
+    const selectedOption = select.options[select.selectedIndex];
+    
+    if (selectedOption && selectedOption.value) {
+        const username = selectedOption.dataset.username;
+        const email = selectedOption.dataset.email;
+        const firstName = selectedOption.dataset.firstName;
+        const lastName = selectedOption.dataset.lastName;
+        const userId = selectedOption.value;
+        const fullName = `${firstName || ''} ${lastName || ''}`.trim();
+        
+        document.getElementById('username').value = username || '';
+        document.getElementById('userId').value = userId || '';
+        document.getElementById('userEmail').value = email || '';
+        document.getElementById('userFullName').value = fullName || '';
+    } else {
+        document.getElementById('username').value = '';
+        document.getElementById('userId').value = '';
+        document.getElementById('userEmail').value = '';
+        document.getElementById('userFullName').value = '';
+    }
 }
 
 async function copyToClipboard(text) {
     try {
         await navigator.clipboard.writeText(text);
-        // Show copied notification
-        const manager = window.authManager;
-        if (manager) {
-            manager.showSuccess('Copied to clipboard');
+        if (window.authManager) {
+            window.authManager.showSuccess('Copied to clipboard');
         }
     } catch (err) {
         console.error('Failed to copy:', err);
     }
 }
 
-// Global Functions for HTML onclick handlers
+// Global Functions
 let authManager;
 
 function refreshData() {
@@ -754,15 +756,6 @@ function filterTokens() {
     if (authManager) {
         const filter = document.getElementById('statusFilter').value;
         authManager.currentFilter = filter;
-        // In production, this would trigger a new API call with filter
-        console.log('Filter changed to:', filter);
-    }
-}
-
-function sortTokens() {
-    if (authManager) {
-        const sortBy = document.getElementById('sortBy').value;
-        authManager.currentSort = sortBy;
         authManager.loadTokens(1);
     }
 }
@@ -785,13 +778,6 @@ function closeCreateModal() {
     }
 }
 
-function searchUser() {
-    const username = document.getElementById('username').value.trim();
-    if (username && authManager) {
-        authManager.searchUsers(username);
-    }
-}
-
 function createToken() {
     if (!authManager) return;
     
@@ -801,6 +787,11 @@ function createToken() {
     
     if (!username || !userId) {
         authManager.showError('Validation Error', 'Please select a user first');
+        return;
+    }
+    
+    if (!expiresIn || expiresIn < 1 || expiresIn > 365) {
+        authManager.showError('Validation Error', 'Expires in must be between 1 and 365 days');
         return;
     }
     
@@ -830,6 +821,11 @@ function updateToken() {
     const token = document.getElementById('editToken').value;
     const expiresIn = document.getElementById('editExpiresIn').value;
     const isActive = document.getElementById('editIsActive').value === 'true';
+    
+    if (!expiresIn || expiresIn < 1 || expiresIn > 365) {
+        authManager.showError('Validation Error', 'Expires in must be between 1 and 365 days');
+        return;
+    }
     
     const updateData = {
         expires_in_days: parseInt(expiresIn) || 30,
@@ -901,14 +897,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const style = document.createElement('style');
     style.textContent = `
         @keyframes slideIn {
-            from {
-                transform: translateX(100%);
-                opacity: 0;
-            }
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
         }
         
         .notification button {
@@ -918,24 +908,6 @@ document.addEventListener('DOMContentLoaded', () => {
             cursor: pointer;
             margin-left: 10px;
             color: inherit;
-        }
-        
-        .expiring-sown td {
-            background-color: #fff3cd !important;
-        }
-        
-        .username {
-            font-weight: 500;
-        }
-        
-        .email {
-            color: #666;
-            font-size: 0.85rem;
-        }
-        
-        .na {
-            color: #999;
-            font-style: italic;
         }
     `;
     document.head.appendChild(style);

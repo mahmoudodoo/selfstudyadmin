@@ -3,13 +3,13 @@ import json
 import logging
 import random
 import requests
+import uuid
 from django.shortcuts import render
 from django.views import View
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.contrib.auth.decorators import login_required
-from django.utils.decorators import method_decorator
 
 logger = logging.getLogger(__name__)
 
@@ -87,7 +87,7 @@ class DomainDiscovery:
         for replica in replicas:
             try:
                 # Check health endpoint
-                health_url = f"{replica}/health-check/"
+                health_url = f"{replica}/health-check/" if app_id == 15 else f"{replica}/metrics/"
                 headers = {
                     'Authorization': f'Token {self.auth_token}',
                     'Content-Type': 'application/json'
@@ -197,64 +197,158 @@ class SelfStudyUserProfileManager:
             'Content-Type': 'application/json'
         }
     
-    def get_user_by_username(self, username):
-        """Get user details by username"""
+    def search_users(self, query=None, username=None, email=None, limit=100):
+        """Search users by various criteria"""
         replica = self.domain_discovery.get_random_healthy_replica(13)  # App ID 13
         if not replica:
-            return {'error': 'No healthy replica found', 'status_code': 503}
+            return {'error': 'No healthy replica found', 'status_code': 503, 'data': []}
         
         try:
-            # First, search for the user profile
             url = f"{replica}/profiles/"
-            params = {'username': username}
+            params = {}
+            
+            if query:
+                params['search'] = query
+            if username:
+                params['username'] = username
+            if email:
+                params['email'] = email
+            
+            # Try to get all profiles first
             response = requests.get(url, headers=self.get_headers(), params=params, timeout=10)
             
             if response.status_code == 200:
                 data = response.json()
-                if data.get('count', 0) > 0:
-                    return {
-                        'status_code': 200,
-                        'data': data['results'][0],
-                        'replica': replica
+                
+                # Handle different response formats
+                users = []
+                
+                # Format 1: Django REST Framework paginated response
+                if isinstance(data, dict) and 'results' in data:
+                    users = data.get('results', [])
+                # Format 2: Direct list response
+                elif isinstance(data, list):
+                    users = data
+                # Format 3: Single object (might be from lookup endpoint)
+                elif isinstance(data, dict) and 'user_id' in data:
+                    users = [data]
+                else:
+                    logger.warning(f"Unexpected response format from userprofile API: {type(data)}")
+                    users = []
+                
+                # Process users to ensure they have required fields
+                processed_users = []
+                for user in users:
+                    # Extract user_id - handle different field names
+                    user_id = user.get('user_id') or user.get('id') or user.get('uuid')
+                    if not user_id:
+                        continue
+                    
+                    processed_user = {
+                        'user_id': str(user_id),
+                        'username': user.get('username', ''),
+                        'email': user.get('email', ''),
+                        'first_name': user.get('first_name', ''),
+                        'last_name': user.get('last_name', ''),
+                        'image_url': user.get('image_url', ''),
+                        'lab_url': user.get('lab_url', ''),
+                        'is_email_verified': user.get('is_email_verified', False),
+                        'gender': user.get('gender', ''),
+                        'date_joined': user.get('date_joined', ''),
+                        'last_updated': user.get('last_updated', ''),
                     }
-            
-            # Try alternative endpoints
-            alt_url = f"{replica}/check-username/{username}/"
-            response = requests.get(alt_url, headers=self.get_headers(), timeout=10)
-            
-            if response.status_code == 200:
-                data = response.json()
-                if not data.get('available', True):  # User exists
-                    return {
-                        'status_code': 200,
-                        'data': data.get('user', {}),
-                        'replica': replica
-                    }
-            
-            return {'error': 'User not found', 'status_code': 404}
-            
+                    processed_users.append(processed_user)
+                
+                # Apply limit after processing
+                processed_users = processed_users[:limit]
+                
+                return {
+                    'status_code': 200,
+                    'data': processed_users,
+                    'count': len(processed_users),
+                    'replica': replica
+                }
+            else:
+                logger.warning(f"User profile API returned {response.status_code}: {response.text[:200]}")
+                return {
+                    'status_code': response.status_code,
+                    'error': f'HTTP {response.status_code}',
+                    'data': []
+                }
+                
         except requests.RequestException as e:
             logger.error(f"User profile request failed: {e}")
-            return {'error': str(e), 'status_code': 503}
+            return {'error': str(e), 'status_code': 503, 'data': []}
     
-    def search_users(self, query):
-        """Search users by username or email"""
+    def get_user_by_username(self, username):
+        """Get user details by username"""
+        result = self.search_users(username=username, limit=1)
+        if result.get('status_code') == 200 and result.get('data'):
+            users = result['data']
+            if users:
+                return {
+                    'status_code': 200,
+                    'data': users[0],
+                    'replica': result['replica']
+                }
+        
+        return {'error': 'User not found', 'status_code': 404}
+    
+    def get_user_by_id(self, user_id):
+        """Get user details by user_id"""
         replica = self.domain_discovery.get_random_healthy_replica(13)
         if not replica:
             return {'error': 'No healthy replica found', 'status_code': 503}
         
         try:
-            url = f"{replica}/profiles/"
-            params = {'search': query}
-            response = requests.get(url, headers=self.get_headers(), params=params, timeout=10)
+            # Try multiple endpoint formats
+            endpoints = [
+                f"{replica}/profiles/{user_id}/",
+                f"{replica}/profiles/{user_id}/lookup/",
+                f"{replica}/api/profiles/{user_id}/"
+            ]
             
-            return {
-                'status_code': response.status_code,
-                'data': response.json() if response.content else {},
-                'replica': replica
-            }
+            for endpoint in endpoints:
+                try:
+                    response = requests.get(endpoint, headers=self.get_headers(), timeout=5)
+                    if response.status_code == 200:
+                        user_data = response.json()
+                        # Process the user data to ensure consistent format
+                        return {
+                            'status_code': 200,
+                            'data': {
+                                'user_id': str(user_data.get('user_id') or user_data.get('id') or user_id),
+                                'username': user_data.get('username', ''),
+                                'email': user_data.get('email', ''),
+                                'first_name': user_data.get('first_name', ''),
+                                'last_name': user_data.get('last_name', ''),
+                                'image_url': user_data.get('image_url', ''),
+                                'lab_url': user_data.get('lab_url', ''),
+                                'is_email_verified': user_data.get('is_email_verified', False),
+                                'gender': user_data.get('gender', ''),
+                                'date_joined': user_data.get('date_joined', ''),
+                                'last_updated': user_data.get('last_updated', ''),
+                            },
+                            'replica': replica
+                        }
+                except requests.RequestException:
+                    continue
+            
+            # If no endpoint worked, try searching by user_id
+            result = self.search_users(query=user_id, limit=1)
+            if result.get('status_code') == 200 and result.get('data'):
+                users = result['data']
+                if users and str(users[0].get('user_id')) == str(user_id):
+                    return {
+                        'status_code': 200,
+                        'data': users[0],
+                        'replica': result['replica']
+                    }
+            
+            return {'error': 'User not found', 'status_code': 404}
+                
         except requests.RequestException as e:
-            logger.error(f"User search failed: {e}")
+            logger.error(f"User profile request failed: {e}")
             return {'error': str(e), 'status_code': 503}
 
 
@@ -271,11 +365,34 @@ class SelfStudyAllAuthView(View):
         stats_response = auth_manager.get_stats()
         health_response = auth_manager.get_health()
         
+        # Get initial users for dropdown
+        users_response = user_manager.search_users(limit=50)
+        
+        # Process users data to ensure it has all required fields
+        users = []
+        if users_response.get('status_code') == 200:
+            users_data = users_response.get('data', [])
+            for user in users_data:
+                # Ensure user has all required fields
+                processed_user = {
+                    'user_id': str(user.get('user_id', '')),
+                    'username': user.get('username', ''),
+                    'email': user.get('email', ''),
+                    'first_name': user.get('first_name', ''),
+                    'last_name': user.get('last_name', ''),
+                    'is_email_verified': user.get('is_email_verified', False),
+                    'image_url': user.get('image_url', ''),
+                    'gender': user.get('gender', ''),
+                }
+                users.append(processed_user)
+        
         context = {
             'tokens': tokens_response.get('data', {}).get('tokens', []) if tokens_response.get('status_code') == 200 else [],
             'stats': stats_response.get('data', {}) if stats_response.get('status_code') == 200 else {},
             'health': health_response.get('data', {}) if health_response.get('status_code') == 200 else {},
+            'users': users,
             'total_tokens': tokens_response.get('data', {}).get('count', 0),
+            'total_users': len(users),
             'replica_info': {
                 'current': tokens_response.get('replica', 'Unknown'),
                 'status': health_response.get('data', {}).get('status', 'unknown')
@@ -306,6 +423,8 @@ class SelfStudyAllAuthAPIView(View):
             
             elif action == 'get_token':
                 token = request.GET.get('token')
+                if not token:
+                    return JsonResponse({'error': 'Token is required'}, status=400)
                 response = auth_manager.get_token(token)
                 return JsonResponse(response, status=response.get('status_code', 200))
             
@@ -318,9 +437,40 @@ class SelfStudyAllAuthAPIView(View):
                 response = auth_manager.get_health()
                 return JsonResponse(response, status=response.get('status_code', 200))
             
-            elif action == 'search_user':
+            elif action == 'search_users':
+                query = request.GET.get('query', '')
                 username = request.GET.get('username')
+                email = request.GET.get('email')
+                limit = int(request.GET.get('limit', 20))
+                
+                response = user_manager.search_users(
+                    query=query if query else None,
+                    username=username if username else None,
+                    email=email if email else None,
+                    limit=limit
+                )
+                return JsonResponse(response, status=response.get('status_code', 200))
+            
+            elif action == 'get_user_by_username':
+                username = request.GET.get('username')
+                if not username:
+                    return JsonResponse({'error': 'Username is required'}, status=400)
+                
                 response = user_manager.get_user_by_username(username)
+                return JsonResponse(response, status=response.get('status_code', 200))
+            
+            elif action == 'get_user_by_id':
+                user_id = request.GET.get('user_id')
+                if not user_id:
+                    return JsonResponse({'error': 'User ID is required'}, status=400)
+                
+                # Validate UUID format
+                try:
+                    uuid.UUID(str(user_id))
+                except ValueError:
+                    return JsonResponse({'error': 'Invalid User ID format'}, status=400)
+                
+                response = user_manager.get_user_by_id(user_id)
                 return JsonResponse(response, status=response.get('status_code', 200))
             
             elif action == 'get_replicas':
@@ -339,24 +489,33 @@ class SelfStudyAllAuthAPIView(View):
                 return JsonResponse({'error': 'Invalid action'}, status=400)
                 
         except Exception as e:
-            logger.error(f"API error: {e}")
-            return JsonResponse({'error': str(e)}, status=500)
+            logger.error(f"API error: {e}", exc_info=True)
+            return JsonResponse({'error': str(e), 'details': 'Internal server error'}, status=500)
     
     def post(self, request):
-        action = request.POST.get('action')
-        auth_manager = SelfStudyAllAuthManager()
-        
         try:
             data = json.loads(request.body) if request.body else {}
+            action = data.get('action')
+            
+            if not action:
+                return JsonResponse({'error': 'Action is required'}, status=400)
+            
+            auth_manager = SelfStudyAllAuthManager()
+            user_manager = SelfStudyUserProfileManager()
             
             if action == 'create_token':
+                # Validate required fields
+                if not data.get('user_id'):
+                    return JsonResponse({'error': 'User ID is required'}, status=400)
+                
                 response = auth_manager.create_token(data)
                 return JsonResponse(response, status=response.get('status_code', 200))
             
             elif action == 'update_token':
                 token = data.get('token')
                 if not token:
-                    return JsonResponse({'error': 'Token required'}, status=400)
+                    return JsonResponse({'error': 'Token is required'}, status=400)
+                
                 response = auth_manager.update_token(token, data)
                 return JsonResponse(response, status=response.get('status_code', 200))
             
@@ -365,6 +524,9 @@ class SelfStudyAllAuthAPIView(View):
                 return JsonResponse(response, status=response.get('status_code', 200))
             
             elif action == 'validate_token':
+                if not data.get('token'):
+                    return JsonResponse({'error': 'Token is required'}, status=400)
+                
                 response = auth_manager.validate_token(data)
                 return JsonResponse(response, status=response.get('status_code', 200))
             
@@ -378,7 +540,7 @@ class SelfStudyAllAuthAPIView(View):
         except json.JSONDecodeError:
             return JsonResponse({'error': 'Invalid JSON'}, status=400)
         except Exception as e:
-            logger.error(f"API error: {e}")
+            logger.error(f"API error: {e}", exc_info=True)
             return JsonResponse({'error': str(e)}, status=500)
     
     def delete(self, request):
@@ -387,7 +549,7 @@ class SelfStudyAllAuthAPIView(View):
             token = data.get('token')
             
             if not token:
-                return JsonResponse({'error': 'Token required'}, status=400)
+                return JsonResponse({'error': 'Token is required'}, status=400)
             
             auth_manager = SelfStudyAllAuthManager()
             response = auth_manager.delete_token(token)
@@ -397,5 +559,5 @@ class SelfStudyAllAuthAPIView(View):
         except json.JSONDecodeError:
             return JsonResponse({'error': 'Invalid JSON'}, status=400)
         except Exception as e:
-            logger.error(f"Delete error: {e}")
+            logger.error(f"Delete error: {e}", exc_info=True)
             return JsonResponse({'error': str(e)}, status=500)
