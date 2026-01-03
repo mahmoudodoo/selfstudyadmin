@@ -10,6 +10,9 @@ from .views.selfstudymedia import (
 from .views.selfstudychat import SelfStudyChatView, ChatRoomAPIView
 from .views.selfstudyotp import SelfStudyOTPView
 from .views.selfstudyrunbook import SelfStudyRunbookView
+from .views.selfstudyallauth import (
+    SelfStudyAllAuthView,
+)
 
 urlpatterns = [
     # Authentication URLs
@@ -93,8 +96,11 @@ urlpatterns = [
     # SelfStudy Runbook URLs - NEW with proper import
     path('selfstudyrunbook/', SelfStudyRunbookView.as_view(), name='selfstudyrunbook'),
     
-    path('selfstudyallauth/', views.SelfStudyAllAuthView.as_view(), name='selfstudyallauth'),
-
+    # Main management page
+    path('selfstudyallauth/', SelfStudyAllAuthView.as_view(), name='selfstudyallauth'),
+    
+    # API endpoints for AJAX requests
+    path('selfstudyallauth/api/', views.SelfStudyAllAuthAPIView.as_view(), name='selfstudyallauth_api'),
     # User Lab URLs
     path('selfstudyuserlab/', views.SelfStudyUserLabView.as_view(), name='selfstudyuserlab'),
     path('selfstudyuserlab/api/', views.SelfStudyUserLabAPIView.as_view(), name='selfstudyuserlab_api'),

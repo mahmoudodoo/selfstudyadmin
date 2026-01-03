@@ -1,15 +1,362 @@
 {% extends 'base.html' %}
+{% load static %}
 
-{% block title %}All Auth{% endblock %}
-{% block page_title %}All Auth Management{% endblock %}
+{% block title %}All Auth Management{% endblock %}
+{% block page_title %}SelfStudy All Auth Management{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="/static/css/selfstudyallauth.css">
+<link rel="stylesheet" href="{% static 'css/selfstudyallauth.css' %}">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 {% endblock %}
 
 {% block content %}
-<div class="page-content">
-    <h2>All Auth Management</h2>
-    <p>Manage authentication and authorization settings.</p>
+<div class="dashboard-container">
+    <!-- Stats Overview -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-key"></i>
+            </div>
+            <div class="stat-info">
+                <h3>{{ total_tokens }}</h3>
+                <p>Total Tokens</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <div class="stat-info">
+                <h3>{{ stats.statistics.valid_tokens|default:"0" }}</h3>
+                <p>Active Tokens</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-users"></i>
+            </div>
+            <div class="stat-info">
+                <h3>{{ stats.statistics.unique_users|default:"0" }}</h3>
+                <p>Unique Users</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-server"></i>
+            </div>
+            <div class="stat-info">
+                <h3>{{ health.replicas.total|default:"0" }}</h3>
+                <p>Replicas</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls-section">
+        <button class="btn btn-primary" onclick="openCreateModal()">
+            <i class="fas fa-plus"></i> Create Token
+        </button>
+        <button class="btn btn-secondary" onclick="refreshData()">
+            <i class="fas fa-sync-alt"></i> Refresh
+        </button>
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="Search tokens...">
+            <button class="btn-search" onclick="searchTokens()">
+                <i class="fas fa-search"></i>
+            </button>
+        </div>
+        <div class="filter-controls">
+            <select id="statusFilter" onchange="filterTokens()">
+                <option value="all">All Status</option>
+                <option value="active">Active</option>
+                <option value="expired">Expired</option>
+                <option value="inactive">Inactive</option>
+            </select>
+            <select id="sortBy" onchange="sortTokens()">
+                <option value="created_at">Newest First</option>
+                <option value="expires_at">Expiring Soon</option>
+                <option value="user_id">User ID</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Tokens Table -->
+    <div class="table-container">
+        <table class="tokens-table">
+            <thead>
+                <tr>
+                    <th>Token</th>
+                    <th>User ID</th>
+                    <th>Username</th>
+                    <th>Created</th>
+                    <th>Expires</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="tokensTableBody">
+                {% for token in tokens %}
+                <tr data-token="{{ token.token }}">
+                    <td class="token-cell">
+                        <code>{{ token.token|slice:":8" }}...</code>
+                        <button class="btn-copy" onclick="copyToClipboard('{{ token.token }}')">
+                            <i class="far fa-copy"></i>
+                        </button>
+                    </td>
+                    <td>{{ token.user_id|slice:":8" }}...</td>
+                    <td class="username-cell" data-user-id="{{ token.user_id }}">
+                        <span class="loading">Loading...</span>
+                    </td>
+                    <td>{{ token.created_at|date:"Y-m-d H:i" }}</td>
+                    <td class="expiry-cell" data-expires="{{ token.expires_at }}">
+                        {{ token.expires_at|date:"Y-m-d H:i" }}
+                    </td>
+                    <td>
+                        <span class="status-badge {% if token.is_valid %}status-active{% else %}status-expired{% endif %}">
+                            {% if token.is_valid %}Active{% else %}Expired{% endif %}
+                        </span>
+                    </td>
+                    <td class="actions-cell">
+                        <button class="btn-action" onclick="viewTokenDetails('{{ token.token }}')" title="View">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="btn-action" onclick="openEditModal('{{ token.token }}')" title="Edit">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn-action btn-danger" onclick="deleteToken('{{ token.token }}')" title="Delete">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <div class="pagination" id="pagination">
+            <!-- Pagination will be generated by JavaScript -->
+        </div>
+    </div>
+
+    <!-- Replica Info -->
+    <div class="replica-info">
+        <div class="replica-status">
+            <span class="status-indicator {% if health.status == 'operational' %}status-online{% else %}status-offline{% endif %}"></span>
+            <span>Current Replica: {{ replica_info.current }}</span>
+        </div>
+        <button class="btn-sm" onclick="showReplicaInfo()">
+            <i class="fas fa-info-circle"></i> Replica Info
+        </button>
+    </div>
 </div>
+
+<!-- Create Token Modal -->
+<div id="createModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Create New Token</h2>
+            <button class="modal-close" onclick="closeCreateModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="createForm" onsubmit="event.preventDefault(); createToken();">
+                <div class="form-group">
+                    <label for="username">Username *</label>
+                    <div class="input-with-button">
+                        <input type="text" id="username" placeholder="Enter username" required>
+                        <button type="button" class="btn-sm" onclick="searchUser()">
+                            <i class="fas fa-search"></i> Find User
+                        </button>
+                    </div>
+                    <div class="user-autocomplete" id="userAutocomplete"></div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="userId">User ID</label>
+                    <input type="text" id="userId" readonly>
+                </div>
+                
+                <div class="form-group">
+                    <label for="userEmail">Email</label>
+                    <input type="email" id="userEmail" readonly>
+                </div>
+                
+                <div class="form-group">
+                    <label for="expiresIn">Expires In (Days)</label>
+                    <input type="number" id="expiresIn" min="1" max="365" value="30">
+                </div>
+                
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="closeCreateModal()">Cancel</button>
+                    <button type="submit" class="btn-primary">
+                        <i class="fas fa-plus"></i> Create Token
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Token Modal -->
+<div id="editModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Edit Token</h2>
+            <button class="modal-close" onclick="closeEditModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="editForm" onsubmit="event.preventDefault(); updateToken();">
+                <input type="hidden" id="editToken">
+                
+                <div class="form-group">
+                    <label>Token</label>
+                    <input type="text" id="editTokenDisplay" readonly>
+                </div>
+                
+                <div class="form-group">
+                    <label>User ID</label>
+                    <input type="text" id="editUserId" readonly>
+                </div>
+                
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="editUsername" readonly>
+                </div>
+                
+                <div class="form-group">
+                    <label for="editExpiresIn">Extend Expiry (Days)</label>
+                    <input type="number" id="editExpiresIn" min="1" max="365" value="30">
+                </div>
+                
+                <div class="form-group">
+                    <label for="editIsActive">Status</label>
+                    <select id="editIsActive">
+                        <option value="true">Active</option>
+                        <option value="false">Inactive</option>
+                    </select>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="closeEditModal()">Cancel</button>
+                    <button type="submit" class="btn-primary">
+                        <i class="fas fa-save"></i> Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Token Details Modal -->
+<div id="detailsModal" class="modal">
+    <div class="modal-content modal-wide">
+        <div class="modal-header">
+            <h2>Token Details</h2>
+            <button class="modal-close" onclick="closeDetailsModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="details-grid">
+                <div class="detail-item">
+                    <label>Token</label>
+                    <code id="detailToken"></code>
+                </div>
+                <div class="detail-item">
+                    <label>User ID</label>
+                    <span id="detailUserId"></span>
+                </div>
+                <div class="detail-item">
+                    <label>Username</label>
+                    <span id="detailUsername"></span>
+                </div>
+                <div class="detail-item">
+                    <label>Email</label>
+                    <span id="detailEmail"></span>
+                </div>
+                <div class="detail-item">
+                    <label>Created At</label>
+                    <span id="detailCreatedAt"></span>
+                </div>
+                <div class="detail-item">
+                    <label>Expires At</label>
+                    <span id="detailExpiresAt"></span>
+                </div>
+                <div class="detail-item">
+                    <label>Days Remaining</label>
+                    <span id="detailDaysRemaining"></span>
+                </div>
+                <div class="detail-item">
+                    <label>IP Address</label>
+                    <span id="detailIpAddress"></span>
+                </div>
+                <div class="detail-item">
+                    <label>User Agent</label>
+                    <span id="detailUserAgent"></span>
+                </div>
+                <div class="detail-item">
+                    <label>Status</label>
+                    <span id="detailStatus"></span>
+                </div>
+                <div class="detail-item">
+                    <label>Is Valid</label>
+                    <span id="detailIsValid"></span>
+                </div>
+            </div>
+            
+            <div class="validation-section">
+                <h3>Validate Token</h3>
+                <button class="btn-secondary" onclick="validateCurrentToken()">
+                    <i class="fas fa-check-circle"></i> Validate
+                </button>
+                <div id="validationResult" class="validation-result"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Replica Info Modal -->
+<div id="replicaModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Replica Information</h2>
+            <button class="modal-close" onclick="closeReplicaModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="replica-section">
+                <h3>Auth Service (App ID: 15)</h3>
+                <div id="authReplicas" class="replica-list"></div>
+            </div>
+            <div class="replica-section">
+                <h3>User Profile Service (App ID: 13)</h3>
+                <div id="userReplicas" class="replica-list"></div>
+            </div>
+            <button class="btn-primary" onclick="refreshReplicaInfo()">
+                <i class="fas fa-sync-alt"></i> Refresh Replica Info
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Confirmation Modal -->
+<div id="confirmModal" class="modal">
+    <div class="modal-content modal-sm">
+        <div class="modal-header">
+            <h2>Confirm Action</h2>
+            <button class="modal-close" onclick="closeConfirmModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p id="confirmMessage"></p>
+            <div class="form-actions">
+                <button type="button" class="btn-secondary" onclick="closeConfirmModal()">Cancel</button>
+                <button type="button" class="btn-danger" id="confirmActionBtn">Confirm</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Overlay -->
+<div id="loadingOverlay" class="loading-overlay">
+    <div class="loading-spinner"></div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/selfstudyallauth.js' %}"></script>
 {% endblock %}

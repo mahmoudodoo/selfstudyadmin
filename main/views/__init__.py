@@ -1,4 +1,3 @@
-from .main_views import *
 from .admin_views import *
 from .login_views import *
 from .selfstudyuserprofile import *
@@ -16,3 +15,4 @@ from .selfstudychat import *
 from .selfstudyotp import *
 from .selfstudyproctor import *
 from .selfstudyrunbook import *
+from .selfstudyallauth import *
