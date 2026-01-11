@@ -94,10 +94,10 @@ class CourseAPIClient:
     def _make_request(self, method, endpoint, data=None, domain_type='course', files=None, expected_statuses=None):
         if expected_statuses is None:
             expected_statuses = [200, 201]
-            
+
         domains = getattr(self, f'{domain_type}_domains')
         domain = self._get_random_domain(domains)
-        
+
         if not domain:
             return {'error': 'No available domains'}
 
@@ -122,7 +122,7 @@ class CourseAPIClient:
             # Handle 204 No Content for DELETE operations
             if response.status_code == 204:
                 return {'success': True, 'message': 'Deleted successfully'}
-                
+
             if response.status_code in expected_statuses:
                 try:
                     return response.json()
@@ -140,44 +140,6 @@ class CourseAPIClient:
             logger.error(f"Request failed: {str(e)}")
             return {'error': str(e)}
 
-    # Helper method to resolve external_id to primary key
-    def _resolve_external_id_to_pk(self, external_id, entity_type):
-        """Resolve external UUID to primary key integer"""
-        if not external_id:
-            return None
-            
-        domains = self.course_domains
-        domain = self._get_random_domain(domains)
-        
-        if not domain:
-            return None
-
-        try:
-            # Map entity types to endpoints
-            endpoint_map = {
-                'course': f'/courses/{external_id}/',
-                'lesson': f'/lessons/{external_id}/',
-                'homework': f'/homeworks/{external_id}/'
-            }
-            
-            endpoint = endpoint_map.get(entity_type)
-            if not endpoint:
-                return None
-                
-            url = f"{domain}{endpoint}"
-            response = requests.get(url, headers=self._get_headers(), timeout=10)
-            
-            if response.status_code == 200:
-                data = response.json()
-                return data.get('id')  # Return the primary key
-            else:
-                logger.error(f"Failed to resolve {entity_type} {external_id}: {response.status_code}")
-                return None
-                
-        except requests.RequestException as e:
-            logger.error(f"Error resolving {entity_type} {external_id}: {str(e)}")
-            return None
-
     # User operations
     def get_users(self):
         return self._make_request('GET', '/profiles/', domain_type='user_profile')
@@ -194,7 +156,7 @@ class CourseAPIClient:
         course_id = str(uuid.uuid4())
         if 'external_course_id' not in data:
             data['external_course_id'] = course_id
-        
+
         # Step 2: Upload image to media app with course name
         image_url = None
         if image_file:
@@ -209,12 +171,12 @@ class CourseAPIClient:
             else:
                 logger.error("Media upload failed with unknown error")
                 return {'error': "Media upload failed with unknown error"}
-        
+
         # Step 3: Add the image URL to course data
         if image_url:
             data['image_url'] = image_url
             logger.info(f"Added image_url to course data: {image_url}")
-        
+
         # Step 4: Create course with the image_url
         logger.info(f"Creating course with data: {data}")
         return self._make_request('POST', '/courses/', data)
@@ -240,12 +202,12 @@ class CourseAPIClient:
             elif media_response and 'error' in media_response:
                 logger.error(f"Failed to upload course image: {media_response['error']}")
                 return {'error': f"Media upload failed: {media_response['error']}"}
-        
+
         # Step 3: Add the image URL to course data if we have one
         if image_url:
             data['image_url'] = image_url
             logger.info(f"Added image_url to course data: {image_url}")
-        
+
         # Step 4: Update course with the new data
         logger.info(f"Updating course with data: {data}")
         return self._make_request('PUT', f'/courses/{course_id}/', data)
@@ -261,27 +223,11 @@ class CourseAPIClient:
         return self._make_request('GET', endpoint)
 
     def create_lesson(self, data):
-        # Resolve course external_id to primary key
-        if 'course_external_id' in data:
-            course_pk = self._resolve_external_id_to_pk(data['course_external_id'], 'course')
-            if course_pk:
-                data['course'] = course_pk
-                del data['course_external_id']
-            else:
-                return {'error': f"Could not resolve course with external_id: {data['course_external_id']}"}
-        
+        # Send external_course_id directly - let the course app handle the mapping
         return self._make_request('POST', '/lessons/', data)
 
     def update_lesson(self, lesson_id, data):
-        # Resolve course external_id to primary key
-        if 'course_external_id' in data:
-            course_pk = self._resolve_external_id_to_pk(data['course_external_id'], 'course')
-            if course_pk:
-                data['course'] = course_pk
-                del data['course_external_id']
-            else:
-                return {'error': f"Could not resolve course with external_id: {data['course_external_id']}"}
-        
+        # Send external_course_id directly - let the course app handle the mapping
         return self._make_request('PUT', f'/lessons/{lesson_id}/', data)
 
     def delete_lesson(self, lesson_id):
@@ -295,27 +241,11 @@ class CourseAPIClient:
         return self._make_request('GET', endpoint)
 
     def create_comment(self, data):
-        # Resolve course external_id to primary key
-        if 'course_external_id' in data:
-            course_pk = self._resolve_external_id_to_pk(data['course_external_id'], 'course')
-            if course_pk:
-                data['course'] = course_pk
-                del data['course_external_id']
-            else:
-                return {'error': f"Could not resolve course with external_id: {data['course_external_id']}"}
-        
+        # Send comment data - the course app will handle course_external_id
         return self._make_request('POST', '/comments/', data)
 
     def update_comment(self, comment_id, data):
-        # Resolve course external_id to primary key
-        if 'course_external_id' in data:
-            course_pk = self._resolve_external_id_to_pk(data['course_external_id'], 'course')
-            if course_pk:
-                data['course'] = course_pk
-                del data['course_external_id']
-            else:
-                return {'error': f"Could not resolve course with external_id: {data['course_external_id']}"}
-        
+        # Send comment data - the course app will handle course_external_id
         return self._make_request('PUT', f'/comments/{comment_id}/', data)
 
     def delete_comment(self, comment_id):
@@ -329,41 +259,11 @@ class CourseAPIClient:
         return self._make_request('GET', endpoint)
 
     def create_homework(self, data):
-        # Resolve course external_id to primary key
-        if 'course_external_id' in data:
-            course_pk = self._resolve_external_id_to_pk(data['course_external_id'], 'course')
-            if course_pk:
-                data['course'] = course_pk
-                del data['course_external_id']
-            else:
-                return {'error': f"Could not resolve course with external_id: {data['course_external_id']}"}
-        
-        # Resolve lesson external_id to primary key if provided
-        if 'lesson_external_id' in data and data['lesson_external_id']:
-            lesson_pk = self._resolve_external_id_to_pk(data['lesson_external_id'], 'lesson')
-            if lesson_pk:
-                data['lesson'] = lesson_pk
-            del data['lesson_external_id']
-        
+        # Send homework data - the course app will handle external IDs
         return self._make_request('POST', '/homeworks/', data)
 
     def update_homework(self, homework_id, data):
-        # Resolve course external_id to primary key
-        if 'course_external_id' in data:
-            course_pk = self._resolve_external_id_to_pk(data['course_external_id'], 'course')
-            if course_pk:
-                data['course'] = course_pk
-                del data['course_external_id']
-            else:
-                return {'error': f"Could not resolve course with external_id: {data['course_external_id']}"}
-        
-        # Resolve lesson external_id to primary key if provided
-        if 'lesson_external_id' in data and data['lesson_external_id']:
-            lesson_pk = self._resolve_external_id_to_pk(data['lesson_external_id'], 'lesson')
-            if lesson_pk:
-                data['lesson'] = lesson_pk
-            del data['lesson_external_id']
-        
+        # Send homework data - the course app will handle external IDs
         return self._make_request('PUT', f'/homeworks/{homework_id}/', data)
 
     def delete_homework(self, homework_id):
@@ -382,31 +282,16 @@ class CourseAPIClient:
         return self._make_request('GET', endpoint)
 
     def create_submitted_homework(self, data):
-        # Resolve homework external_id to primary key
-        if 'homework_external_id' in data:
-            homework_pk = self._resolve_external_id_to_pk(data['homework_external_id'], 'homework')
-            if homework_pk:
-                data['homework'] = homework_pk
-                del data['homework_external_id']
-            else:
-                return {'error': f"Could not resolve homework with external_id: {data['homework_external_id']}"}
-        
+        # Send submitted homework data - the course app will handle homework_external_id
         return self._make_request('POST', '/submitted-homeworks/', data)
 
     def update_submitted_homework(self, submission_id, data):
-        # Resolve homework external_id to primary key
-        if 'homework_external_id' in data:
-            homework_pk = self._resolve_external_id_to_pk(data['homework_external_id'], 'homework')
-            if homework_pk:
-                data['homework'] = homework_pk
-                del data['homework_external_id']
-            else:
-                return {'error': f"Could not resolve homework with external_id: {data['homework_external_id']}"}
-        
+        # Send submitted homework data - the course app will handle homework_external_id
         return self._make_request('PUT', f'/submitted-homeworks/{submission_id}/', data)
 
-    def delete_submitted_homework(self, submission_id):
-        return self._make_request('DELETE', f'/submitted-homeworks/{submission_id}/', expected_statuses=[200, 204])
+    def delete_submitted_homework(self, submitted_homework_id):
+        # Use external_submitted_homework_id for deletion
+        return self._make_request('DELETE', f'/submitted-homeworks/{submitted_homework_id}/', expected_statuses=[200, 204])
 
     # Registration operations
     def get_registrations(self, user_id=None, course_id=None):
@@ -421,15 +306,7 @@ class CourseAPIClient:
         return self._make_request('GET', endpoint)
 
     def create_registration(self, data):
-        # Resolve course external_id to primary key
-        if 'course_external_id' in data:
-            course_pk = self._resolve_external_id_to_pk(data['course_external_id'], 'course')
-            if course_pk:
-                data['course'] = course_pk
-                del data['course_external_id']
-            else:
-                return {'error': f"Could not resolve course with external_id: {data['course_external_id']}"}
-        
+        # Send external_course_id directly - let the course app handle the mapping
         return self._make_request('POST', '/registrations/', data)
 
     def delete_registration(self, registration_id):
@@ -442,14 +319,14 @@ class CourseAPIClient:
             return {'error': 'No media domains available'}
 
         url = f"{domain}/course-images/"
-        
+
         # Prepare the data for media app - include course name
         files = {'image': image_file}
         data = {
             'course_id': course_id,
             'course_name': course_name if course_name else f'Course {course_id[:8]}'  # Provide fallback name
         }
-        
+
         # Debug logging
         logger.info(f"Uploading course image to: {url}")
         logger.info(f"Course ID for media: {data['course_id']}")
@@ -463,10 +340,10 @@ class CourseAPIClient:
                 headers={'Authorization': f'Token {self.auth_token}'},
                 timeout=30
             )
-            
+
             logger.info(f"Media upload response status: {response.status_code}")
             logger.info(f"Media upload response: {response.text}")
-            
+
             if response.status_code in [200, 201]:
                 result = response.json()
                 # Ensure we return the image URL in the expected format
@@ -484,7 +361,7 @@ class CourseAPIClient:
         except requests.RequestException as e:
             logger.error(f"Media upload request failed: {str(e)}")
             return {'error': str(e)}
-        
+
 @method_decorator(login_required, name='dispatch')
 class SelfStudyCourseView(View):
     def get(self, request):
@@ -500,7 +377,7 @@ class CourseAPIView(View):
 
     def get(self, request, *args, **kwargs):
         action = request.GET.get('action')
-        
+
         try:
             if action == 'get_users':
                 result = self.api_client.get_users()
@@ -537,7 +414,7 @@ class CourseAPIView(View):
 
     def post(self, request, *args, **kwargs):
         action = request.POST.get('action')
-        
+
         try:
             if action == 'create_course':
                 data = {
@@ -646,7 +523,7 @@ class CourseAPIView(View):
         import json
         data = json.loads(request.body)
         action = data.get('action')
-        
+
         try:
             if action == 'delete_course':
                 course_id = data.get('course_id')
@@ -661,8 +538,8 @@ class CourseAPIView(View):
                 homework_id = data.get('homework_id')
                 result = self.api_client.delete_homework(homework_id)
             elif action == 'delete_submitted_homework':
-                submission_id = data.get('submission_id')
-                result = self.api_client.delete_submitted_homework(submission_id)
+                submitted_homework_id = data.get('submitted_homework_id')  # Changed from submission_id
+                result = self.api_client.delete_submitted_homework(submitted_homework_id)
             elif action == 'delete_registration':
                 registration_id = data.get('registration_id')
                 result = self.api_client.delete_registration(registration_id)
