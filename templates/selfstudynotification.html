@@ -85,6 +85,7 @@
                         <th>Title</th>
                         <th>Message</th>
                         <th>Type</th>
+                        <th>Read</th>
                         <th>Sender</th>
                         <th>Recipient</th>
                         <th>Created</th>
@@ -100,6 +101,13 @@
                             <span class="badge badge-{{ notification.notification_type }}">
                                 {{ notification.notification_type|title }}
                             </span>
+                        </td>
+                        <td>
+                            {% if notification.read %}
+                                <span class="badge badge-success">Yes</span>
+                            {% else %}
+                                <span class="badge badge-warning">No</span>
+                            {% endif %}
                         </td>
                         <td>{{ notification.sender }}</td>
                         <td>{{ notification.recipient }}</td>
@@ -118,7 +126,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="7" class="no-data">
+                        <td colspan="8" class="no-data">
                             <i class="fas fa-bell-slash"></i>
                             <p>No notifications found</p>
                         </td>
@@ -171,6 +179,14 @@
                         <label for="sender">Sender</label>
                         <input type="text" id="sender" name="sender" value="admin">
                     </div>
+                </div>
+
+                <!-- Read Status -->
+                <div class="form-group">
+                    <label for="read" class="checkbox-label">
+                        <input type="checkbox" id="read" name="read">
+                        <span>Mark as Read</span>
+                    </label>
                 </div>
 
                 <!-- Single User Selection for Personal Notifications -->
@@ -233,12 +249,20 @@
                     <span id="viewType"></span>
                 </div>
                 <div class="detail-item">
+                    <label>Read Status:</label>
+                    <span id="viewRead"></span>
+                </div>
+                <div class="detail-item">
                     <label>Sender:</label>
                     <span id="viewSender"></span>
                 </div>
                 <div class="detail-item">
                     <label>Recipient:</label>
                     <span id="viewRecipient"></span>
+                </div>
+                <div class="detail-item" id="viewGroupNameContainer" style="display: none;">
+                    <label>Group UUID:</label>
+                    <span id="viewGroupName" class="uuid"></span>
                 </div>
                 <div class="detail-item">
                     <label>Created:</label>

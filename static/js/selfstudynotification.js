@@ -81,11 +81,11 @@ class NotificationManager {
     populateUserDropdowns() {
         const recipientSelect = document.getElementById('recipient');
         const multiUserSelect = document.getElementById('multiUserSelect');
-        
+
         // Clear existing options
         if (recipientSelect) {
             recipientSelect.innerHTML = '<option value="">Select a user...</option>';
-            
+
             // Add users to single select using usernames
             this.users.forEach(user => {
                 const option = document.createElement('option');
@@ -113,7 +113,7 @@ class NotificationManager {
         const multiUserGroup = document.getElementById('multiUserGroup');
         const recipientField = document.getElementById('recipient');
         const multiUserField = document.getElementById('multiUserSelect');
-        
+
         if (notificationType === 'personal') {
             if (recipientGroup) recipientGroup.style.display = 'block';
             if (multiUserGroup) multiUserGroup.style.display = 'none';
@@ -135,7 +135,7 @@ class NotificationManager {
     handleMultiUserSelect(e) {
         const selectedOptions = Array.from(e.target.selectedOptions);
         this.selectedUsers = selectedOptions.map(option => option.value);
-        
+
         // Update the selected users display
         this.updateSelectedUsersDisplay();
     }
@@ -145,7 +145,7 @@ class NotificationManager {
         if (!selectedUsersContainer) return;
 
         selectedUsersContainer.innerHTML = '';
-        
+
         if (this.selectedUsers.length === 0) {
             selectedUsersContainer.innerHTML = '<span class="no-users">No users selected</span>';
             return;
@@ -156,10 +156,10 @@ class NotificationManager {
             const userBadge = document.createElement('span');
             userBadge.className = 'user-badge';
             userBadge.innerHTML = `
-                ${user ? user.display_name : username}
-                <button type="button" class="remove-user" data-username="${username}">
-                    <i class="fas fa-times"></i>
-                </button>
+            ${user ? user.display_name : username}
+            <button type="button" class="remove-user" data-username="${username}">
+            <i class="fas fa-times"></i>
+            </button>
             `;
             selectedUsersContainer.appendChild(userBadge);
         });
@@ -177,7 +177,7 @@ class NotificationManager {
     removeSelectedUser(username) {
         this.selectedUsers = this.selectedUsers.filter(u => u !== username);
         this.updateSelectedUsersDisplay();
-        
+
         // Also remove from multi-select
         const multiUserSelect = document.getElementById('multiUserSelect');
         if (multiUserSelect) {
@@ -206,11 +206,11 @@ class NotificationManager {
         this.showLoading();
         try {
             const response = await fetch('/selfstudynotification/api/');
-            
+
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-            
+
             const data = await response.json();
 
             if (data.success) {
@@ -222,7 +222,7 @@ class NotificationManager {
                 } else if (data.data && data.data.results) {
                     notifications = data.data.results;
                 }
-                
+
                 this.renderNotifications(notifications);
                 this.updateStats(notifications);
             } else {
@@ -239,43 +239,46 @@ class NotificationManager {
     renderNotifications(notifications) {
         const tbody = document.getElementById('notificationsTableBody');
         if (!tbody) return;
-        
+
         if (!notifications || notifications.length === 0) {
             tbody.innerHTML = `
-                <tr>
-                    <td colspan="7" class="no-data">
-                        <i class="fas fa-bell-slash"></i>
-                        <p>No notifications found</p>
-                    </td>
-                </tr>
+            <tr>
+            <td colspan="8" class="no-data">
+            <i class="fas fa-bell-slash"></i>
+            <p>No notifications found</p>
+            </td>
+            </tr>
             `;
             return;
         }
 
         tbody.innerHTML = notifications.map(notification => `
-            <tr data-id="${notification.notification_id}">
-                <td class="title-cell">${this.escapeHtml(notification.title)}</td>
-                <td class="message-cell">${this.escapeHtml(notification.message)}</td>
-                <td>
-                    <span class="badge badge-${notification.notification_type}">
-                        ${notification.notification_type.charAt(0).toUpperCase() + notification.notification_type.slice(1)}
-                    </span>
-                </td>
-                <td>${this.escapeHtml(notification.sender)}</td>
-                <td>${this.getRecipientDisplay(notification.recipient, notification.notification_type)}</td>
-                <td>${this.formatDate(notification.created_at)}</td>
-                <td class="actions-cell">
-                    <button class="btn-icon view-btn" data-id="${notification.notification_id}" title="View">
-                        <i class="fas fa-eye"></i>
-                    </button>
-                    <button class="btn-icon edit-btn" data-id="${notification.notification_id}" title="Edit">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    <button class="btn-icon delete-btn" data-id="${notification.notification_id}" title="Delete">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </td>
-            </tr>
+        <tr data-id="${notification.notification_id}">
+        <td class="title-cell">${this.escapeHtml(notification.title)}</td>
+        <td class="message-cell">${this.escapeHtml(notification.message)}</td>
+        <td>
+        <span class="badge badge-${notification.notification_type}">
+        ${notification.notification_type.charAt(0).toUpperCase() + notification.notification_type.slice(1)}
+        </span>
+        </td>
+        <td>
+        ${notification.read ? '<span class="badge badge-success">Yes</span>' : '<span class="badge badge-warning">No</span>'}
+        </td>
+        <td>${this.escapeHtml(notification.sender)}</td>
+        <td>${this.getRecipientDisplay(notification.recipient, notification.notification_type)}</td>
+        <td>${this.formatDate(notification.created_at)}</td>
+        <td class="actions-cell">
+        <button class="btn-icon view-btn" data-id="${notification.notification_id}" title="View">
+        <i class="fas fa-eye"></i>
+        </button>
+        <button class="btn-icon edit-btn" data-id="${notification.notification_id}" title="Edit">
+        <i class="fas fa-edit"></i>
+        </button>
+        <button class="btn-icon delete-btn" data-id="${notification.notification_id}" title="Delete">
+        <i class="fas fa-trash"></i>
+        </button>
+        </td>
+        </tr>
         `).join('');
 
         // Bind action buttons
@@ -284,7 +287,7 @@ class NotificationManager {
 
     getRecipientDisplay(recipient, notificationType) {
         if (!recipient) return 'All Users';
-        
+
         if (notificationType === 'personal') {
             // Find user display name by username
             const user = this.users.find(u => u.username === recipient);
@@ -298,7 +301,7 @@ class NotificationManager {
             });
             return userNames.join(', ');
         }
-        
+
         return recipient;
     }
 
@@ -371,15 +374,18 @@ class NotificationManager {
         this.isEditing = false;
         this.currentNotificationId = null;
         this.selectedUsers = [];
-        
+
         document.getElementById('modalTitle').textContent = 'Create Notification';
         document.getElementById('submitBtn').querySelector('.btn-text').textContent = 'Create Notification';
         document.getElementById('notificationForm').reset();
-        
+
         // Reset UI state
         this.handleNotificationTypeChange({ target: document.getElementById('notification_type') });
         this.updateSelectedUsersDisplay();
-        
+
+        // Reset read checkbox
+        document.getElementById('read').checked = false;
+
         this.clearErrors();
         this.showModal('notificationModal');
     }
@@ -388,16 +394,17 @@ class NotificationManager {
         this.isEditing = true;
         this.currentNotificationId = notification.notification_id;
         this.selectedUsers = [];
-        
+
         document.getElementById('modalTitle').textContent = 'Edit Notification';
         document.getElementById('submitBtn').querySelector('.btn-text').textContent = 'Update Notification';
-        
+
         // Fill form with notification data
         document.getElementById('title').value = notification.title;
         document.getElementById('message').value = notification.message;
         document.getElementById('notification_type').value = notification.notification_type;
         document.getElementById('sender').value = notification.sender;
-        
+        document.getElementById('read').checked = notification.read || false;
+
         // Handle recipient based on notification type
         if (notification.notification_type === 'personal') {
             document.getElementById('recipient').value = notification.recipient;
@@ -406,7 +413,7 @@ class NotificationManager {
             if (notification.recipient) {
                 this.selectedUsers = notification.recipient.split(',').map(u => u.trim());
                 this.updateSelectedUsersDisplay();
-                
+
                 // Select the users in multi-select
                 const multiUserSelect = document.getElementById('multiUserSelect');
                 if (multiUserSelect) {
@@ -416,10 +423,10 @@ class NotificationManager {
                 }
             }
         }
-        
+
         // Update UI based on notification type
         this.handleNotificationTypeChange({ target: document.getElementById('notification_type') });
-        
+
         this.clearErrors();
         this.showModal('notificationModal');
     }
@@ -428,16 +435,28 @@ class NotificationManager {
         document.getElementById('viewTitle').textContent = notification.title;
         document.getElementById('viewMessage').textContent = notification.message;
         document.getElementById('viewType').innerHTML = `
-            <span class="badge badge-${notification.notification_type}">
-                ${notification.notification_type.charAt(0).toUpperCase() + notification.notification_type.slice(1)}
-            </span>
+        <span class="badge badge-${notification.notification_type}">
+        ${notification.notification_type.charAt(0).toUpperCase() + notification.notification_type.slice(1)}
+        </span>
         `;
+        document.getElementById('viewRead').innerHTML = notification.read ?
+        '<span class="badge badge-success">Yes</span>' :
+        '<span class="badge badge-warning">No</span>';
         document.getElementById('viewSender').textContent = notification.sender;
         document.getElementById('viewRecipient').textContent = this.getRecipientDisplay(notification.recipient, notification.notification_type);
+
+        // Show group UUID if it's a group notification
+        if (notification.notification_type === 'group' && notification.group_name) {
+            document.getElementById('viewGroupName').textContent = notification.group_name;
+            document.getElementById('viewGroupNameContainer').style.display = 'block';
+        } else {
+            document.getElementById('viewGroupNameContainer').style.display = 'none';
+        }
+
         document.getElementById('viewCreated').textContent = this.formatDate(notification.created_at);
         document.getElementById('viewUpdated').textContent = this.formatDate(notification.updated_at);
         document.getElementById('viewId').textContent = notification.notification_id;
-        
+
         this.showModal('viewModal');
     }
 
@@ -449,7 +468,7 @@ class NotificationManager {
 
     async handleFormSubmit(e) {
         e.preventDefault();
-        
+
         if (!this.validateForm()) {
             return;
         }
@@ -473,6 +492,7 @@ class NotificationManager {
             'title': formData.get('title'),
             'message': formData.get('message'),
             'notification_type': notificationType,
+            'read': document.getElementById('read').checked,
             'sender': formData.get('sender') || 'admin',
             'recipient': recipient  // This will be processed by backend
         };
@@ -718,11 +738,11 @@ class NotificationManager {
     showToast(toastId, messageElementId, message) {
         const toast = document.getElementById(toastId);
         const messageElement = document.getElementById(messageElementId);
-        
+
         if (toast && messageElement) {
             messageElement.textContent = message;
             toast.classList.add('show');
-            
+
             setTimeout(() => {
                 toast.classList.remove('show');
             }, 5000);
@@ -747,12 +767,12 @@ class NotificationManager {
     escapeHtml(unsafe) {
         if (unsafe === null || unsafe === undefined) return '';
         return unsafe
-            .toString()
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
+        .toString()
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
     }
 
     getCsrfToken() {

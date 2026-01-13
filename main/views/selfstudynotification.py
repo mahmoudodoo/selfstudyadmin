@@ -1,3 +1,4 @@
+# selfstudyadmin/selfstudynotification.py
 from django.shortcuts import render, redirect
 from django.views import View
 from django.contrib.auth.decorators import login_required
@@ -9,6 +10,7 @@ import random
 import os
 import logging
 import json
+import uuid
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
@@ -57,7 +59,7 @@ class SelfStudyNotificationView(View):
                 headers = self._get_auth_headers()
                 if not headers:
                     continue
-                    
+
                 url = f"{domain}/apps/{app_id}/"
                 logger.info(f"Attempting to fetch domains from: {url}")
 
@@ -91,7 +93,7 @@ class SelfStudyNotificationView(View):
             headers = self._get_auth_headers()
             if not headers:
                 return False
-                
+
             test_url = f"{domain}{endpoint}"
             response = requests.get(test_url, headers=headers, timeout=5)
             return response.status_code in [200, 201]
@@ -102,14 +104,14 @@ class SelfStudyNotificationView(View):
     def _get_working_domains(self, app_id, fallback_domains=None):
         """Get list of working domains with health checking"""
         domains = self._get_dynamic_sync_domains(app_id)
-        
+
         # If no domains from registry, use fallback domains
         if not domains and fallback_domains:
             domains = fallback_domains.copy()
             logger.info(f"Using fallback domains: {domains}")
-        
+
         working_domains = []
-        
+
         for domain in domains:
             # Determine the appropriate endpoint for health check
             endpoint = '/api/notifications/' if app_id == NOTIFICATIONS_APP_ID else '/profiles/'
@@ -118,7 +120,7 @@ class SelfStudyNotificationView(View):
                 logger.info(f"Domain {domain} passed health check")
             else:
                 logger.warning(f"Domain {domain} failed health check")
-        
+
         return working_domains
 
     def _get_random_working_domain(self, app_id):
@@ -127,7 +129,7 @@ class SelfStudyNotificationView(View):
             fallback_domains = FALLBACK_NOTIFICATION_DOMAINS
         else:
             fallback_domains = FALLBACK_USER_DOMAINS
-            
+
         working_domains = self._get_working_domains(app_id, fallback_domains)
         if working_domains:
             selected = random.choice(working_domains)
@@ -148,9 +150,9 @@ class SelfStudyNotificationView(View):
             headers = self._get_auth_headers()
             if not headers:
                 return None, "Authentication not configured"
-            
+
             logger.info(f"Making {method} request to: {url}")
-            
+
             if method.upper() == 'GET':
                 response = requests.get(url, headers=headers, timeout=10)
             elif method.upper() == 'POST':
@@ -168,13 +170,13 @@ class SelfStudyNotificationView(View):
                 # Handle empty responses
                 if response.status_code == 204 or not response.content:
                     return {}, None
-                
+
                 try:
                     response_data = response.json()
                     return response_data, None
                 except json.JSONDecodeError:
                     return None, "Invalid JSON response"
-                    
+
             else:
                 error_msg = f"API error: {response.status_code}"
                 try:
@@ -227,10 +229,10 @@ class SelfStudyNotificationView(View):
         try:
             # Get notifications
             notifications_data, error = self._make_api_request(
-                NOTIFICATIONS_APP_ID, 
+                NOTIFICATIONS_APP_ID,
                 '/api/notifications/'
             )
-            
+
             # Get users for dropdown
             users_data, users_error = self._make_api_request(
                 USER_PROFILE_APP_ID,
@@ -249,10 +251,10 @@ class SelfStudyNotificationView(View):
 
             # Extract users with usernames
             users = self._extract_users_from_response(users_data)
-            
+
             # Format users for template
             formatted_users = self._format_users_for_template(users)
-            
+
             # Convert to JSON for JavaScript
             users_json = json.dumps(formatted_users)
 
@@ -263,9 +265,9 @@ class SelfStudyNotificationView(View):
                 'error': error,
                 'users_error': users_error
             }
-            
+
             return render(request, 'selfstudynotification.html', context)
-            
+
         except Exception as e:
             logger.error(f"Error in notification view: {str(e)}")
             messages.error(request, f"Error loading notifications: {str(e)}")
@@ -283,18 +285,18 @@ class SelfStudyNotificationView(View):
             name_parts.append(user['first_name'])
         if user.get('last_name'):
             name_parts.append(user['last_name'])
-        
+
         if name_parts:
             display_name = ' '.join(name_parts)
         else:
             display_name = user.get('username', 'Unknown User')
-            
+
         # Add email if available
         if user.get('email'):
             display_name += f" ({user['email']})"
         elif user.get('username'):
             display_name += f" ({user['username']})"
-            
+
         return display_name
 
 
@@ -319,7 +321,7 @@ class NotificationAPIView(View):
             fallback_domains = FALLBACK_NOTIFICATION_DOMAINS
         else:
             fallback_domains = FALLBACK_USER_DOMAINS
-            
+
         working_domains = view._get_working_domains(app_id, fallback_domains)
         if working_domains:
             return random.choice(working_domains)
@@ -338,9 +340,9 @@ class NotificationAPIView(View):
             headers = self._get_auth_headers()
             if not headers:
                 return None, "Authentication not configured"
-            
+
             logger.info(f"Making {method} request to: {url}")
-            
+
             if method.upper() == 'GET':
                 response = requests.get(url, headers=headers, timeout=10)
             elif method.upper() == 'POST':
@@ -358,13 +360,13 @@ class NotificationAPIView(View):
                 # Handle empty responses
                 if response.status_code == 204 or not response.content:
                     return {}, None
-                
+
                 try:
                     response_data = response.json()
                     return response_data, None
                 except json.JSONDecodeError:
                     return None, "Invalid JSON response"
-                    
+
             else:
                 error_msg = f"API error: {response.status_code}"
                 try:
@@ -412,7 +414,7 @@ class NotificationAPIView(View):
             for user in users:
                 if user.get('username'):
                     usernames.append(user['username'])
-            
+
             logger.info(f"Found {len(usernames)} users for general notification")
             return usernames
 
@@ -436,12 +438,12 @@ class NotificationAPIView(View):
 
             if error:
                 return JsonResponse({'success': False, 'error': error}, status=400)
-            
+
             # Handle different response formats
             response_data = result
             if isinstance(result, list):
                 response_data = {'items': result}
-                
+
             return JsonResponse({'success': True, 'data': response_data})
 
         except Exception as e:
@@ -452,7 +454,7 @@ class NotificationAPIView(View):
         """Create new notification via API"""
         try:
             data = json.loads(request.body)
-            
+
             # Validate required fields
             if not data.get('title'):
                 return JsonResponse({'success': False, 'error': 'Title is required'}, status=400)
@@ -462,13 +464,19 @@ class NotificationAPIView(View):
             # Handle recipient based on notification type
             notification_type = data.get('notification_type', 'general')
             recipient = data.get('recipient', '')
-            
+
+            # Set read field - default to False for new notifications
+            data['read'] = data.get('read', False)
+
             if notification_type == 'personal':
                 if not recipient:
                     return JsonResponse({'success': False, 'error': 'Recipient is required for personal notifications'}, status=400)
             elif notification_type == 'group':
                 if not recipient:
                     return JsonResponse({'success': False, 'error': 'At least one recipient is required for group notifications'}, status=400)
+                # Generate UUID for group_name
+                data['group_name'] = str(uuid.uuid4())
+                logger.info(f"Generated group UUID: {data['group_name']} for group notification")
             else:  # general
                 # For general notifications, get ALL users
                 all_usernames = self._get_all_users()
@@ -509,7 +517,7 @@ class NotificationAPIView(View):
         """Update notification via API"""
         try:
             data = json.loads(request.body)
-            
+
             # Validate required fields
             if not data.get('title'):
                 return JsonResponse({'success': False, 'error': 'Title is required'}, status=400)
@@ -519,13 +527,23 @@ class NotificationAPIView(View):
             # Handle recipient based on notification type
             notification_type = data.get('notification_type', 'general')
             recipient = data.get('recipient', '')
-            
+
             if notification_type == 'personal':
                 if not recipient:
                     return JsonResponse({'success': False, 'error': 'Recipient is required for personal notifications'}, status=400)
             elif notification_type == 'group':
                 if not recipient:
                     return JsonResponse({'success': False, 'error': 'At least one recipient is required for group notifications'}, status=400)
+                # For group notifications, preserve existing group_name if not provided
+                if 'group_name' not in data:
+                    # Fetch existing notification to get group_name
+                    existing_result, existing_error = self._make_api_request(
+                        NOTIFICATIONS_APP_ID,
+                        f'/api/notifications/{notification_id}/'
+                    )
+                    if not existing_error and existing_result:
+                        data['group_name'] = existing_result.get('group_name')
+                        logger.info(f"Preserving existing group UUID: {data['group_name']}")
             else:  # general
                 # For general notifications, get ALL users
                 all_usernames = self._get_all_users()
@@ -601,7 +619,7 @@ class UserAPIView(View):
             fallback_domains = FALLBACK_NOTIFICATION_DOMAINS
         else:
             fallback_domains = FALLBACK_USER_DOMAINS
-            
+
         working_domains = view._get_working_domains(app_id, fallback_domains)
         if working_domains:
             return random.choice(working_domains)
@@ -620,9 +638,9 @@ class UserAPIView(View):
             headers = self._get_auth_headers()
             if not headers:
                 return None, "Authentication not configured"
-            
+
             logger.info(f"Making {method} request to: {url}")
-            
+
             if method.upper() == 'GET':
                 response = requests.get(url, headers=headers, timeout=10)
             elif method.upper() == 'POST':
@@ -640,13 +658,13 @@ class UserAPIView(View):
                 # Handle empty responses
                 if response.status_code == 204 or not response.content:
                     return {}, None
-                
+
                 try:
                     response_data = response.json()
                     return response_data, None
                 except json.JSONDecodeError:
                     return None, "Invalid JSON response"
-                    
+
             else:
                 error_msg = f"API error: {response.status_code}"
                 try:
@@ -678,7 +696,7 @@ class UserAPIView(View):
 
             if error:
                 return JsonResponse({'success': False, 'error': error}, status=400)
-            
+
             users = []
             if users_data:
                 if isinstance(users_data, list):
@@ -687,7 +705,7 @@ class UserAPIView(View):
                     users = users_data['results']
                 elif isinstance(users_data, dict) and 'items' in users_data:
                     users = users_data['items']
-            
+
             # Format users for dropdown - using usernames
             formatted_users = []
             for user in users:
@@ -700,7 +718,7 @@ class UserAPIView(View):
                         'display_name': self._get_user_display_name(user)
                     }
                     formatted_users.append(formatted_user)
-            
+
             return JsonResponse({'success': True, 'data': formatted_users})
 
         except Exception as e:
@@ -714,16 +732,16 @@ class UserAPIView(View):
             name_parts.append(user['first_name'])
         if user.get('last_name'):
             name_parts.append(user['last_name'])
-        
+
         if name_parts:
             display_name = ' '.join(name_parts)
         else:
             display_name = user.get('username', 'Unknown User')
-            
+
         # Add email if available
         if user.get('email'):
             display_name += f" ({user['email']})"
         elif user.get('username'):
             display_name += f" ({user['username']})"
-            
+
         return display_name
