@@ -23,7 +23,7 @@ class SelfStudyExamView(View):
             domains = self.get_dynamic_domains()
             courses = self.fetch_courses()
             profiles = self.fetch_user_profiles()
-            
+
             context = {
                 'domains': domains,
                 'courses': courses,
@@ -42,17 +42,17 @@ class SelfStudyExamView(View):
                 'https://sfsdomains1.pythonanywhere.com',
                 'https://sfsdomains2.pythonanywhere.com'
             ]
-            
+
             # App ID for SelfStudy Exam service
             SELFSTUDY_EXAM_APP_ID = 20
             AUTH_TOKEN = os.getenv('AUTH_TOKEN')
-            
+
             # Try each registry instance
             for domain in SFS_DOMAINS:
                 try:
                     url = f"{domain}/apps/{SELFSTUDY_EXAM_APP_ID}/"
                     headers = {'Authorization': f'Token {AUTH_TOKEN}'}
-                    
+
                     response = requests.get(url, headers=headers, timeout=10)
                     if response.status_code == 200:
                         app_data = response.json()
@@ -62,10 +62,10 @@ class SelfStudyExamView(View):
                 except requests.RequestException as e:
                     logger.warning(f"Registry {domain} failed: {str(e)}")
                     continue
-            
+
             logger.error("All registry instances failed")
             return []
-            
+
         except Exception as e:
             logger.error(f"Error fetching dynamic domains: {str(e)}")
             return []
@@ -75,19 +75,19 @@ class SelfStudyExamView(View):
         try:
             AUTH_TOKEN = os.getenv('AUTH_TOKEN')
             domains = self.get_course_domains()
-            
+
             if not domains:
                 logger.warning("No course domains available")
                 return []
-            
+
             # Select first working domain for performance
             selected_domain = self.get_working_domain(domains)
             if not selected_domain:
                 return []
-                
+
             url = f"{selected_domain}/courses/"
             headers = {'Authorization': f'Token {AUTH_TOKEN}'}
-            
+
             response = requests.get(url, headers=headers, timeout=10)
             if response.status_code == 200:
                 courses = response.json()
@@ -96,7 +96,7 @@ class SelfStudyExamView(View):
             else:
                 logger.error(f"Failed to fetch courses: {response.status_code}")
                 return []
-                
+
         except Exception as e:
             logger.error(f"Error fetching courses: {str(e)}")
             return []
@@ -106,19 +106,19 @@ class SelfStudyExamView(View):
         try:
             AUTH_TOKEN = os.getenv('AUTH_TOKEN')
             domains = self.get_userprofile_domains()
-            
+
             if not domains:
                 logger.warning("No userprofile domains available")
                 return []
-            
+
             # Select first working domain for performance
             selected_domain = self.get_working_domain(domains)
             if not selected_domain:
                 return []
-                
+
             url = f"{selected_domain}/profiles/"
             headers = {'Authorization': f'Token {AUTH_TOKEN}'}
-            
+
             response = requests.get(url, headers=headers, timeout=10)
             if response.status_code == 200:
                 profiles = response.json()
@@ -127,7 +127,7 @@ class SelfStudyExamView(View):
             else:
                 logger.error(f"Failed to fetch profiles: {response.status_code}")
                 return []
-                
+
         except Exception as e:
             logger.error(f"Error fetching profiles: {str(e)}")
             return []
@@ -148,12 +148,12 @@ class SelfStudyExamView(View):
                 'https://sfsdomains2.pythonanywhere.com'
             ]
             AUTH_TOKEN = os.getenv('AUTH_TOKEN')
-            
+
             for domain in SFS_DOMAINS:
                 try:
                     url = f"{domain}/apps/{app_id}/"
                     headers = {'Authorization': f'Token {AUTH_TOKEN}'}
-                    
+
                     response = requests.get(url, headers=headers, timeout=10)
                     if response.status_code == 200:
                         app_data = response.json()
@@ -161,9 +161,9 @@ class SelfStudyExamView(View):
                         return replica_urls
                 except requests.RequestException:
                     continue
-            
+
             return []
-            
+
         except Exception as e:
             logger.error(f"Error fetching domains for app {app_id}: {str(e)}")
             return []
@@ -184,12 +184,12 @@ class SelfStudyExamView(View):
 @method_decorator(login_required, name='dispatch')
 class SelfStudyExamAPIView(View):
     """API endpoints for exam CRUD operations - COMPLETELY FIXED SYNC VERSION"""
-    
+
     def get(self, request, *args, **kwargs):
         """Fetch exams from dynamic domains"""
         try:
             action = request.GET.get('action')
-            
+
             if action == 'fetch_exams':
                 return self.fetch_exams()
             elif action == 'fetch_quizzes':
@@ -217,7 +217,7 @@ class SelfStudyExamAPIView(View):
                 return self.fetch_user_quiz_results()
             else:
                 return JsonResponse({'error': 'Invalid action'}, status=400)
-                
+
         except Exception as e:
             logger.error(f"Error in GET API: {str(e)}")
             return JsonResponse({'error': str(e)}, status=500)
@@ -227,7 +227,7 @@ class SelfStudyExamAPIView(View):
         try:
             data = json.loads(request.body)
             action = data.get('action')
-            
+
             # CRUD operations for exams and quizzes
             if action == 'create_exam':
                 return self.create_exam(data)
@@ -241,7 +241,7 @@ class SelfStudyExamAPIView(View):
                 return self.update_quiz(data)
             elif action == 'delete_quiz':
                 return self.delete_quiz(data)
-            
+
             # Question operations
             elif action == 'create_exam_question':
                 return self.create_exam_question_direct(data)
@@ -255,7 +255,7 @@ class SelfStudyExamAPIView(View):
                 return self.update_quiz_question_direct(data)
             elif action == 'delete_quiz_question':
                 return self.delete_quiz_question_direct(data)
-            
+
             # Answer operations
             elif action == 'create_exam_answer':
                 return self.create_exam_answer_fixed(data)
@@ -269,7 +269,7 @@ class SelfStudyExamAPIView(View):
                 return self.update_quiz_answer_fixed(data)
             elif action == 'delete_quiz_answer':
                 return self.delete_quiz_answer_fixed(data)
-            
+
             # FIXED: Sync update operations - USE REGULAR ENDPOINTS WITH SYNC
             elif action == 'update_exam_appointment':
                 return self.update_exam_appointment_complete(data)
@@ -279,7 +279,7 @@ class SelfStudyExamAPIView(View):
                 return self.update_user_quiz_result_complete(data)
             else:
                 return JsonResponse({'error': 'Invalid action'}, status=400)
-                
+
         except Exception as e:
             logger.error(f"Error in POST API: {str(e)}")
             return JsonResponse({'error': str(e)}, status=500)
@@ -297,13 +297,13 @@ class SelfStudyExamAPIView(View):
         try:
             AUTH_TOKEN = os.getenv('AUTH_TOKEN')
             domain = self.get_single_domain()
-            
+
             if not domain:
                 return JsonResponse({'error': 'No domains available'}, status=503)
-            
+
             url = f"{domain}/exams/"
             headers = {'Authorization': f'Token {AUTH_TOKEN}'}
-            
+
             response = requests.get(url, headers=headers, timeout=10)
             if response.status_code == 200:
                 exams = response.json()
@@ -311,7 +311,7 @@ class SelfStudyExamAPIView(View):
             else:
                 logger.error(f"Failed to fetch exams: {response.status_code}")
                 return JsonResponse({'error': f'Failed to fetch exams: {response.status_code}'}, status=response.status_code)
-            
+
         except Exception as e:
             logger.error(f"Error fetching exams: {str(e)}")
             return JsonResponse({'error': str(e)}, status=500)
@@ -321,13 +321,13 @@ class SelfStudyExamAPIView(View):
         try:
             AUTH_TOKEN = os.getenv('AUTH_TOKEN')
             domain = self.get_single_domain()
-            
+
             if not domain:
                 return JsonResponse({'error': 'No domains available'}, status=503)
-            
+
             url = f"{domain}/quizzes/"
             headers = {'Authorization': f'Token {AUTH_TOKEN}'}
-            
+
             response = requests.get(url, headers=headers, timeout=10)
             if response.status_code == 200:
                 quizzes = response.json()
@@ -335,7 +335,7 @@ class SelfStudyExamAPIView(View):
             else:
                 logger.error(f"Failed to fetch quizzes: {response.status_code}")
                 return JsonResponse({'error': f'Failed to fetch quizzes: {response.status_code}'}, status=response.status_code)
-            
+
         except Exception as e:
             logger.error(f"Error fetching quizzes: {str(e)}")
             return JsonResponse({'error': str(e)}, status=500)
@@ -345,13 +345,13 @@ class SelfStudyExamAPIView(View):
         try:
             AUTH_TOKEN = os.getenv('AUTH_TOKEN')
             domain = self.get_single_domain()
-            
+
             if not domain:
                 return JsonResponse({'error': 'No domains available'}, status=503)
-            
+
             url = f"{domain}/exam-appointments/"
             headers = {'Authorization': f'Token {AUTH_TOKEN}'}
-            
+
             response = requests.get(url, headers=headers, timeout=10)
             if response.status_code == 200:
                 appointments = response.json()
@@ -359,7 +359,7 @@ class SelfStudyExamAPIView(View):
             else:
                 logger.error(f"Failed to fetch exam appointments: {response.status_code}")
                 return JsonResponse({'error': f'Failed to fetch exam appointments: {response.status_code}'}, status=response.status_code)
-            
+
         except Exception as e:
             logger.error(f"Error fetching exam appointments: {str(e)}")
             return JsonResponse({'error': str(e)}, status=500)
@@ -369,13 +369,13 @@ class SelfStudyExamAPIView(View):
         try:
             AUTH_TOKEN = os.getenv('AUTH_TOKEN')
             domain = self.get_single_domain()
-            
+
             if not domain:
                 return JsonResponse({'error': 'No domains available'}, status=503)
-            
+
             url = f"{domain}/user-exam-results/"
             headers = {'Authorization': f'Token {AUTH_TOKEN}'}
-            
+
             response = requests.get(url, headers=headers, timeout=10)
             if response.status_code == 200:
                 results = response.json()
@@ -383,7 +383,7 @@ class SelfStudyExamAPIView(View):
             else:
                 logger.error(f"Failed to fetch user exam results: {response.status_code}")
                 return JsonResponse({'error': f'Failed to fetch user exam results: {response.status_code}'}, status=response.status_code)
-            
+
         except Exception as e:
             logger.error(f"Error fetching user exam results: {str(e)}")
             return JsonResponse({'error': str(e)}, status=500)
@@ -393,13 +393,13 @@ class SelfStudyExamAPIView(View):
         try:
             AUTH_TOKEN = os.getenv('AUTH_TOKEN')
             domain = self.get_single_domain()
-            
+
             if not domain:
                 return JsonResponse({'error': 'No domains available'}, status=503)
-            
+
             url = f"{domain}/user-quiz-results/"
             headers = {'Authorization': f'Token {AUTH_TOKEN}'}
-            
+
             response = requests.get(url, headers=headers, timeout=10)
             if response.status_code == 200:
                 results = response.json()
@@ -407,7 +407,7 @@ class SelfStudyExamAPIView(View):
             else:
                 logger.error(f"Failed to fetch user quiz results: {response.status_code}")
                 return JsonResponse({'error': f'Failed to fetch user quiz results: {response.status_code}'}, status=response.status_code)
-            
+
         except Exception as e:
             logger.error(f"Error fetching user quiz results: {str(e)}")
             return JsonResponse({'error': str(e)}, status=500)
@@ -417,73 +417,93 @@ class SelfStudyExamAPIView(View):
         try:
             AUTH_TOKEN = os.getenv('AUTH_TOKEN')
             domains = SelfStudyExamView().get_course_domains()
-            
+
             if not domains or not course_id:
                 return JsonResponse({'success': True, 'lessons': []})
-            
+
             domain = SelfStudyExamView().get_working_domain(domains)
             if not domain:
                 return JsonResponse({'success': True, 'lessons': []})
-            
+
             url = f"{domain}/lessons/"
             headers = {'Authorization': f'Token {AUTH_TOKEN}'}
             params = {'course_id': course_id}
-            
+
             response = requests.get(url, headers=headers, params=params, timeout=10)
             if response.status_code == 200:
                 lessons = response.json()
                 return JsonResponse({'success': True, 'lessons': lessons})
             else:
                 return JsonResponse({'success': True, 'lessons': []})
-            
+
         except Exception as e:
             logger.error(f"Error fetching lessons: {str(e)}")
             return JsonResponse({'success': True, 'lessons': []})
 
+    # FIXED: This method now properly filters questions by exam_id
     def fetch_exam_questions(self, exam_id):
-        """Fetch questions for a specific exam"""
+        """Fetch questions for a specific exam - FIXED FILTERING"""
         try:
             AUTH_TOKEN = os.getenv('AUTH_TOKEN')
             domain = self.get_single_domain()
-            
+
             if not domain or not exam_id:
                 return JsonResponse({'success': True, 'questions': []})
-            
+
             url = f"{domain}/exam-questions/"
             headers = {'Authorization': f'Token {AUTH_TOKEN}'}
-            params = {'exam': exam_id}
-            
-            response = requests.get(url, headers=headers, params=params, timeout=10)
+
+            # Make request to get ALL questions first
+            response = requests.get(url, headers=headers, timeout=10)
             if response.status_code == 200:
-                questions = response.json()
-                return JsonResponse({'success': True, 'questions': questions})
+                all_questions = response.json()
+
+                # Filter questions by exam on the client side
+                filtered_questions = []
+                for question in all_questions:
+                    # Check if question belongs to the specified exam
+                    if question.get('exam') == exam_id:
+                        filtered_questions.append(question)
+
+                logger.info(f"Fetched {len(filtered_questions)} questions for exam {exam_id}")
+                return JsonResponse({'success': True, 'questions': filtered_questions})
             else:
                 return JsonResponse({'success': True, 'questions': []})
-            
+
         except Exception as e:
             logger.error(f"Error fetching exam questions: {str(e)}")
             return JsonResponse({'success': True, 'questions': []})
 
+    # FIXED: This method now properly filters questions by quiz_id
     def fetch_quiz_questions(self, quiz_id):
-        """Fetch questions for a specific quiz"""
+        """Fetch questions for a specific quiz - FIXED FILTERING"""
         try:
             AUTH_TOKEN = os.getenv('AUTH_TOKEN')
             domain = self.get_single_domain()
-            
+
             if not domain or not quiz_id:
                 return JsonResponse({'success': True, 'questions': []})
-            
+
             url = f"{domain}/quiz-questions/"
             headers = {'Authorization': f'Token {AUTH_TOKEN}'}
-            params = {'quiz': quiz_id}
-            
-            response = requests.get(url, headers=headers, params=params, timeout=10)
+
+            # Make request to get ALL questions first
+            response = requests.get(url, headers=headers, timeout=10)
             if response.status_code == 200:
-                questions = response.json()
-                return JsonResponse({'success': True, 'questions': questions})
+                all_questions = response.json()
+
+                # Filter questions by quiz on the client side
+                filtered_questions = []
+                for question in all_questions:
+                    # Check if question belongs to the specified quiz
+                    if question.get('quiz') == quiz_id:
+                        filtered_questions.append(question)
+
+                logger.info(f"Fetched {len(filtered_questions)} questions for quiz {quiz_id}")
+                return JsonResponse({'success': True, 'questions': filtered_questions})
             else:
                 return JsonResponse({'success': True, 'questions': []})
-            
+
         except Exception as e:
             logger.error(f"Error fetching quiz questions: {str(e)}")
             return JsonResponse({'success': True, 'questions': []})
@@ -493,20 +513,20 @@ class SelfStudyExamAPIView(View):
         try:
             AUTH_TOKEN = os.getenv('AUTH_TOKEN')
             domain = self.get_single_domain()
-            
+
             if not domain or not question_id:
                 return JsonResponse({'error': 'Missing domain or question_id'}, status=400)
-            
+
             url = f"{domain}/exam-questions/{question_id}/"
             headers = {'Authorization': f'Token {AUTH_TOKEN}'}
-            
+
             response = requests.get(url, headers=headers, timeout=10)
             if response.status_code == 200:
                 question_data = response.json()
                 return JsonResponse({'success': True, 'question': question_data})
             else:
                 return JsonResponse({'error': 'Failed to fetch question details'}, status=404)
-            
+
         except Exception as e:
             logger.error(f"Error fetching exam question details: {str(e)}")
             return JsonResponse({'error': str(e)}, status=500)
@@ -516,20 +536,20 @@ class SelfStudyExamAPIView(View):
         try:
             AUTH_TOKEN = os.getenv('AUTH_TOKEN')
             domain = self.get_single_domain()
-            
+
             if not domain or not question_id:
                 return JsonResponse({'error': 'Missing domain or question_id'}, status=400)
-            
+
             url = f"{domain}/quiz-questions/{question_id}/"
             headers = {'Authorization': f'Token {AUTH_TOKEN}'}
-            
+
             response = requests.get(url, headers=headers, timeout=10)
             if response.status_code == 200:
                 question_data = response.json()
                 return JsonResponse({'success': True, 'question': question_data})
             else:
                 return JsonResponse({'error': 'Failed to fetch question details'}, status=404)
-            
+
         except Exception as e:
             logger.error(f"Error fetching quiz question details: {str(e)}")
             return JsonResponse({'error': str(e)}, status=500)
@@ -540,22 +560,22 @@ class SelfStudyExamAPIView(View):
         try:
             AUTH_TOKEN = os.getenv('AUTH_TOKEN')
             domain = self.get_single_domain()
-            
+
             if not domain:
                 return JsonResponse({'error': 'No domains available'}, status=503)
-            
+
             # Generate external_id if not provided
             if not data.get('external_id'):
                 data['external_id'] = str(uuid.uuid4())
-            
+
             url = f"{domain}/exams/"
             headers = {
                 'Authorization': f'Token {AUTH_TOKEN}',
                 'Content-Type': 'application/json'
             }
-            
+
             response = requests.post(url, json=data, headers=headers, timeout=10)
-            
+
             if response.status_code in [200, 201]:
                 return JsonResponse({
                     'success': True,
@@ -568,7 +588,7 @@ class SelfStudyExamAPIView(View):
                     'error': f'Failed to create exam: {response.status_code} - {response.text}',
                     'results': [{'domain': domain, 'status': response.status_code, 'success': False}]
                 }, status=500)
-                
+
         except Exception as e:
             logger.error(f"Error creating exam: {str(e)}")
             return JsonResponse({'error': str(e)}, status=500)
@@ -579,18 +599,18 @@ class SelfStudyExamAPIView(View):
             AUTH_TOKEN = os.getenv('AUTH_TOKEN')
             domain = self.get_single_domain()
             external_id = data.get('external_id')
-            
+
             if not domain or not external_id:
                 return JsonResponse({'error': 'Missing domain or external_id'}, status=400)
-            
+
             url = f"{domain}/exams/{external_id}/"
             headers = {
                 'Authorization': f'Token {AUTH_TOKEN}',
                 'Content-Type': 'application/json'
             }
-            
+
             response = requests.put(url, json=data, headers=headers, timeout=10)
-            
+
             if response.status_code in [200, 201]:
                 return JsonResponse({
                     'success': True,
@@ -603,7 +623,7 @@ class SelfStudyExamAPIView(View):
                     'error': f'Failed to update exam: {response.status_code} - {response.text}',
                     'results': [{'domain': domain, 'status': response.status_code, 'success': False}]
                 }, status=500)
-                
+
         except Exception as e:
             logger.error(f"Error updating exam: {str(e)}")
             return JsonResponse({'error': str(e)}, status=500)
@@ -614,15 +634,15 @@ class SelfStudyExamAPIView(View):
             AUTH_TOKEN = os.getenv('AUTH_TOKEN')
             domain = self.get_single_domain()
             external_id = data.get('external_id')
-            
+
             if not domain or not external_id:
                 return JsonResponse({'error': 'Missing domain or external_id'}, status=400)
-            
+
             url = f"{domain}/exams/{external_id}/"
             headers = {'Authorization': f'Token {AUTH_TOKEN}'}
-            
+
             response = requests.delete(url, headers=headers, timeout=10)
-            
+
             if response.status_code in [200, 204]:
                 return JsonResponse({
                     'success': True,
@@ -635,7 +655,7 @@ class SelfStudyExamAPIView(View):
                     'error': f'Failed to delete exam: {response.status_code} - {response.text}',
                     'results': [{'domain': domain, 'status': response.status_code, 'success': False}]
                 }, status=500)
-                
+
         except Exception as e:
             logger.error(f"Error deleting exam: {str(e)}")
             return JsonResponse({'error': str(e)}, status=500)
@@ -645,22 +665,22 @@ class SelfStudyExamAPIView(View):
         try:
             AUTH_TOKEN = os.getenv('AUTH_TOKEN')
             domain = self.get_single_domain()
-            
+
             if not domain:
                 return JsonResponse({'error': 'No domains available'}, status=503)
-            
+
             # Generate external_id if not provided
             if not data.get('external_id'):
                 data['external_id'] = str(uuid.uuid4())
-            
+
             url = f"{domain}/quizzes/"
             headers = {
                 'Authorization': f'Token {AUTH_TOKEN}',
                 'Content-Type': 'application/json'
             }
-            
+
             response = requests.post(url, json=data, headers=headers, timeout=10)
-            
+
             if response.status_code in [200, 201]:
                 return JsonResponse({
                     'success': True,
@@ -673,7 +693,7 @@ class SelfStudyExamAPIView(View):
                     'error': f'Failed to create quiz: {response.status_code} - {response.text}',
                     'results': [{'domain': domain, 'status': response.status_code, 'success': False}]
                 }, status=500)
-                
+
         except Exception as e:
             logger.error(f"Error creating quiz: {str(e)}")
             return JsonResponse({'error': str(e)}, status=500)
@@ -684,18 +704,18 @@ class SelfStudyExamAPIView(View):
             AUTH_TOKEN = os.getenv('AUTH_TOKEN')
             domain = self.get_single_domain()
             external_id = data.get('external_id')
-            
+
             if not domain or not external_id:
                 return JsonResponse({'error': 'Missing domain or external_id'}, status=400)
-            
+
             url = f"{domain}/quizzes/{external_id}/"
             headers = {
                 'Authorization': f'Token {AUTH_TOKEN}',
                 'Content-Type': 'application/json'
             }
-            
+
             response = requests.put(url, json=data, headers=headers, timeout=10)
-            
+
             if response.status_code in [200, 201]:
                 return JsonResponse({
                     'success': True,
@@ -708,7 +728,7 @@ class SelfStudyExamAPIView(View):
                     'error': f'Failed to update quiz: {response.status_code} - {response.text}',
                     'results': [{'domain': domain, 'status': response.status_code, 'success': False}]
                 }, status=500)
-                
+
         except Exception as e:
             logger.error(f"Error updating quiz: {str(e)}")
             return JsonResponse({'error': str(e)}, status=500)
@@ -719,15 +739,15 @@ class SelfStudyExamAPIView(View):
             AUTH_TOKEN = os.getenv('AUTH_TOKEN')
             domain = self.get_single_domain()
             external_id = data.get('external_id')
-            
+
             if not domain or not external_id:
                 return JsonResponse({'error': 'Missing domain or external_id'}, status=400)
-            
+
             url = f"{domain}/quizzes/{external_id}/"
             headers = {'Authorization': f'Token {AUTH_TOKEN}'}
-            
+
             response = requests.delete(url, headers=headers, timeout=10)
-            
+
             if response.status_code in [200, 204]:
                 return JsonResponse({
                     'success': True,
@@ -740,7 +760,7 @@ class SelfStudyExamAPIView(View):
                     'error': f'Failed to delete quiz: {response.status_code} - {response.text}',
                     'results': [{'domain': domain, 'status': response.status_code, 'success': False}]
                 }, status=500)
-                
+
         except Exception as e:
             logger.error(f"Error deleting quiz: {str(e)}")
             return JsonResponse({'error': str(e)}, status=500)
@@ -751,23 +771,23 @@ class SelfStudyExamAPIView(View):
         try:
             AUTH_TOKEN = os.getenv('AUTH_TOKEN')
             domain = self.get_single_domain()
-            
+
             if not domain:
                 return JsonResponse({'error': 'No domains available'}, status=503)
-            
+
             # Generate external_id if not provided
             if not data.get('external_id'):
                 data['external_id'] = str(uuid.uuid4())
-            
+
             url = f"{domain}/exam-questions/"
             headers = {
                 'Authorization': f'Token {AUTH_TOKEN}',
                 'Content-Type': 'application/json'
             }
-            
+
             logger.info(f"Creating exam question with data: {data}")
             response = requests.post(url, json=data, headers=headers, timeout=10)
-            
+
             if response.status_code in [200, 201]:
                 return JsonResponse({
                     'success': True,
@@ -781,7 +801,7 @@ class SelfStudyExamAPIView(View):
                     'error': f'Failed to create exam question: {response.status_code} - {response.text}',
                     'results': [{'domain': domain, 'status': response.status_code, 'success': False}]
                 }, status=500)
-                
+
         except Exception as e:
             logger.error(f"Error creating exam question: {str(e)}")
             return JsonResponse({'error': str(e)}, status=500)
@@ -792,19 +812,19 @@ class SelfStudyExamAPIView(View):
             AUTH_TOKEN = os.getenv('AUTH_TOKEN')
             domain = self.get_single_domain()
             external_id = data.get('external_id')
-            
+
             if not domain or not external_id:
                 return JsonResponse({'error': 'Missing domain or external_id'}, status=400)
-            
+
             url = f"{domain}/exam-questions/{external_id}/"
             headers = {
                 'Authorization': f'Token {AUTH_TOKEN}',
                 'Content-Type': 'application/json'
             }
-            
+
             logger.info(f"Updating exam question with data: {data}")
             response = requests.put(url, json=data, headers=headers, timeout=10)
-            
+
             if response.status_code in [200, 201]:
                 return JsonResponse({
                     'success': True,
@@ -818,7 +838,7 @@ class SelfStudyExamAPIView(View):
                     'error': f'Failed to update exam question: {response.status_code} - {response.text}',
                     'results': [{'domain': domain, 'status': response.status_code, 'success': False}]
                 }, status=500)
-                
+
         except Exception as e:
             logger.error(f"Error updating exam question: {str(e)}")
             return JsonResponse({'error': str(e)}, status=500)
@@ -829,16 +849,16 @@ class SelfStudyExamAPIView(View):
             AUTH_TOKEN = os.getenv('AUTH_TOKEN')
             domain = self.get_single_domain()
             external_id = data.get('external_id')
-            
+
             if not domain or not external_id:
                 return JsonResponse({'error': 'Missing domain or external_id'}, status=400)
-            
+
             url = f"{domain}/exam-questions/{external_id}/"
             headers = {'Authorization': f'Token {AUTH_TOKEN}'}
-            
+
             logger.info(f"Deleting exam question with external_id: {external_id}")
             response = requests.delete(url, headers=headers, timeout=10)
-            
+
             if response.status_code in [200, 204]:
                 return JsonResponse({
                     'success': True,
@@ -852,7 +872,7 @@ class SelfStudyExamAPIView(View):
                     'error': f'Failed to delete exam question: {response.status_code} - {response.text}',
                     'results': [{'domain': domain, 'status': response.status_code, 'success': False}]
                 }, status=500)
-                
+
         except Exception as e:
             logger.error(f"Error deleting exam question: {str(e)}")
             return JsonResponse({'error': str(e)}, status=500)
@@ -862,23 +882,23 @@ class SelfStudyExamAPIView(View):
         try:
             AUTH_TOKEN = os.getenv('AUTH_TOKEN')
             domain = self.get_single_domain()
-            
+
             if not domain:
                 return JsonResponse({'error': 'No domains available'}, status=503)
-            
+
             # Generate external_id if not provided
             if not data.get('external_id'):
                 data['external_id'] = str(uuid.uuid4())
-            
+
             url = f"{domain}/quiz-questions/"
             headers = {
                 'Authorization': f'Token {AUTH_TOKEN}',
                 'Content-Type': 'application/json'
             }
-            
+
             logger.info(f"Creating quiz question with data: {data}")
             response = requests.post(url, json=data, headers=headers, timeout=10)
-            
+
             if response.status_code in [200, 201]:
                 return JsonResponse({
                     'success': True,
@@ -892,7 +912,7 @@ class SelfStudyExamAPIView(View):
                     'error': f'Failed to create quiz question: {response.status_code} - {response.text}',
                     'results': [{'domain': domain, 'status': response.status_code, 'success': False}]
                 }, status=500)
-                
+
         except Exception as e:
             logger.error(f"Error creating quiz question: {str(e)}")
             return JsonResponse({'error': str(e)}, status=500)
@@ -903,19 +923,19 @@ class SelfStudyExamAPIView(View):
             AUTH_TOKEN = os.getenv('AUTH_TOKEN')
             domain = self.get_single_domain()
             external_id = data.get('external_id')
-            
+
             if not domain or not external_id:
                 return JsonResponse({'error': 'Missing domain or external_id'}, status=400)
-            
+
             url = f"{domain}/quiz-questions/{external_id}/"
             headers = {
                 'Authorization': f'Token {AUTH_TOKEN}',
                 'Content-Type': 'application/json'
             }
-            
+
             logger.info(f"Updating quiz question with data: {data}")
             response = requests.put(url, json=data, headers=headers, timeout=10)
-            
+
             if response.status_code in [200, 201]:
                 return JsonResponse({
                     'success': True,
@@ -929,7 +949,7 @@ class SelfStudyExamAPIView(View):
                     'error': f'Failed to update quiz question: {response.status_code} - {response.text}',
                     'results': [{'domain': domain, 'status': response.status_code, 'success': False}]
                 }, status=500)
-                
+
         except Exception as e:
             logger.error(f"Error updating quiz question: {str(e)}")
             return JsonResponse({'error': str(e)}, status=500)
@@ -940,16 +960,16 @@ class SelfStudyExamAPIView(View):
             AUTH_TOKEN = os.getenv('AUTH_TOKEN')
             domain = self.get_single_domain()
             external_id = data.get('external_id')
-            
+
             if not domain or not external_id:
                 return JsonResponse({'error': 'Missing domain or external_id'}, status=400)
-            
+
             url = f"{domain}/quiz-questions/{external_id}/"
             headers = {'Authorization': f'Token {AUTH_TOKEN}'}
-            
+
             logger.info(f"Deleting quiz question with external_id: {external_id}")
             response = requests.delete(url, headers=headers, timeout=10)
-            
+
             if response.status_code in [200, 204]:
                 return JsonResponse({
                     'success': True,
@@ -963,7 +983,7 @@ class SelfStudyExamAPIView(View):
                     'error': f'Failed to delete quiz question: {response.status_code} - {response.text}',
                     'results': [{'domain': domain, 'status': response.status_code, 'success': False}]
                 }, status=500)
-                
+
         except Exception as e:
             logger.error(f"Error deleting quiz question: {str(e)}")
             return JsonResponse({'error': str(e)}, status=500)
@@ -974,35 +994,35 @@ class SelfStudyExamAPIView(View):
         try:
             AUTH_TOKEN = os.getenv('AUTH_TOKEN')
             domain = self.get_single_domain()
-            
+
             if not domain:
                 return JsonResponse({'error': 'No domains available'}, status=503)
-            
+
             # Generate external_id if not provided
             if not data.get('external_id'):
                 data['external_id'] = str(uuid.uuid4())
-            
+
             # Get the actual question external_id from the hidden field
             question_external_id = data.get('exam_question')
             if not question_external_id:
                 return JsonResponse({'error': 'Question external_id is required'}, status=400)
-            
+
             url = f"{domain}/exam-answers/"
             headers = {
                 'Authorization': f'Token {AUTH_TOKEN}',
                 'Content-Type': 'application/json'
             }
-            
+
             payload = {
                 'external_id': data.get('external_id'),
                 'exam_question': question_external_id,
                 'text': data.get('text'),
                 'is_correct': data.get('is_correct', False)
             }
-            
+
             logger.info(f"Creating exam answer with payload: {payload}")
             response = requests.post(url, json=payload, headers=headers, timeout=10)
-            
+
             if response.status_code in [200, 201]:
                 return JsonResponse({
                     'success': True,
@@ -1016,7 +1036,7 @@ class SelfStudyExamAPIView(View):
                     'error': f'Failed to create exam answer: {response.status_code} - {response.text}',
                     'results': [{'domain': domain, 'status': response.status_code, 'success': False}]
                 }, status=500)
-                
+
         except Exception as e:
             logger.error(f"Error creating exam answer: {str(e)}")
             return JsonResponse({'error': str(e)}, status=500)
@@ -1027,30 +1047,30 @@ class SelfStudyExamAPIView(View):
             AUTH_TOKEN = os.getenv('AUTH_TOKEN')
             domain = self.get_single_domain()
             external_id = data.get('external_id')
-            
+
             if not domain or not external_id:
                 return JsonResponse({'error': 'Missing domain or external_id'}, status=400)
-            
+
             question_external_id = data.get('exam_question')
             if not question_external_id:
                 return JsonResponse({'error': 'Question external_id is required'}, status=400)
-            
+
             url = f"{domain}/exam-answers/{external_id}/"
             headers = {
                 'Authorization': f'Token {AUTH_TOKEN}',
                 'Content-Type': 'application/json'
             }
-            
+
             payload = {
                 'external_id': external_id,
                 'exam_question': question_external_id,
                 'text': data.get('text'),
                 'is_correct': data.get('is_correct', False)
             }
-            
+
             logger.info(f"Updating exam answer with payload: {payload}")
             response = requests.put(url, json=payload, headers=headers, timeout=10)
-            
+
             if response.status_code in [200, 201]:
                 return JsonResponse({
                     'success': True,
@@ -1064,7 +1084,7 @@ class SelfStudyExamAPIView(View):
                     'error': f'Failed to update exam answer: {response.status_code} - {response.text}',
                     'results': [{'domain': domain, 'status': response.status_code, 'success': False}]
                 }, status=500)
-                
+
         except Exception as e:
             logger.error(f"Error updating exam answer: {str(e)}")
             return JsonResponse({'error': str(e)}, status=500)
@@ -1075,16 +1095,16 @@ class SelfStudyExamAPIView(View):
             AUTH_TOKEN = os.getenv('AUTH_TOKEN')
             domain = self.get_single_domain()
             external_id = data.get('external_id')
-            
+
             if not domain or not external_id:
                 return JsonResponse({'error': 'Missing domain or external_id'}, status=400)
-            
+
             url = f"{domain}/exam-answers/{external_id}/"
             headers = {'Authorization': f'Token {AUTH_TOKEN}'}
-            
+
             logger.info(f"Deleting exam answer with external_id: {external_id}")
             response = requests.delete(url, headers=headers, timeout=10)
-            
+
             if response.status_code in [200, 204]:
                 return JsonResponse({
                     'success': True,
@@ -1098,7 +1118,7 @@ class SelfStudyExamAPIView(View):
                     'error': f'Failed to delete exam answer: {response.status_code} - {response.text}',
                     'results': [{'domain': domain, 'status': response.status_code, 'success': False}]
                 }, status=500)
-                
+
         except Exception as e:
             logger.error(f"Error deleting exam answer: {str(e)}")
             return JsonResponse({'error': str(e)}, status=500)
@@ -1108,34 +1128,34 @@ class SelfStudyExamAPIView(View):
         try:
             AUTH_TOKEN = os.getenv('AUTH_TOKEN')
             domain = self.get_single_domain()
-            
+
             if not domain:
                 return JsonResponse({'error': 'No domains available'}, status=503)
-            
+
             # Generate external_id if not provided
             if not data.get('external_id'):
                 data['external_id'] = str(uuid.uuid4())
-            
+
             question_external_id = data.get('quiz_question')
             if not question_external_id:
                 return JsonResponse({'error': 'Question external_id is required'}, status=400)
-            
+
             url = f"{domain}/quiz-answers/"
             headers = {
                 'Authorization': f'Token {AUTH_TOKEN}',
                 'Content-Type': 'application/json'
             }
-            
+
             payload = {
                 'external_id': data.get('external_id'),
                 'quiz_question': question_external_id,
                 'text': data.get('text'),
                 'is_correct': data.get('is_correct', False)
             }
-            
+
             logger.info(f"Creating quiz answer with payload: {payload}")
             response = requests.post(url, json=payload, headers=headers, timeout=10)
-            
+
             if response.status_code in [200, 201]:
                 return JsonResponse({
                     'success': True,
@@ -1149,7 +1169,7 @@ class SelfStudyExamAPIView(View):
                     'error': f'Failed to create quiz answer: {response.status_code} - {response.text}',
                     'results': [{'domain': domain, 'status': response.status_code, 'success': False}]
                 }, status=500)
-                
+
         except Exception as e:
             logger.error(f"Error creating quiz answer: {str(e)}")
             return JsonResponse({'error': str(e)}, status=500)
@@ -1160,30 +1180,30 @@ class SelfStudyExamAPIView(View):
             AUTH_TOKEN = os.getenv('AUTH_TOKEN')
             domain = self.get_single_domain()
             external_id = data.get('external_id')
-            
+
             if not domain or not external_id:
                 return JsonResponse({'error': 'Missing domain or external_id'}, status=400)
-            
+
             question_external_id = data.get('quiz_question')
             if not question_external_id:
                 return JsonResponse({'error': 'Question external_id is required'}, status=400)
-            
+
             url = f"{domain}/quiz-answers/{external_id}/"
             headers = {
                 'Authorization': f'Token {AUTH_TOKEN}',
                 'Content-Type': 'application/json'
             }
-            
+
             payload = {
                 'external_id': external_id,
                 'quiz_question': question_external_id,
                 'text': data.get('text'),
                 'is_correct': data.get('is_correct', False)
             }
-            
+
             logger.info(f"Updating quiz answer with payload: {payload}")
             response = requests.put(url, json=payload, headers=headers, timeout=10)
-            
+
             if response.status_code in [200, 201]:
                 return JsonResponse({
                     'success': True,
@@ -1197,7 +1217,7 @@ class SelfStudyExamAPIView(View):
                     'error': f'Failed to update quiz answer: {response.status_code} - {response.text}',
                     'results': [{'domain': domain, 'status': response.status_code, 'success': False}]
                 }, status=500)
-                
+
         except Exception as e:
             logger.error(f"Error updating quiz answer: {str(e)}")
             return JsonResponse({'error': str(e)}, status=500)
@@ -1208,16 +1228,16 @@ class SelfStudyExamAPIView(View):
             AUTH_TOKEN = os.getenv('AUTH_TOKEN')
             domain = self.get_single_domain()
             external_id = data.get('external_id')
-            
+
             if not domain or not external_id:
                 return JsonResponse({'error': 'Missing domain or external_id'}, status=400)
-            
+
             url = f"{domain}/quiz-answers/{external_id}/"
             headers = {'Authorization': f'Token {AUTH_TOKEN}'}
-            
+
             logger.info(f"Deleting quiz answer with external_id: {external_id}")
             response = requests.delete(url, headers=headers, timeout=10)
-            
+
             if response.status_code in [200, 204]:
                 return JsonResponse({
                     'success': True,
@@ -1231,44 +1251,48 @@ class SelfStudyExamAPIView(View):
                     'error': f'Failed to delete quiz answer: {response.status_code} - {response.text}',
                     'results': [{'domain': domain, 'status': response.status_code, 'success': False}]
                 }, status=500)
-                
+
         except Exception as e:
             logger.error(f"Error deleting quiz answer: {str(e)}")
             return JsonResponse({'error': str(e)}, status=500)
 
     # COMPLETELY FIXED: Sync update operations - USE REGULAR ENDPOINTS
     def update_exam_appointment_complete(self, data):
-        """Update an exam appointment - USE REGULAR ENDPOINT FOR SYNC"""
+        """Update an exam appointment - USE REGULAR ENDPOINT FOR SYNC - UPDATED WITH ALL FIELDS"""
         try:
             AUTH_TOKEN = os.getenv('AUTH_TOKEN')
             domain = self.get_single_domain()
             external_id = data.get('external_id')
-            
+
             if not domain or not external_id:
                 return JsonResponse({'error': 'Missing domain or external_id'}, status=400)
-            
+
             # Use the regular endpoint (NOT sync) - the sync will be handled by the selfstudyexam app
             url = f"{domain}/exam-appointments/{external_id}/"
             headers = {
                 'Authorization': f'Token {AUTH_TOKEN}',
                 'Content-Type': 'application/json'
             }
-            
-            # Prepare complete payload
+
+            # Prepare complete payload with ALL fields
             payload = {
                 'appointment_status': data.get('appointment_status'),
+                'appointment_date': data.get('appointment_date'),
                 'can_start': data.get('can_start', False),
                 'is_entered': data.get('is_entered', False),
-                'proctor_id': data.get('proctor_id', '')
+                'entered_datetime': data.get('entered_datetime'),
+                'proctor_id': data.get('proctor_id', ''),
+                'room_url_1': data.get('room_url_1', ''),
+                'room_url_2': data.get('room_url_2', ''),
+                'exam_time': data.get('exam_time')
             }
-            
-            # Remove empty proctor_id if not provided
-            if not payload['proctor_id']:
-                payload.pop('proctor_id', None)
-            
+
+            # Remove empty fields
+            payload = {k: v for k, v in payload.items() if v is not None and v != ''}
+
             logger.info(f"Updating exam appointment with payload: {payload}")
             response = requests.patch(url, json=payload, headers=headers, timeout=10)
-            
+
             if response.status_code in [200, 201]:
                 return JsonResponse({
                     'success': True,
@@ -1282,7 +1306,7 @@ class SelfStudyExamAPIView(View):
                     'error': f'Failed to update exam appointment: {response.status_code} - {response.text}',
                     'results': [{'domain': domain, 'status': response.status_code, 'success': False}]
                 }, status=500)
-                
+
         except Exception as e:
             logger.error(f"Error updating exam appointment: {str(e)}")
             return JsonResponse({'error': str(e)}, status=500)
@@ -1293,31 +1317,31 @@ class SelfStudyExamAPIView(View):
             AUTH_TOKEN = os.getenv('AUTH_TOKEN')
             domain = self.get_single_domain()
             external_id = data.get('external_id')
-            
+
             if not domain or not external_id:
                 return JsonResponse({'error': 'Missing domain or external_id'}, status=400)
-            
+
             # Use the regular endpoint (NOT sync) - the sync will be handled by the selfstudyexam app
             url = f"{domain}/user-exam-results/{external_id}/"
             headers = {
                 'Authorization': f'Token {AUTH_TOKEN}',
                 'Content-Type': 'application/json'
             }
-            
+
             # Prepare complete payload
             payload = {
                 'score': data.get('score'),
                 'result_status': data.get('result_status'),
                 'result_message': data.get('result_message', '')
             }
-            
+
             # Remove empty result_message if not provided
             if not payload['result_message']:
                 payload.pop('result_message', None)
-            
+
             logger.info(f"Updating user exam result with payload: {payload}")
             response = requests.patch(url, json=payload, headers=headers, timeout=10)
-            
+
             if response.status_code in [200, 201]:
                 return JsonResponse({
                     'success': True,
@@ -1331,7 +1355,7 @@ class SelfStudyExamAPIView(View):
                     'error': f'Failed to update user exam result: {response.status_code} - {response.text}',
                     'results': [{'domain': domain, 'status': response.status_code, 'success': False}]
                 }, status=500)
-                
+
         except Exception as e:
             logger.error(f"Error updating user exam result: {str(e)}")
             return JsonResponse({'error': str(e)}, status=500)
@@ -1342,31 +1366,31 @@ class SelfStudyExamAPIView(View):
             AUTH_TOKEN = os.getenv('AUTH_TOKEN')
             domain = self.get_single_domain()
             external_id = data.get('external_id')
-            
+
             if not domain or not external_id:
                 return JsonResponse({'error': 'Missing domain or external_id'}, status=400)
-            
+
             # Use the regular endpoint (NOT sync) - the sync will be handled by the selfstudyexam app
             url = f"{domain}/user-quiz-results/{external_id}/"
             headers = {
                 'Authorization': f'Token {AUTH_TOKEN}',
                 'Content-Type': 'application/json'
             }
-            
+
             # Prepare complete payload
             payload = {
                 'score': data.get('score'),
                 'result_status': data.get('result_status'),
                 'result_message': data.get('result_message', '')
             }
-            
+
             # Remove empty result_message if not provided
             if not payload['result_message']:
                 payload.pop('result_message', None)
-            
+
             logger.info(f"Updating user quiz result with payload: {payload}")
             response = requests.patch(url, json=payload, headers=headers, timeout=10)
-            
+
             if response.status_code in [200, 201]:
                 return JsonResponse({
                     'success': True,
@@ -1380,7 +1404,7 @@ class SelfStudyExamAPIView(View):
                     'error': f'Failed to update user quiz result: {response.status_code} - {response.text}',
                     'results': [{'domain': domain, 'status': response.status_code, 'success': False}]
                 }, status=500)
-                
+
         except Exception as e:
             logger.error(f"Error updating user quiz result: {str(e)}")
             return JsonResponse({'error': str(e)}, status=500)

@@ -11,8 +11,9 @@
 <div class="page-content">
     <!-- Header Section -->
     <div class="header-section">
-        <h1>Exams & Quizzes Management</h1>
+        <h1>📚 Exams & Quizzes Management</h1>
         <p>Manage exams, quizzes, questions, answers, appointments, and results across all domains</p>
+        <div class="header-badge">E-Learning Admin Dashboard</div>
     </div>
 
     <!-- Stats Cards -->
@@ -63,17 +64,33 @@
     <!-- Tabs -->
     <div class="tabs-container">
         <div class="tabs">
-            <button class="tab-btn active" data-tab="exams" onclick="switchTab('exams')">Exams</button>
-            <button class="tab-btn" data-tab="quizzes" onclick="switchTab('quizzes')">Quizzes</button>
-            <button class="tab-btn" data-tab="appointments" onclick="switchTab('appointments')">Exam Appointments</button>
-            <button class="tab-btn" data-tab="exam-results" onclick="switchTab('exam-results')">Exam Results</button>
-            <button class="tab-btn" data-tab="quiz-results" onclick="switchTab('quiz-results')">Quiz Results</button>
+            <button class="tab-btn active" data-tab="exams" onclick="switchTab('exams')">
+                <span class="tab-icon">📊</span> Exams
+            </button>
+            <button class="tab-btn" data-tab="quizzes" onclick="switchTab('quizzes')">
+                <span class="tab-icon">📝</span> Quizzes
+            </button>
+            <button class="tab-btn" data-tab="appointments" onclick="switchTab('appointments')">
+                <span class="tab-icon">📅</span> Exam Appointments
+            </button>
+            <button class="tab-btn" data-tab="exam-results" onclick="switchTab('exam-results')">
+                <span class="tab-icon">🎯</span> Exam Results
+            </button>
+            <button class="tab-btn" data-tab="quiz-results" onclick="switchTab('quiz-results')">
+                <span class="tab-icon">📋</span> Quiz Results
+            </button>
         </div>
     </div>
 
     <!-- Exams Table -->
     <div id="exams-tab" class="tab-content active">
         <div class="table-container">
+            <div class="table-header">
+                <h3><span class="tab-icon">📊</span> Exams List</h3>
+                <button class="btn btn-primary" onclick="openCreateExamModal()">
+                    <span class="btn-icon">➕</span> Add Exam
+                </button>
+            </div>
             <table id="exams-table" class="data-table">
                 <thead>
                     <tr>
@@ -95,6 +112,12 @@
     <!-- Quizzes Table -->
     <div id="quizzes-tab" class="tab-content">
         <div class="table-container">
+            <div class="table-header">
+                <h3><span class="tab-icon">📝</span> Quizzes List</h3>
+                <button class="btn btn-primary" onclick="openCreateQuizModal()">
+                    <span class="btn-icon">➕</span> Add Quiz
+                </button>
+            </div>
             <table id="quizzes-table" class="data-table">
                 <thead>
                     <tr>
@@ -117,6 +140,9 @@
     <!-- Exam Appointments Table -->
     <div id="appointments-tab" class="tab-content">
         <div class="table-container">
+            <div class="table-header">
+                <h3><span class="tab-icon">📅</span> Exam Appointments</h3>
+            </div>
             <table id="appointments-table" class="data-table">
                 <thead>
                     <tr>
@@ -124,8 +150,11 @@
                         <th>Exam</th>
                         <th>Appointment Date</th>
                         <th>Status</th>
+                        <th>Proctor</th>
                         <th>Can Start</th>
                         <th>Is Entered</th>
+                        <th>Exam Time</th>
+                        <th>Entered At</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -139,6 +168,9 @@
     <!-- Exam Results Table -->
     <div id="exam-results-tab" class="tab-content">
         <div class="table-container">
+            <div class="table-header">
+                <h3><span class="tab-icon">🎯</span> Exam Results</h3>
+            </div>
             <table id="exam-results-table" class="data-table">
                 <thead>
                     <tr>
@@ -160,6 +192,9 @@
     <!-- Quiz Results Table -->
     <div id="quiz-results-tab" class="tab-content">
         <div class="table-container">
+            <div class="table-header">
+                <h3><span class="tab-icon">📋</span> Quiz Results</h3>
+            </div>
             <table id="quiz-results-table" class="data-table">
                 <thead>
                     <tr>
@@ -183,48 +218,50 @@
 <div id="exam-modal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
-            <h2 id="exam-modal-title">Create New Exam</h2>
+            <h2 id="exam-modal-title"><span class="tab-icon">📊</span> Create New Exam</h2>
             <span class="close" onclick="closeExamModal()">&times;</span>
         </div>
         <div class="modal-body">
             <form id="exam-form" class="modal-form">
                 <input type="hidden" id="exam-external-id">
-                
+
                 <div class="form-group">
-                    <label for="exam-title">Exam Title *</label>
-                    <input type="text" id="exam-title" required>
+                    <label for="exam-title" class="required">Exam Title</label>
+                    <input type="text" id="exam-title" required placeholder="Enter exam title...">
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="exam-course" class="required">Course</label>
+                        <select id="exam-course" required onchange="onCourseSelect('exam')">
+                            <option value="">Select a course</option>
+                            {% for course in courses %}
+                            <option value="{{ course.external_course_id }}" data-title="{{ course.title }}">
+                                {{ course.title }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="exam-duration" class="required">Duration (minutes)</label>
+                        <input type="number" id="exam-duration" min="1" required placeholder="60">
+                    </div>
                 </div>
 
                 <div class="form-group">
-                    <label for="exam-course">Course *</label>
-                    <select id="exam-course" required onchange="onCourseSelect('exam')">
-                        <option value="">Select a course</option>
-                        {% for course in courses %}
-                        <option value="{{ course.external_course_id }}" data-title="{{ course.title }}">
-                            {{ course.title }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label for="exam-course-id">Course ID *</label>
+                    <label for="exam-course-id" class="required">Course ID</label>
                     <input type="text" id="exam-course-id" readonly required>
                 </div>
 
                 <div class="form-group">
-                    <label for="exam-duration">Duration (minutes) *</label>
-                    <input type="number" id="exam-duration" min="1" required>
-                </div>
-
-                <div class="form-group">
                     <label for="exam-instructions">Exam Instructions</label>
-                    <textarea id="exam-instructions" rows="4"></textarea>
+                    <textarea id="exam-instructions" rows="4" placeholder="Enter exam instructions..."></textarea>
                 </div>
 
                 <div class="form-group">
                     <label for="exam-video-url">Video Instructions URL</label>
-                    <input type="url" id="exam-video-url">
+                    <input type="url" id="exam-video-url" placeholder="https://example.com/video-instructions">
                 </div>
 
                 <div class="form-actions">
@@ -240,55 +277,59 @@
 <div id="quiz-modal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
-            <h2 id="quiz-modal-title">Create New Quiz</h2>
+            <h2 id="quiz-modal-title"><span class="tab-icon">📝</span> Create New Quiz</h2>
             <span class="close" onclick="closeQuizModal()">&times;</span>
         </div>
         <div class="modal-body">
             <form id="quiz-form" class="modal-form">
                 <input type="hidden" id="quiz-external-id">
-                
+
                 <div class="form-group">
-                    <label for="quiz-title">Quiz Title *</label>
-                    <input type="text" id="quiz-title" required>
+                    <label for="quiz-title" class="required">Quiz Title</label>
+                    <input type="text" id="quiz-title" required placeholder="Enter quiz title...">
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="quiz-course" class="required">Course</label>
+                        <select id="quiz-course" required onchange="onCourseSelect('quiz')">
+                            <option value="">Select a course</option>
+                            {% for course in courses %}
+                            <option value="{{ course.external_course_id }}" data-title="{{ course.title }}">
+                                {{ course.title }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quiz-duration" class="required">Duration (minutes)</label>
+                        <input type="number" id="quiz-duration" min="1" required placeholder="30">
+                    </div>
                 </div>
 
                 <div class="form-group">
-                    <label for="quiz-course">Course *</label>
-                    <select id="quiz-course" required onchange="onCourseSelect('quiz')">
-                        <option value="">Select a course</option>
-                        {% for course in courses %}
-                        <option value="{{ course.external_course_id }}" data-title="{{ course.title }}">
-                            {{ course.title }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label for="quiz-course-id">Course ID *</label>
+                    <label for="quiz-course-id" class="required">Course ID</label>
                     <input type="text" id="quiz-course-id" readonly required>
                 </div>
 
-                <div class="form-group">
-                    <label for="quiz-lesson">Lesson *</label>
-                    <select id="quiz-lesson" required onchange="onLessonSelect()">
-                        <option value="">Select a lesson</option>
-                    </select>
-                </div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="quiz-lesson" class="required">Lesson</label>
+                        <select id="quiz-lesson" required onchange="onLessonSelect()">
+                            <option value="">Select a lesson</option>
+                        </select>
+                    </div>
 
-                <div class="form-group">
-                    <label for="quiz-lesson-id">Lesson ID *</label>
-                    <input type="text" id="quiz-lesson-id" readonly required>
-                </div>
-
-                <div class="form-group">
-                    <label for="quiz-duration">Duration (minutes) *</label>
-                    <input type="number" id="quiz-duration" min="1" required>
+                    <div class="form-group">
+                        <label for="quiz-lesson-id" class="required">Lesson ID</label>
+                        <input type="text" id="quiz-lesson-id" readonly required>
+                    </div>
                 </div>
 
                 <div class="form-group">
                     <label for="quiz-description">Description</label>
-                    <textarea id="quiz-description" rows="4"></textarea>
+                    <textarea id="quiz-description" rows="4" placeholder="Enter quiz description..."></textarea>
                 </div>
 
                 <div class="form-actions">
@@ -302,15 +343,18 @@
 
 <!-- Exam Questions Management Modal -->
 <div id="exam-questions-modal" class="modal">
-    <div class="modal-content large-modal">
+    <div class="modal-content xl-modal">
         <div class="modal-header">
-            <h2 id="exam-questions-title">Manage Exam Questions</h2>
+            <h2 id="exam-questions-title"><span class="tab-icon">❓</span> Manage Exam Questions</h2>
             <span class="close" onclick="closeExamQuestionsModal()">&times;</span>
         </div>
         <div class="modal-body">
             <div class="action-buttons">
                 <button class="btn btn-primary" onclick="openCreateExamQuestionModal()">
                     <span class="btn-icon">➕</span> Add Question
+                </button>
+                <button class="btn btn-outline" onclick="closeExamQuestionsModal()">
+                    <span class="btn-icon">←</span> Back to Exams
                 </button>
             </div>
             <div class="table-container">
@@ -336,15 +380,18 @@
 
 <!-- Quiz Questions Management Modal -->
 <div id="quiz-questions-modal" class="modal">
-    <div class="modal-content large-modal">
+    <div class="modal-content xl-modal">
         <div class="modal-header">
-            <h2 id="quiz-questions-title">Manage Quiz Questions</h2>
+            <h2 id="quiz-questions-title"><span class="tab-icon">❓</span> Manage Quiz Questions</h2>
             <span class="close" onclick="closeQuizQuestionsModal()">&times;</span>
         </div>
         <div class="modal-body">
             <div class="action-buttons">
                 <button class="btn btn-primary" onclick="openCreateQuizQuestionModal()">
                     <span class="btn-icon">➕</span> Add Question
+                </button>
+                <button class="btn btn-outline" onclick="closeQuizQuestionsModal()">
+                    <span class="btn-icon">←</span> Back to Quizzes
                 </button>
             </div>
             <div class="table-container">
@@ -372,22 +419,24 @@
 <div id="exam-question-modal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
-            <h2 id="exam-question-modal-title">Create New Exam Question</h2>
+            <h2 id="exam-question-modal-title"><span class="tab-icon">❓</span> Create New Exam Question</h2>
             <span class="close" onclick="closeExamQuestionModal()">&times;</span>
         </div>
         <div class="modal-body">
             <form id="exam-question-form" class="modal-form">
                 <input type="hidden" id="exam-question-external-id">
                 <input type="hidden" id="exam-question-exam-id">
-                
+
                 <div class="form-group">
-                    <label for="exam-question-text">Question Text *</label>
+                    <label for="exam-question-text" class="required">Question Text</label>
                     <textarea id="exam-question-text" rows="4" required placeholder="Enter the question text..."></textarea>
                 </div>
 
-                <div class="form-group">
-                    <label for="exam-question-score">Score *</label>
-                    <input type="number" id="exam-question-score" min="1" value="1" required>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="exam-question-score" class="required">Score</label>
+                        <input type="number" id="exam-question-score" min="1" value="1" required>
+                    </div>
                 </div>
 
                 <div class="form-actions">
@@ -403,22 +452,24 @@
 <div id="quiz-question-modal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
-            <h2 id="quiz-question-modal-title">Create New Quiz Question</h2>
+            <h2 id="quiz-question-modal-title"><span class="tab-icon">❓</span> Create New Quiz Question</h2>
             <span class="close" onclick="closeQuizQuestionModal()">&times;</span>
         </div>
         <div class="modal-body">
             <form id="quiz-question-form" class="modal-form">
                 <input type="hidden" id="quiz-question-external-id">
                 <input type="hidden" id="quiz-question-quiz-id">
-                
+
                 <div class="form-group">
-                    <label for="quiz-question-text">Question Text *</label>
+                    <label for="quiz-question-text" class="required">Question Text</label>
                     <textarea id="quiz-question-text" rows="4" required placeholder="Enter the question text..."></textarea>
                 </div>
 
-                <div class="form-group">
-                    <label for="quiz-question-score">Score *</label>
-                    <input type="number" id="quiz-question-score" min="1" value="1" required>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="quiz-question-score" class="required">Score</label>
+                        <input type="number" id="quiz-question-score" min="1" value="1" required>
+                    </div>
                 </div>
 
                 <div class="form-actions">
@@ -432,15 +483,18 @@
 
 <!-- Exam Answers Management Modal -->
 <div id="exam-answers-modal" class="modal">
-    <div class="modal-content large-modal">
+    <div class="modal-content xl-modal">
         <div class="modal-header">
-            <h2 id="exam-answers-title">Manage Exam Answers</h2>
+            <h2 id="exam-answers-title"><span class="tab-icon">📝</span> Manage Exam Answers</h2>
             <span class="close" onclick="closeExamAnswersModal()">&times;</span>
         </div>
         <div class="modal-body">
             <div class="action-buttons">
                 <button class="btn btn-primary" onclick="openCreateExamAnswerModal()">
                     <span class="btn-icon">➕</span> Add Answer
+                </button>
+                <button class="btn btn-outline" onclick="closeExamAnswersModal()">
+                    <span class="btn-icon">←</span> Back to Questions
                 </button>
             </div>
             <div class="table-container">
@@ -464,15 +518,18 @@
 
 <!-- Quiz Answers Management Modal -->
 <div id="quiz-answers-modal" class="modal">
-    <div class="modal-content large-modal">
+    <div class="modal-content xl-modal">
         <div class="modal-header">
-            <h2 id="quiz-answers-title">Manage Quiz Answers</h2>
+            <h2 id="quiz-answers-title"><span class="tab-icon">📝</span> Manage Quiz Answers</h2>
             <span class="close" onclick="closeQuizAnswersModal()">&times;</span>
         </div>
         <div class="modal-body">
             <div class="action-buttons">
                 <button class="btn btn-primary" onclick="openCreateQuizAnswerModal()">
                     <span class="btn-icon">➕</span> Add Answer
+                </button>
+                <button class="btn btn-outline" onclick="closeQuizAnswersModal()">
+                    <span class="btn-icon">←</span> Back to Questions
                 </button>
             </div>
             <div class="table-container">
@@ -498,16 +555,16 @@
 <div id="exam-answer-modal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
-            <h2 id="exam-answer-modal-title">Create New Exam Answer</h2>
+            <h2 id="exam-answer-modal-title"><span class="tab-icon">📝</span> Create New Exam Answer</h2>
             <span class="close" onclick="closeExamAnswerModal()">&times;</span>
         </div>
         <div class="modal-body">
             <form id="exam-answer-form" class="modal-form">
                 <input type="hidden" id="exam-answer-external-id">
                 <input type="hidden" id="exam-answer-question-id">
-                
+
                 <div class="form-group">
-                    <label for="exam-answer-text">Answer Text *</label>
+                    <label for="exam-answer-text" class="required">Answer Text</label>
                     <textarea id="exam-answer-text" rows="4" required placeholder="Enter the answer text..."></textarea>
                 </div>
 
@@ -532,16 +589,16 @@
 <div id="quiz-answer-modal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
-            <h2 id="quiz-answer-modal-title">Create New Quiz Answer</h2>
+            <h2 id="quiz-answer-modal-title"><span class="tab-icon">📝</span> Create New Quiz Answer</h2>
             <span class="close" onclick="closeQuizAnswerModal()">&times;</span>
         </div>
         <div class="modal-body">
             <form id="quiz-answer-form" class="modal-form">
                 <input type="hidden" id="quiz-answer-external-id">
                 <input type="hidden" id="quiz-answer-question-id">
-                
+
                 <div class="form-group">
-                    <label for="quiz-answer-text">Answer Text *</label>
+                    <label for="quiz-answer-text" class="required">Answer Text</label>
                     <textarea id="quiz-answer-text" rows="4" required placeholder="Enter the answer text..."></textarea>
                 </div>
 
@@ -562,49 +619,84 @@
     </div>
 </div>
 
-<!-- Edit Exam Appointment Modal -->
+<!-- ENHANCED: Edit Exam Appointment Modal with ALL fields -->
 <div id="exam-appointment-modal" class="modal">
-    <div class="modal-content">
+    <div class="modal-content large-modal">
         <div class="modal-header">
-            <h2 id="exam-appointment-modal-title">Edit Exam Appointment</h2>
+            <h2 id="exam-appointment-modal-title"><span class="tab-icon">📅</span> Edit Exam Appointment</h2>
             <span class="close" onclick="closeExamAppointmentModal()">&times;</span>
         </div>
         <div class="modal-body">
             <form id="exam-appointment-form" class="modal-form">
                 <input type="hidden" id="exam-appointment-external-id">
-                
-                <div class="form-group">
-                    <label for="exam-appointment-status">Appointment Status *</label>
-                    <select id="exam-appointment-status" required>
-                        <option value="No Reservation Yet">No Reservation Yet</option>
-                        <option value="Scheduled">Scheduled</option>
-                        <option value="In Progress">In Progress</option>
-                        <option value="Completed">Completed</option>
-                        <option value="Taken but Failed">Taken but Failed</option>
-                        <option value="Cancelled">Cancelled</option>
-                        <option value="Expired">Expired</option>
-                    </select>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="exam-appointment-status" class="required">Appointment Status</label>
+                        <select id="exam-appointment-status" required>
+                            <option value="No Reservation Yet">No Reservation Yet</option>
+                            <option value="Scheduled">Scheduled</option>
+                            <option value="In Progress">In Progress</option>
+                            <option value="Completed">Completed</option>
+                            <option value="Taken but Failed">Taken but Failed</option>
+                            <option value="Cancelled">Cancelled</option>
+                            <option value="Expired">Expired</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="exam-appointment-date" class="required">Appointment Date & Time</label>
+                        <input type="datetime-local" id="exam-appointment-date" required>
+                    </div>
                 </div>
 
-                <div class="form-group">
-                    <label class="checkbox-label">
-                        <input type="checkbox" id="exam-appointment-can-start">
-                        <span class="checkmark"></span>
-                        Can Start Exam
-                    </label>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="exam-appointment-proctor">Proctor ID</label>
+                        <input type="text" id="exam-appointment-proctor" placeholder="Enter proctor ID...">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="exam-appointment-time">Exam Time (minutes)</label>
+                        <input type="number" id="exam-appointment-time" min="0" placeholder="Actual time taken">
+                    </div>
                 </div>
 
-                <div class="form-group">
-                    <label class="checkbox-label">
-                        <input type="checkbox" id="exam-appointment-is-entered">
-                        <span class="checkmark"></span>
-                        User Has Entered
-                    </label>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="exam-appointment-room1">Room URL 1</label>
+                        <input type="url" id="exam-appointment-room1" placeholder="https://example.com/room1">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="exam-appointment-room2">Room URL 2</label>
+                        <input type="url" id="exam-appointment-room2" placeholder="https://example.com/room2">
+                    </div>
                 </div>
 
-                <div class="form-group">
-                    <label for="exam-appointment-proctor">Proctor ID</label>
-                    <input type="text" id="exam-appointment-proctor">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="exam-appointment-entered-datetime">Entered Date & Time</label>
+                        <input type="datetime-local" id="exam-appointment-entered-datetime">
+                    </div>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="exam-appointment-can-start">
+                            <span class="checkmark"></span>
+                            Can Start Exam
+                        </label>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="exam-appointment-is-entered">
+                            <span class="checkmark"></span>
+                            User Has Entered
+                        </label>
+                    </div>
                 </div>
 
                 <div class="form-actions">
@@ -620,24 +712,26 @@
 <div id="exam-result-modal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
-            <h2 id="exam-result-modal-title">Edit Exam Result</h2>
+            <h2 id="exam-result-modal-title"><span class="tab-icon">🎯</span> Edit Exam Result</h2>
             <span class="close" onclick="closeExamResultModal()">&times;</span>
         </div>
         <div class="modal-body">
             <form id="exam-result-form" class="modal-form">
                 <input type="hidden" id="exam-result-external-id">
-                
-                <div class="form-group">
-                    <label for="exam-result-score">Score *</label>
-                    <input type="number" id="exam-result-score" step="0.01" min="0" required>
-                </div>
 
-                <div class="form-group">
-                    <label for="exam-result-status">Result Status *</label>
-                    <select id="exam-result-status" required>
-                        <option value="PASSED">PASSED</option>
-                        <option value="FAILED">FAILED</option>
-                    </select>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="exam-result-score" class="required">Score</label>
+                        <input type="number" id="exam-result-score" step="0.01" min="0" required placeholder="0.00">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="exam-result-status" class="required">Result Status</label>
+                        <select id="exam-result-status" required>
+                            <option value="PASSED">PASSED</option>
+                            <option value="FAILED">FAILED</option>
+                        </select>
+                    </div>
                 </div>
 
                 <div class="form-group">
@@ -658,24 +752,26 @@
 <div id="quiz-result-modal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
-            <h2 id="quiz-result-modal-title">Edit Quiz Result</h2>
+            <h2 id="quiz-result-modal-title"><span class="tab-icon">📋</span> Edit Quiz Result</h2>
             <span class="close" onclick="closeQuizResultModal()">&times;</span>
         </div>
         <div class="modal-body">
             <form id="quiz-result-form" class="modal-form">
                 <input type="hidden" id="quiz-result-external-id">
-                
-                <div class="form-group">
-                    <label for="quiz-result-score">Score *</label>
-                    <input type="number" id="quiz-result-score" step="0.01" min="0" required>
-                </div>
 
-                <div class="form-group">
-                    <label for="quiz-result-status">Result Status *</label>
-                    <select id="quiz-result-status" required>
-                        <option value="PASSED">PASSED</option>
-                        <option value="FAILED">FAILED</option>
-                    </select>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="quiz-result-score" class="required">Score</label>
+                        <input type="number" id="quiz-result-score" step="0.01" min="0" required placeholder="0.00">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quiz-result-status" class="required">Result Status</label>
+                        <select id="quiz-result-status" required>
+                            <option value="PASSED">PASSED</option>
+                            <option value="FAILED">FAILED</option>
+                        </select>
+                    </div>
                 </div>
 
                 <div class="form-group">

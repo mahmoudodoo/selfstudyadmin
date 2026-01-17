@@ -1,4 +1,4 @@
-// SelfStudy Exam Management JavaScript - OPTIMIZED VERSION
+// SelfStudy Exam Management JavaScript - ENHANCED VERSION
 class SelfStudyExamManager {
     constructor() {
         this.currentTab = 'exams';
@@ -32,7 +32,7 @@ class SelfStudyExamManager {
         document.getElementById('exam-appointment-form').addEventListener('submit', (e) => this.handleExamAppointmentSubmit(e));
         document.getElementById('exam-result-form').addEventListener('submit', (e) => this.handleExamResultSubmit(e));
         document.getElementById('quiz-result-form').addEventListener('submit', (e) => this.handleQuizResultSubmit(e));
-        
+
         // Window events
         window.addEventListener('click', (e) => {
             if (e.target.classList.contains('modal')) {
@@ -43,13 +43,13 @@ class SelfStudyExamManager {
 
     async loadInitialData() {
         this.showLoading();
-        
+
         try {
             await Promise.all([
                 this.fetchExams(),
-                this.fetchQuizzes()
+                              this.fetchQuizzes()
             ]);
-            
+
             this.updateTables();
             this.updateStats();
             this.showToast('Data loaded successfully!', 'success');
@@ -63,7 +63,7 @@ class SelfStudyExamManager {
 
     async loadTabData(tabName) {
         this.showLoading();
-        
+
         try {
             switch(tabName) {
                 case 'appointments':
@@ -161,30 +161,68 @@ class SelfStudyExamManager {
         }
     }
 
+    // FIXED: This method now properly filters questions by exam_id
     async fetchExamQuestions(examId) {
         if (!examId) return [];
-        
+
         try {
-            const response = await this.apiRequest('GET', { 
-                action: 'fetch_exam_questions', 
-                exam_id: examId 
+            const response = await this.apiRequest('GET', {
+                action: 'fetch_exam_questions',
+                exam_id: examId
             });
-            return response.questions || [];
+
+            if (response.success) {
+                const questions = response.questions || [];
+                console.log(`Fetched ${questions.length} questions for exam ${examId}`);
+
+                // Double-check filtering on client side
+                const filteredQuestions = questions.filter(question => {
+                    return question.exam === examId;
+                });
+
+                if (filteredQuestions.length !== questions.length) {
+                    console.warn(`Filtered ${questions.length} questions down to ${filteredQuestions.length} for exam ${examId}`);
+                }
+
+                return filteredQuestions;
+            } else {
+                console.error('Failed to fetch exam questions:', response.error);
+                return [];
+            }
         } catch (error) {
             console.error('Error fetching exam questions:', error);
             return [];
         }
     }
 
+    // FIXED: This method now properly filters questions by quiz_id
     async fetchQuizQuestions(quizId) {
         if (!quizId) return [];
-        
+
         try {
-            const response = await this.apiRequest('GET', { 
-                action: 'fetch_quiz_questions', 
-                quiz_id: quizId 
+            const response = await this.apiRequest('GET', {
+                action: 'fetch_quiz_questions',
+                quiz_id: quizId
             });
-            return response.questions || [];
+
+            if (response.success) {
+                const questions = response.questions || [];
+                console.log(`Fetched ${questions.length} questions for quiz ${quizId}`);
+
+                // Double-check filtering on client side
+                const filteredQuestions = questions.filter(question => {
+                    return question.quiz === quizId;
+                });
+
+                if (filteredQuestions.length !== questions.length) {
+                    console.warn(`Filtered ${questions.length} questions down to ${filteredQuestions.length} for quiz ${quizId}`);
+                }
+
+                return filteredQuestions;
+            } else {
+                console.error('Failed to fetch quiz questions:', response.error);
+                return [];
+            }
         } catch (error) {
             console.error('Error fetching quiz questions:', error);
             return [];
@@ -193,11 +231,11 @@ class SelfStudyExamManager {
 
     async fetchExamQuestionDetails(questionId) {
         if (!questionId) return null;
-        
+
         try {
-            const response = await this.apiRequest('GET', { 
-                action: 'fetch_exam_question_details', 
-                question_id: questionId 
+            const response = await this.apiRequest('GET', {
+                action: 'fetch_exam_question_details',
+                question_id: questionId
             });
             return response.success ? response.question : null;
         } catch (error) {
@@ -208,11 +246,11 @@ class SelfStudyExamManager {
 
     async fetchQuizQuestionDetails(questionId) {
         if (!questionId) return null;
-        
+
         try {
-            const response = await this.apiRequest('GET', { 
-                action: 'fetch_quiz_question_details', 
-                question_id: questionId 
+            const response = await this.apiRequest('GET', {
+                action: 'fetch_quiz_question_details',
+                question_id: questionId
             });
             return response.success ? response.question : null;
         } catch (error) {
@@ -223,11 +261,11 @@ class SelfStudyExamManager {
 
     async fetchLessons(courseId) {
         if (!courseId) return [];
-        
+
         try {
-            const response = await this.apiRequest('GET', { 
-                action: 'fetch_lessons', 
-                course_id: courseId 
+            const response = await this.apiRequest('GET', {
+                action: 'fetch_lessons',
+                course_id: courseId
             });
             return response.lessons || [];
         } catch (error) {
@@ -238,7 +276,7 @@ class SelfStudyExamManager {
 
     async apiRequest(method, data = null) {
         const url = '/selfstudyexam/api/';
-        
+
         const options = {
             method: method,
             headers: {
@@ -265,175 +303,178 @@ class SelfStudyExamManager {
         this.updateAppointmentsTable();
         this.updateExamResultsTable();
         this.updateQuizResultsTable();
-        this.updateStatusBadges(); 
+        this.updateStatusBadges();
     }
 
     updateExamsTable() {
         const tbody = document.getElementById('exams-tbody');
-        
+
         if (this.exams.length === 0) {
             tbody.innerHTML = `
-                <tr>
-                    <td colspan="6" class="empty-state">
-                        <div class="empty-icon">📊</div>
-                        <p>No exams found</p>
-                    </td>
-                </tr>
+            <tr>
+            <td colspan="6" class="empty-state">
+            <div class="empty-icon">📊</div>
+            <p>No exams found</p>
+            </td>
+            </tr>
             `;
             return;
         }
 
         tbody.innerHTML = this.exams.map(exam => `
-            <tr>
-                <td>${this.escapeHtml(exam.title)}</td>
-                <td>${this.escapeHtml(exam.course_id)}</td>
-                <td>${exam.exam_duration} min</td>
-                <td>${exam.questions ? exam.questions.length : 0}</td>
-                <td>${this.formatDate(exam.date_added)}</td>
-                <td class="table-actions">
-                    <button class="btn btn-edit" onclick="examManager.editExam('${exam.external_id}')">
-                        ✏️ Edit
-                    </button>
-                    <button class="btn btn-info" onclick="examManager.manageExamQuestions('${exam.external_id}', '${this.escapeHtml(exam.title)}')">
-                        ❓ Questions
-                    </button>
-                    <button class="btn btn-danger" onclick="examManager.deleteExam('${exam.external_id}')">
-                        🗑️ Delete
-                    </button>
-                </td>
-            </tr>
+        <tr>
+        <td>${this.escapeHtml(exam.title)}</td>
+        <td>${this.escapeHtml(exam.course_id)}</td>
+        <td>${exam.exam_duration} min</td>
+        <td>${exam.questions ? exam.questions.length : 0}</td>
+        <td>${this.formatDate(exam.date_added)}</td>
+        <td class="table-actions">
+        <button class="btn btn-edit" onclick="examManager.editExam('${exam.external_id}')">
+        <span class="btn-icon">✏️</span> Edit
+        </button>
+        <button class="btn btn-info" onclick="examManager.manageExamQuestions('${exam.external_id}', '${this.escapeHtml(exam.title)}')">
+        <span class="btn-icon">❓</span> Questions
+        </button>
+        <button class="btn btn-danger" onclick="examManager.deleteExam('${exam.external_id}')">
+        <span class="btn-icon">🗑️</span> Delete
+        </button>
+        </td>
+        </tr>
         `).join('');
     }
 
     updateQuizzesTable() {
         const tbody = document.getElementById('quizzes-tbody');
-        
+
         if (this.quizzes.length === 0) {
             tbody.innerHTML = `
-                <tr>
-                    <td colspan="7" class="empty-state">
-                        <div class="empty-icon">📝</div>
-                        <p>No quizzes found</p>
-                    </td>
-                </tr>
+            <tr>
+            <td colspan="7" class="empty-state">
+            <div class="empty-icon">📝</div>
+            <p>No quizzes found</p>
+            </td>
+            </tr>
             `;
             return;
         }
 
         tbody.innerHTML = this.quizzes.map(quiz => `
-            <tr>
-                <td>${this.escapeHtml(quiz.title)}</td>
-                <td>${this.escapeHtml(quiz.course_id)}</td>
-                <td>${this.escapeHtml(quiz.lesson_id)}</td>
-                <td>${quiz.quiz_duration} min</td>
-                <td>${quiz.questions ? quiz.questions.length : 0}</td>
-                <td>${this.formatDate(quiz.date_added)}</td>
-                <td class="table-actions">
-                    <button class="btn btn-edit" onclick="examManager.editQuiz('${quiz.external_id}')">
-                        ✏️ Edit
-                    </button>
-                    <button class="btn btn-info" onclick="examManager.manageQuizQuestions('${quiz.external_id}', '${this.escapeHtml(quiz.title)}')">
-                        ❓ Questions
-                    </button>
-                    <button class="btn btn-danger" onclick="examManager.deleteQuiz('${quiz.external_id}')">
-                        🗑️ Delete
-                    </button>
-                </td>
-            </tr>
+        <tr>
+        <td>${this.escapeHtml(quiz.title)}</td>
+        <td>${this.escapeHtml(quiz.course_id)}</td>
+        <td>${this.escapeHtml(quiz.lesson_id)}</td>
+        <td>${quiz.quiz_duration} min</td>
+        <td>${quiz.questions ? quiz.questions.length : 0}</td>
+        <td>${this.formatDate(quiz.date_added)}</td>
+        <td class="table-actions">
+        <button class="btn btn-edit" onclick="examManager.editQuiz('${quiz.external_id}')">
+        <span class="btn-icon">✏️</span> Edit
+        </button>
+        <button class="btn btn-info" onclick="examManager.manageQuizQuestions('${quiz.external_id}', '${this.escapeHtml(quiz.title)}')">
+        <span class="btn-icon">❓</span> Questions
+        </button>
+        <button class="btn btn-danger" onclick="examManager.deleteQuiz('${quiz.external_id}')">
+        <span class="btn-icon">🗑️</span> Delete
+        </button>
+        </td>
+        </tr>
         `).join('');
     }
 
     updateAppointmentsTable() {
         const tbody = document.getElementById('appointments-tbody');
-        
+
         if (this.appointments.length === 0) {
             tbody.innerHTML = `
-                <tr>
-                    <td colspan="7" class="empty-state">
-                        <div class="empty-icon">📅</div>
-                        <p>No exam appointments found</p>
-                    </td>
-                </tr>
+            <tr>
+            <td colspan="10" class="empty-state">
+            <div class="empty-icon">📅</div>
+            <p>No exam appointments found</p>
+            </td>
+            </tr>
             `;
             return;
         }
 
         tbody.innerHTML = this.appointments.map(appointment => `
-            <tr>
-                <td>${this.escapeHtml(appointment.username)}</td>
-                <td>${this.escapeHtml(appointment.exam_title || appointment.exam)}</td>
-                <td>${this.formatDate(appointment.appointment_date)}</td>
-                <td><span class="status-badge status-${appointment.appointment_status.toLowerCase().replace(' ', '-')}">${appointment.appointment_status}</span></td>
-                <td>${appointment.can_start ? '✅ Yes' : '❌ No'}</td>
-                <td>${appointment.is_entered ? '✅ Yes' : '❌ No'}</td>
-                <td class="table-actions">
-                    <button class="btn btn-edit" onclick="examManager.editExamAppointment('${appointment.external_id}')">
-                        ✏️ Edit
-                    </button>
-                </td>
-            </tr>
+        <tr>
+        <td>${this.escapeHtml(appointment.username)}</td>
+        <td>${this.escapeHtml(appointment.exam_title || appointment.exam)}</td>
+        <td>${this.formatDateTime(appointment.appointment_date)}</td>
+        <td><span class="status-badge status-${appointment.appointment_status.toLowerCase().replace(/ /g, '-')}">${appointment.appointment_status}</span></td>
+        <td>${appointment.proctor_id || '-'}</td>
+        <td>${appointment.can_start ? '<span class="status-badge status-scheduled">Yes</span>' : '<span class="status-badge status-cancelled">No</span>'}</td>
+        <td>${appointment.is_entered ? '<span class="status-badge status-completed">Yes</span>' : '<span class="status-badge status-cancelled">No</span>'}</td>
+        <td>${appointment.exam_time ? appointment.exam_time + ' min' : '-'}</td>
+        <td>${this.formatDateTime(appointment.entered_datetime)}</td>
+        <td class="table-actions">
+        <button class="btn btn-edit" onclick="examManager.editExamAppointment('${appointment.external_id}')">
+        <span class="btn-icon">✏️</span> Edit
+        </button>
+        </td>
+        </tr>
         `).join('');
     }
 
     updateExamResultsTable() {
         const tbody = document.getElementById('exam-results-tbody');
-        
+
         if (this.examResults.length === 0) {
             tbody.innerHTML = `
-                <tr>
-                    <td colspan="6" class="empty-state">
-                        <div class="empty-icon">🎯</div>
-                        <p>No exam results found</p>
-                    </td>
-                </tr>
+            <tr>
+            <td colspan="6" class="empty-state">
+            <div class="empty-icon">🎯</div>
+            <p>No exam results found</p>
+            </td>
+            </tr>
             `;
             return;
         }
 
         tbody.innerHTML = this.examResults.map(result => `
-            <tr>
-                <td>${this.escapeHtml(result.username)}</td>
-                <td>${this.escapeHtml(result.exam_title || result.exam)}</td>
-                <td>${result.score}</td>
-                <td><span class="status-badge status-${result.result_status.toLowerCase()}">${result.result_status}</span></td>
-                <td>${this.formatDate(result.date_taken)}</td>
-                <td class="table-actions">
-                    <button class="btn btn-edit" onclick="examManager.editExamResult('${result.external_id}')">
-                        ✏️ Edit
-                    </button>
-                </td>
-            </tr>
+        <tr>
+        <td>${this.escapeHtml(result.username)}</td>
+        <td>${this.escapeHtml(result.exam_title || result.exam)}</td>
+        <td><strong>${result.score}</strong></td>
+        <td><span class="status-badge status-${result.result_status.toLowerCase()}">${result.result_status}</span></td>
+        <td>${this.formatDateTime(result.date_taken)}</td>
+        <td class="table-actions">
+        <button class="btn btn-edit" onclick="examManager.editExamResult('${result.external_id}')">
+        <span class="btn-icon">✏️</span> Edit
+        </button>
+        </td>
+        </tr>
         `).join('');
     }
 
     updateQuizResultsTable() {
         const tbody = document.getElementById('quiz-results-tbody');
-        
+
         if (this.quizResults.length === 0) {
             tbody.innerHTML = `
-                <tr>
-                    <td colspan="6" class="empty-state">
-                        <div class="empty-icon">🎯</div>
-                        <p>No quiz results found</p>
-                    </td>
-                </tr>
+            <tr>
+            <td colspan="6" class="empty-state">
+            <div class="empty-icon">🎯</div>
+            <p>No quiz results found</p>
+            </td>
+            </tr>
             `;
             return;
         }
 
         tbody.innerHTML = this.quizResults.map(result => `
-            <tr>
-                <td>${this.escapeHtml(result.username)}</td>
-                <td>${this.escapeHtml(result.quiz_title || result.quiz)}</td>
-                <td>${result.score}</td>
-                <td><span class="status-badge status-${result.result_status.toLowerCase()}">${result.result_status}</span></td>
-                <td>${this.formatDate(result.date_taken)}</td>
-                <td class="table-actions">
-                    <button class="btn btn-edit" onclick="examManager.editQuizResult('${result.external_id}')">
-                        ✏️ Edit
-                    </button>
-                </td>
-            </tr>
+        <tr>
+        <td>${this.escapeHtml(result.username)}</td>
+        <td>${this.escapeHtml(result.quiz_title || result.quiz)}</td>
+        <td><strong>${result.score}</strong></td>
+        <td><span class="status-badge status-${result.result_status.toLowerCase()}">${result.result_status}</span></td>
+        <td>${this.formatDateTime(result.date_taken)}</td>
+        <td class="table-actions">
+        <button class="btn btn-edit" onclick="examManager.editQuizResult('${result.external_id}')">
+        <span class="btn-icon">✏️</span> Edit
+        </button>
+        </td>
+        </tr>
         `).join('');
     }
 
@@ -466,8 +507,8 @@ class SelfStudyExamManager {
 
         // Set course selection
         const courseSelect = document.getElementById('exam-course');
-        const option = Array.from(courseSelect.options).find(opt => 
-            opt.value === exam.course_id
+        const option = Array.from(courseSelect.options).find(opt =>
+        opt.value === exam.course_id
         );
         if (option) {
             courseSelect.value = exam.course_id;
@@ -478,7 +519,7 @@ class SelfStudyExamManager {
 
     async handleExamSubmit(e) {
         e.preventDefault();
-        
+
         const formData = {
             action: document.getElementById('exam-external-id').value ? 'update_exam' : 'create_exam',
             external_id: document.getElementById('exam-external-id').value,
@@ -496,10 +537,10 @@ class SelfStudyExamManager {
         }
 
         this.showLoading();
-        
+
         try {
             const response = await this.apiRequest('POST', formData);
-            
+
             if (response.success) {
                 this.showToast('Exam saved successfully!', 'success');
                 this.closeExamModal();
@@ -520,13 +561,13 @@ class SelfStudyExamManager {
         }
 
         this.showLoading();
-        
+
         try {
             const response = await this.apiRequest('POST', {
                 action: 'delete_exam',
                 external_id: externalId
             });
-            
+
             if (response.success) {
                 this.showToast('Exam deleted successfully!', 'success');
                 await this.loadInitialData();
@@ -564,8 +605,8 @@ class SelfStudyExamManager {
 
         // Set course selection and load lessons
         const courseSelect = document.getElementById('quiz-course');
-        const courseOption = Array.from(courseSelect.options).find(opt => 
-            opt.value === quiz.course_id
+        const courseOption = Array.from(courseSelect.options).find(opt =>
+        opt.value === quiz.course_id
         );
         if (courseOption) {
             courseSelect.value = quiz.course_id;
@@ -577,7 +618,7 @@ class SelfStudyExamManager {
 
     async handleQuizSubmit(e) {
         e.preventDefault();
-        
+
         const formData = {
             action: document.getElementById('quiz-external-id').value ? 'update_quiz' : 'create_quiz',
             external_id: document.getElementById('quiz-external-id').value,
@@ -595,10 +636,10 @@ class SelfStudyExamManager {
         }
 
         this.showLoading();
-        
+
         try {
             const response = await this.apiRequest('POST', formData);
-            
+
             if (response.success) {
                 this.showToast('Quiz saved successfully!', 'success');
                 this.closeQuizModal();
@@ -619,13 +660,13 @@ class SelfStudyExamManager {
         }
 
         this.showLoading();
-        
+
         try {
             const response = await this.apiRequest('POST', {
                 action: 'delete_quiz',
                 external_id: externalId
             });
-            
+
             if (response.success) {
                 this.showToast('Quiz deleted successfully!', 'success');
                 await this.loadInitialData();
@@ -639,11 +680,11 @@ class SelfStudyExamManager {
         }
     }
 
-    // Question Management Methods
+    // FIXED: Question Management Methods - Now properly filtered
     async manageExamQuestions(examId, examTitle) {
         this.currentExamId = examId;
         document.getElementById('exam-questions-title').textContent = `Manage Questions: ${examTitle}`;
-        
+
         this.showLoading();
         try {
             const questions = await this.fetchExamQuestions(examId);
@@ -660,7 +701,7 @@ class SelfStudyExamManager {
     async manageQuizQuestions(quizId, quizTitle) {
         this.currentQuizId = quizId;
         document.getElementById('quiz-questions-title').textContent = `Manage Questions: ${quizTitle}`;
-        
+
         this.showLoading();
         try {
             const questions = await this.fetchQuizQuestions(quizId);
@@ -677,83 +718,93 @@ class SelfStudyExamManager {
     updateExamQuestionsTable(examId) {
         const tbody = document.getElementById('exam-questions-tbody');
         const questions = this.examQuestions[examId] || [];
-        
+
         if (questions.length === 0) {
             tbody.innerHTML = `
-                <tr>
-                    <td colspan="6" class="empty-state">
-                        <div class="empty-icon">❓</div>
-                        <p>No questions found</p>
-                    </td>
-                </tr>
+            <tr>
+            <td colspan="6" class="empty-state">
+            <div class="empty-icon">❓</div>
+            <p>No questions found for this exam</p>
+            <button class="btn btn-primary" onclick="openCreateExamQuestionModal()">
+            <span class="btn-icon">➕</span> Add First Question
+            </button>
+            </td>
+            </tr>
             `;
             return;
         }
 
         tbody.innerHTML = questions.map((question, index) => `
-            <tr>
-                <td>${index + 1}</td>
-                <td>${this.escapeHtml(question.text)}</td>
-                <td>${question.score || 1}</td>
-                <td>${question.answers ? question.answers.length : 0}</td>
-                <td>${this.getCorrectAnswerText(question.answers)}</td>
-                <td class="table-actions">
-                    <button class="btn btn-edit" onclick="examManager.editExamQuestion('${question.external_id}')">
-                        ✏️ Edit
-                    </button>
-                    <button class="btn btn-info" onclick="examManager.manageExamQuestionAnswers('${question.external_id}', '${this.escapeHtml(question.text)}')">
-                        📝 Answers
-                    </button>
-                    <button class="btn btn-danger" onclick="examManager.deleteExamQuestion('${question.external_id}')">
-                        🗑️ Delete
-                    </button>
-                </td>
-            </tr>
+        <tr>
+        <td>${index + 1}</td>
+        <td>${this.escapeHtml(question.text)}</td>
+        <td><span class="status-badge status-scheduled">${question.score || 1}</span></td>
+        <td>${question.answers ? question.answers.length : 0}</td>
+        <td>${this.getCorrectAnswerText(question.answers)}</td>
+        <td class="table-actions">
+        <button class="btn btn-edit" onclick="examManager.editExamQuestion('${question.external_id}')">
+        <span class="btn-icon">✏️</span> Edit
+        </button>
+        <button class="btn btn-info" onclick="examManager.manageExamQuestionAnswers('${question.external_id}', '${this.escapeHtml(question.text)}')">
+        <span class="btn-icon">📝</span> Answers
+        </button>
+        <button class="btn btn-danger" onclick="examManager.deleteExamQuestion('${question.external_id}')">
+        <span class="btn-icon">🗑️</span> Delete
+        </button>
+        </td>
+        </tr>
         `).join('');
     }
 
     updateQuizQuestionsTable(quizId) {
         const tbody = document.getElementById('quiz-questions-tbody');
         const questions = this.quizQuestions[quizId] || [];
-        
+
         if (questions.length === 0) {
             tbody.innerHTML = `
-                <tr>
-                    <td colspan="6" class="empty-state">
-                        <div class="empty-icon">❓</div>
-                        <p>No questions found</p>
-                    </td>
-                </tr>
+            <tr>
+            <td colspan="6" class="empty-state">
+            <div class="empty-icon">❓</div>
+            <p>No questions found for this quiz</p>
+            <button class="btn btn-primary" onclick="openCreateQuizQuestionModal()">
+            <span class="btn-icon">➕</span> Add First Question
+            </button>
+            </td>
+            </tr>
             `;
             return;
         }
 
         tbody.innerHTML = questions.map((question, index) => `
-            <tr>
-                <td>${index + 1}</td>
-                <td>${this.escapeHtml(question.text)}</td>
-                <td>${question.score || 1}</td>
-                <td>${question.answers ? question.answers.length : 0}</td>
-                <td>${this.getCorrectAnswerText(question.answers)}</td>
-                <td class="table-actions">
-                    <button class="btn btn-edit" onclick="examManager.editQuizQuestion('${question.external_id}')">
-                        ✏️ Edit
-                    </button>
-                    <button class="btn btn-info" onclick="examManager.manageQuizQuestionAnswers('${question.external_id}', '${this.escapeHtml(question.text)}')">
-                        📝 Answers
-                    </button>
-                    <button class="btn btn-danger" onclick="examManager.deleteQuizQuestion('${question.external_id}')">
-                        🗑️ Delete
-                    </button>
-                </td>
-            </tr>
+        <tr>
+        <td>${index + 1}</td>
+        <td>${this.escapeHtml(question.text)}</td>
+        <td><span class="status-badge status-scheduled">${question.score || 1}</span></td>
+        <td>${question.answers ? question.answers.length : 0}</td>
+        <td>${this.getCorrectAnswerText(question.answers)}</td>
+        <td class="table-actions">
+        <button class="btn btn-edit" onclick="examManager.editQuizQuestion('${question.external_id}')">
+        <span class="btn-icon">✏️</span> Edit
+        </button>
+        <button class="btn btn-info" onclick="examManager.manageQuizQuestionAnswers('${question.external_id}', '${this.escapeHtml(question.text)}')">
+        <span class="btn-icon">📝</span> Answers
+        </button>
+        <button class="btn btn-danger" onclick="examManager.deleteQuizQuestion('${question.external_id}')">
+        <span class="btn-icon">🗑️</span> Delete
+        </button>
+        </td>
+        </tr>
         `).join('');
     }
 
     getCorrectAnswerText(answers) {
-        if (!answers || !Array.isArray(answers)) return 'None';
+        if (!answers || !Array.isArray(answers)) return '<span class="status-badge status-cancelled">None</span>';
         const correctAnswer = answers.find(answer => answer.is_correct);
-        return correctAnswer ? this.escapeHtml(correctAnswer.text).substring(0, 30) + '...' : 'None';
+        if (!correctAnswer) return '<span class="status-badge status-cancelled">No correct answer</span>';
+
+        const answerText = this.escapeHtml(correctAnswer.text);
+        const truncatedText = answerText.length > 30 ? answerText.substring(0, 30) + '...' : answerText;
+        return `<span class="status-badge status-passed" title="${answerText}">${truncatedText}</span>`;
     }
 
     openCreateExamQuestionModal() {
@@ -761,6 +812,7 @@ class SelfStudyExamManager {
         document.getElementById('exam-question-form').reset();
         document.getElementById('exam-question-external-id').value = '';
         document.getElementById('exam-question-exam-id').value = this.currentExamId;
+        document.getElementById('exam-question-score').value = 1;
         this.showModal('exam-question-modal');
     }
 
@@ -769,6 +821,7 @@ class SelfStudyExamManager {
         document.getElementById('quiz-question-form').reset();
         document.getElementById('quiz-question-external-id').value = '';
         document.getElementById('quiz-question-quiz-id').value = this.currentQuizId;
+        document.getElementById('quiz-question-score').value = 1;
         this.showModal('quiz-question-modal');
     }
 
@@ -781,7 +834,7 @@ class SelfStudyExamManager {
                 document.getElementById('exam-question-exam-id').value = question.exam;
                 document.getElementById('exam-question-text').value = question.text;
                 document.getElementById('exam-question-score').value = question.score || 1;
-                
+
                 this.showModal('exam-question-modal');
             } else {
                 throw new Error('Failed to fetch question details');
@@ -800,7 +853,7 @@ class SelfStudyExamManager {
                 document.getElementById('quiz-question-quiz-id').value = question.quiz;
                 document.getElementById('quiz-question-text').value = question.text;
                 document.getElementById('quiz-question-score').value = question.score || 1;
-                
+
                 this.showModal('quiz-question-modal');
             } else {
                 throw new Error('Failed to fetch question details');
@@ -814,7 +867,7 @@ class SelfStudyExamManager {
         this.currentQuestionId = questionId;
         this.currentQuestionType = 'exam';
         document.getElementById('exam-answers-title').textContent = `Manage Answers: ${questionText}`;
-        
+
         this.showLoading();
         try {
             const question = await this.fetchExamQuestionDetails(questionId);
@@ -838,7 +891,7 @@ class SelfStudyExamManager {
         this.currentQuestionId = questionId;
         this.currentQuestionType = 'quiz';
         document.getElementById('quiz-answers-title').textContent = `Manage Answers: ${questionText}`;
-        
+
         this.showLoading();
         try {
             const question = await this.fetchQuizQuestionDetails(questionId);
@@ -861,66 +914,72 @@ class SelfStudyExamManager {
     updateExamAnswersTable() {
         const tbody = document.getElementById('exam-answers-tbody');
         const answers = this.currentQuestionAnswers || [];
-        
+
         if (answers.length === 0) {
             tbody.innerHTML = `
-                <tr>
-                    <td colspan="4" class="empty-state">
-                        <div class="empty-icon">📝</div>
-                        <p>No answers found</p>
-                    </td>
-                </tr>
+            <tr>
+            <td colspan="4" class="empty-state">
+            <div class="empty-icon">📝</div>
+            <p>No answers found for this question</p>
+            <button class="btn btn-primary" onclick="openCreateExamAnswerModal()">
+            <span class="btn-icon">➕</span> Add First Answer
+            </button>
+            </td>
+            </tr>
             `;
             return;
         }
 
         tbody.innerHTML = answers.map((answer, index) => `
-            <tr>
-                <td>${index + 1}</td>
-                <td>${this.escapeHtml(answer.text)}</td>
-                <td>${answer.is_correct ? '✅ Correct' : '❌ Incorrect'}</td>
-                <td class="table-actions">
-                    <button class="btn btn-edit" onclick="examManager.editExamAnswer('${answer.external_id}')">
-                        ✏️ Edit
-                    </button>
-                    <button class="btn btn-danger" onclick="examManager.deleteExamAnswer('${answer.external_id}')">
-                        🗑️ Delete
-                    </button>
-                </td>
-            </tr>
+        <tr>
+        <td>${index + 1}</td>
+        <td>${this.escapeHtml(answer.text)}</td>
+        <td>${answer.is_correct ? '<span class="status-badge status-passed">✅ Correct</span>' : '<span class="status-badge status-cancelled">❌ Incorrect</span>'}</td>
+        <td class="table-actions">
+        <button class="btn btn-edit" onclick="examManager.editExamAnswer('${answer.external_id}')">
+        <span class="btn-icon">✏️</span> Edit
+        </button>
+        <button class="btn btn-danger" onclick="examManager.deleteExamAnswer('${answer.external_id}')">
+        <span class="btn-icon">🗑️</span> Delete
+        </button>
+        </td>
+        </tr>
         `).join('');
     }
 
     updateQuizAnswersTable() {
         const tbody = document.getElementById('quiz-answers-tbody');
         const answers = this.currentQuestionAnswers || [];
-        
+
         if (answers.length === 0) {
             tbody.innerHTML = `
-                <tr>
-                    <td colspan="4" class="empty-state">
-                        <div class="empty-icon">📝</div>
-                        <p>No answers found</p>
-                    </td>
-                </tr>
+            <tr>
+            <td colspan="4" class="empty-state">
+            <div class="empty-icon">📝</div>
+            <p>No answers found for this question</p>
+            <button class="btn btn-primary" onclick="openCreateQuizAnswerModal()">
+            <span class="btn-icon">➕</span> Add First Answer
+            </button>
+            </td>
+            </tr>
             `;
             return;
         }
 
         tbody.innerHTML = answers.map((answer, index) => `
-            <tr>
-                <td>${index + 1}</td>
-                <td>${this.escapeHtml(answer.text)}</td>
-                <td>${answer.is_correct ? '✅ Correct' : '❌ Incorrect'}</td>
-                <td class="table-actions">
-                    <button class="btn btn-edit" onclick="examManager.editQuizAnswer('${answer.external_id}')">
-                        ✏️ Edit
-                    </button>
-                    <button class="btn btn-danger" onclick="examManager.deleteQuizAnswer('${answer.external_id}')">
-                        🗑️ Delete
-                    </button>
-                </td>
-            </tr>
+        <tr>
+        <td>${index + 1}</td>
+        <td>${this.escapeHtml(answer.text)}</td>
+        <td>${answer.is_correct ? '<span class="status-badge status-passed">✅ Correct</span>' : '<span class="status-badge status-cancelled">❌ Incorrect</span>'}</td>
+        <td class="table-actions">
+        <button class="btn btn-edit" onclick="examManager.editQuizAnswer('${answer.external_id}')">
+        <span class="btn-icon">✏️</span> Edit
+        </button>
+        <button class="btn btn-danger" onclick="examManager.deleteQuizAnswer('${answer.external_id}')">
+        <span class="btn-icon">🗑️</span> Delete
+        </button>
+        </td>
+        </tr>
         `).join('');
     }
 
@@ -951,7 +1010,7 @@ class SelfStudyExamManager {
         document.getElementById('exam-answer-question-id').value = this.currentQuestionId;
         document.getElementById('exam-answer-text').value = answer.text;
         document.getElementById('exam-answer-is-correct').checked = answer.is_correct;
-        
+
         this.showModal('exam-answer-modal');
     }
 
@@ -964,11 +1023,11 @@ class SelfStudyExamManager {
         document.getElementById('quiz-answer-question-id').value = this.currentQuestionId;
         document.getElementById('quiz-answer-text').value = answer.text;
         document.getElementById('quiz-answer-is-correct').checked = answer.is_correct;
-        
+
         this.showModal('quiz-answer-modal');
     }
 
-    // New Methods for Appointments and Results
+    // ENHANCED: Edit Exam Appointment with ALL fields
     async editExamAppointment(externalId) {
         const appointment = this.appointments.find(a => a.external_id === externalId);
         if (!appointment) return;
@@ -979,7 +1038,26 @@ class SelfStudyExamManager {
         document.getElementById('exam-appointment-can-start').checked = appointment.can_start;
         document.getElementById('exam-appointment-is-entered').checked = appointment.is_entered;
         document.getElementById('exam-appointment-proctor').value = appointment.proctor_id || '';
-        
+
+        // Format appointment date for datetime-local input
+        const appointmentDate = new Date(appointment.appointment_date);
+        const formattedDate = appointmentDate.toISOString().slice(0, 16);
+        document.getElementById('exam-appointment-date').value = formattedDate;
+
+        // Format entered datetime if exists
+        if (appointment.entered_datetime) {
+            const enteredDate = new Date(appointment.entered_datetime);
+            const formattedEnteredDate = enteredDate.toISOString().slice(0, 16);
+            document.getElementById('exam-appointment-entered-datetime').value = formattedEnteredDate;
+        } else {
+            document.getElementById('exam-appointment-entered-datetime').value = '';
+        }
+
+        // Set other fields
+        document.getElementById('exam-appointment-room1').value = appointment.room_url_1 || '';
+        document.getElementById('exam-appointment-room2').value = appointment.room_url_2 || '';
+        document.getElementById('exam-appointment-time').value = appointment.exam_time || '';
+
         this.showModal('exam-appointment-modal');
     }
 
@@ -992,7 +1070,7 @@ class SelfStudyExamManager {
         document.getElementById('exam-result-score').value = result.score;
         document.getElementById('exam-result-status').value = result.result_status;
         document.getElementById('exam-result-message').value = result.result_message || '';
-        
+
         this.showModal('exam-result-modal');
     }
 
@@ -1005,27 +1083,39 @@ class SelfStudyExamManager {
         document.getElementById('quiz-result-score').value = result.score;
         document.getElementById('quiz-result-status').value = result.result_status;
         document.getElementById('quiz-result-message').value = result.result_message || '';
-        
+
         this.showModal('quiz-result-modal');
     }
 
+    // ENHANCED: Handle Exam Appointment Submit with ALL fields
     async handleExamAppointmentSubmit(e) {
         e.preventDefault();
-        
+
         const formData = {
             action: 'update_exam_appointment',
             external_id: document.getElementById('exam-appointment-external-id').value,
             appointment_status: document.getElementById('exam-appointment-status').value,
+            appointment_date: document.getElementById('exam-appointment-date').value,
             can_start: document.getElementById('exam-appointment-can-start').checked,
             is_entered: document.getElementById('exam-appointment-is-entered').checked,
-            proctor_id: document.getElementById('exam-appointment-proctor').value
+            entered_datetime: document.getElementById('exam-appointment-entered-datetime').value || null,
+            proctor_id: document.getElementById('exam-appointment-proctor').value,
+            room_url_1: document.getElementById('exam-appointment-room1').value,
+            room_url_2: document.getElementById('exam-appointment-room2').value,
+            exam_time: document.getElementById('exam-appointment-time').value ? parseInt(document.getElementById('exam-appointment-time').value) : null
         };
 
+        // Validate required fields
+        if (!formData.appointment_date) {
+            this.showToast('Appointment date is required', 'error');
+            return;
+        }
+
         this.showLoading();
-        
+
         try {
             const response = await this.apiRequest('POST', formData);
-            
+
             if (response.success) {
                 this.showToast('Exam appointment updated successfully!', 'success');
                 this.closeExamAppointmentModal();
@@ -1042,7 +1132,7 @@ class SelfStudyExamManager {
 
     async handleExamResultSubmit(e) {
         e.preventDefault();
-        
+
         const formData = {
             action: 'update_user_exam_result',
             external_id: document.getElementById('exam-result-external-id').value,
@@ -1051,11 +1141,17 @@ class SelfStudyExamManager {
             result_message: document.getElementById('exam-result-message').value
         };
 
+        // Validate required fields
+        if (isNaN(formData.score) || formData.score < 0) {
+            this.showToast('Please enter a valid score', 'error');
+            return;
+        }
+
         this.showLoading();
-        
+
         try {
             const response = await this.apiRequest('POST', formData);
-            
+
             if (response.success) {
                 this.showToast('Exam result updated successfully!', 'success');
                 this.closeExamResultModal();
@@ -1072,7 +1168,7 @@ class SelfStudyExamManager {
 
     async handleQuizResultSubmit(e) {
         e.preventDefault();
-        
+
         const formData = {
             action: 'update_user_quiz_result',
             external_id: document.getElementById('quiz-result-external-id').value,
@@ -1081,11 +1177,17 @@ class SelfStudyExamManager {
             result_message: document.getElementById('quiz-result-message').value
         };
 
+        // Validate required fields
+        if (isNaN(formData.score) || formData.score < 0) {
+            this.showToast('Please enter a valid score', 'error');
+            return;
+        }
+
         this.showLoading();
-        
+
         try {
             const response = await this.apiRequest('POST', formData);
-            
+
             if (response.success) {
                 this.showToast('Quiz result updated successfully!', 'success');
                 this.closeQuizResultModal();
@@ -1102,7 +1204,7 @@ class SelfStudyExamManager {
 
     async handleExamQuestionSubmit(e) {
         e.preventDefault();
-        
+
         const formData = {
             action: document.getElementById('exam-question-external-id').value ? 'update_exam_question' : 'create_exam_question',
             external_id: document.getElementById('exam-question-external-id').value,
@@ -1117,10 +1219,10 @@ class SelfStudyExamManager {
         }
 
         this.showLoading();
-        
+
         try {
             const response = await this.apiRequest('POST', formData);
-            
+
             if (response.success) {
                 this.showToast('Exam question saved successfully!', 'success');
                 this.closeExamQuestionModal();
@@ -1138,7 +1240,7 @@ class SelfStudyExamManager {
 
     async handleQuizQuestionSubmit(e) {
         e.preventDefault();
-        
+
         const formData = {
             action: document.getElementById('quiz-question-external-id').value ? 'update_quiz_question' : 'create_quiz_question',
             external_id: document.getElementById('quiz-question-external-id').value,
@@ -1153,10 +1255,10 @@ class SelfStudyExamManager {
         }
 
         this.showLoading();
-        
+
         try {
             const response = await this.apiRequest('POST', formData);
-            
+
             if (response.success) {
                 this.showToast('Quiz question saved successfully!', 'success');
                 this.closeQuizQuestionModal();
@@ -1174,7 +1276,7 @@ class SelfStudyExamManager {
 
     async handleExamAnswerSubmit(e) {
         e.preventDefault();
-        
+
         const formData = {
             action: document.getElementById('exam-answer-external-id').value ? 'update_exam_answer' : 'create_exam_answer',
             external_id: document.getElementById('exam-answer-external-id').value,
@@ -1189,10 +1291,10 @@ class SelfStudyExamManager {
         }
 
         this.showLoading();
-        
+
         try {
             const response = await this.apiRequest('POST', formData);
-            
+
             if (response.success) {
                 this.showToast('Exam answer saved successfully!', 'success');
                 this.closeExamAnswerModal();
@@ -1210,7 +1312,7 @@ class SelfStudyExamManager {
 
     async handleQuizAnswerSubmit(e) {
         e.preventDefault();
-        
+
         const formData = {
             action: document.getElementById('quiz-answer-external-id').value ? 'update_quiz_answer' : 'create_quiz_answer',
             external_id: document.getElementById('quiz-answer-external-id').value,
@@ -1225,10 +1327,10 @@ class SelfStudyExamManager {
         }
 
         this.showLoading();
-        
+
         try {
             const response = await this.apiRequest('POST', formData);
-            
+
             if (response.success) {
                 this.showToast('Quiz answer saved successfully!', 'success');
                 this.closeQuizAnswerModal();
@@ -1250,13 +1352,13 @@ class SelfStudyExamManager {
         }
 
         this.showLoading();
-        
+
         try {
             const response = await this.apiRequest('POST', {
                 action: 'delete_exam_question',
                 external_id: questionId
             });
-            
+
             if (response.success) {
                 this.showToast('Exam question deleted successfully!', 'success');
                 // Refresh the questions list
@@ -1277,13 +1379,13 @@ class SelfStudyExamManager {
         }
 
         this.showLoading();
-        
+
         try {
             const response = await this.apiRequest('POST', {
                 action: 'delete_quiz_question',
                 external_id: questionId
             });
-            
+
             if (response.success) {
                 this.showToast('Quiz question deleted successfully!', 'success');
                 // Refresh the questions list
@@ -1304,13 +1406,13 @@ class SelfStudyExamManager {
         }
 
         this.showLoading();
-        
+
         try {
             const response = await this.apiRequest('POST', {
                 action: 'delete_exam_answer',
                 external_id: answerId
             });
-            
+
             if (response.success) {
                 this.showToast('Exam answer deleted successfully!', 'success');
                 // Refresh the answers list
@@ -1331,13 +1433,13 @@ class SelfStudyExamManager {
         }
 
         this.showLoading();
-        
+
         try {
             const response = await this.apiRequest('POST', {
                 action: 'delete_quiz_answer',
                 external_id: answerId
             });
-            
+
             if (response.success) {
                 this.showToast('Quiz answer deleted successfully!', 'success');
                 // Refresh the answers list
@@ -1357,10 +1459,10 @@ class SelfStudyExamManager {
         const courseSelect = document.getElementById(`${type}-course`);
         const courseIdInput = document.getElementById(`${type}-course-id`);
         const selectedOption = courseSelect.options[courseSelect.selectedIndex];
-        
+
         if (selectedOption && selectedOption.value) {
             courseIdInput.value = selectedOption.value;
-            
+
             if (type === 'quiz') {
                 await this.loadLessonsForCourse(selectedOption.value);
             }
@@ -1376,13 +1478,13 @@ class SelfStudyExamManager {
     async loadLessonsForCourse(courseId, selectedLessonId = '') {
         const lessonSelect = document.getElementById('quiz-lesson');
         const lessonIdInput = document.getElementById('quiz-lesson-id');
-        
+
         lessonSelect.innerHTML = '<option value="">Loading lessons...</option>';
         lessonSelect.disabled = true;
-        
+
         try {
             const lessons = await this.fetchLessons(courseId);
-            
+
             lessonSelect.innerHTML = '<option value="">Select a lesson</option>';
             lessons.forEach(lesson => {
                 const option = document.createElement('option');
@@ -1395,9 +1497,9 @@ class SelfStudyExamManager {
                 }
                 lessonSelect.appendChild(option);
             });
-            
+
             lessonSelect.disabled = false;
-            
+
             if (lessons.length === 0) {
                 this.showToast('No lessons found for this course', 'warning');
             }
@@ -1411,7 +1513,7 @@ class SelfStudyExamManager {
         const lessonSelect = document.getElementById('quiz-lesson');
         const lessonIdInput = document.getElementById('quiz-lesson-id');
         const selectedOption = lessonSelect.options[lessonSelect.selectedIndex];
-        
+
         if (selectedOption && selectedOption.value) {
             lessonIdInput.value = selectedOption.value;
         } else {
@@ -1421,8 +1523,15 @@ class SelfStudyExamManager {
 
     // UI Utility Methods
     showModal(modalId) {
-        document.getElementById(modalId).style.display = 'block';
+        const modal = document.getElementById(modalId);
+        modal.style.display = 'block';
         document.body.style.overflow = 'hidden';
+
+        // Add animation class
+        setTimeout(() => {
+            modal.querySelector('.modal-content').style.transform = 'translateY(0) scale(1)';
+            modal.querySelector('.modal-content').style.opacity = '1';
+        }, 10);
     }
 
     closeModals() {
@@ -1442,76 +1551,147 @@ class SelfStudyExamManager {
     }
 
     closeExamModal() {
-        document.getElementById('exam-modal').style.display = 'none';
-        document.body.style.overflow = 'auto';
+        const modal = document.getElementById('exam-modal');
+        modal.querySelector('.modal-content').style.transform = 'translateY(-60px) scale(0.95)';
+        modal.querySelector('.modal-content').style.opacity = '0';
+        setTimeout(() => {
+            modal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }, 300);
     }
 
     closeQuizModal() {
-        document.getElementById('quiz-modal').style.display = 'none';
-        document.body.style.overflow = 'auto';
+        const modal = document.getElementById('quiz-modal');
+        modal.querySelector('.modal-content').style.transform = 'translateY(-60px) scale(0.95)';
+        modal.querySelector('.modal-content').style.opacity = '0';
+        setTimeout(() => {
+            modal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }, 300);
     }
 
     closeExamQuestionsModal() {
-        document.getElementById('exam-questions-modal').style.display = 'none';
-        document.body.style.overflow = 'auto';
+        const modal = document.getElementById('exam-questions-modal');
+        modal.querySelector('.modal-content').style.transform = 'translateY(-60px) scale(0.95)';
+        modal.querySelector('.modal-content').style.opacity = '0';
+        setTimeout(() => {
+            modal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }, 300);
     }
 
     closeQuizQuestionsModal() {
-        document.getElementById('quiz-questions-modal').style.display = 'none';
-        document.body.style.overflow = 'auto';
+        const modal = document.getElementById('quiz-questions-modal');
+        modal.querySelector('.modal-content').style.transform = 'translateY(-60px) scale(0.95)';
+        modal.querySelector('.modal-content').style.opacity = '0';
+        setTimeout(() => {
+            modal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }, 300);
     }
 
     closeExamQuestionModal() {
-        document.getElementById('exam-question-modal').style.display = 'none';
-        document.body.style.overflow = 'auto';
+        const modal = document.getElementById('exam-question-modal');
+        modal.querySelector('.modal-content').style.transform = 'translateY(-60px) scale(0.95)';
+        modal.querySelector('.modal-content').style.opacity = '0';
+        setTimeout(() => {
+            modal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }, 300);
     }
 
     closeQuizQuestionModal() {
-        document.getElementById('quiz-question-modal').style.display = 'none';
-        document.body.style.overflow = 'auto';
+        const modal = document.getElementById('quiz-question-modal');
+        modal.querySelector('.modal-content').style.transform = 'translateY(-60px) scale(0.95)';
+        modal.querySelector('.modal-content').style.opacity = '0';
+        setTimeout(() => {
+            modal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }, 300);
     }
 
     closeExamAnswersModal() {
-        document.getElementById('exam-answers-modal').style.display = 'none';
-        document.body.style.overflow = 'auto';
+        const modal = document.getElementById('exam-answers-modal');
+        modal.querySelector('.modal-content').style.transform = 'translateY(-60px) scale(0.95)';
+        modal.querySelector('.modal-content').style.opacity = '0';
+        setTimeout(() => {
+            modal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }, 300);
     }
 
     closeQuizAnswersModal() {
-        document.getElementById('quiz-answers-modal').style.display = 'none';
-        document.body.style.overflow = 'auto';
+        const modal = document.getElementById('quiz-answers-modal');
+        modal.querySelector('.modal-content').style.transform = 'translateY(-60px) scale(0.95)';
+        modal.querySelector('.modal-content').style.opacity = '0';
+        setTimeout(() => {
+            modal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }, 300);
     }
 
     closeExamAnswerModal() {
-        document.getElementById('exam-answer-modal').style.display = 'none';
-        document.body.style.overflow = 'auto';
+        const modal = document.getElementById('exam-answer-modal');
+        modal.querySelector('.modal-content').style.transform = 'translateY(-60px) scale(0.95)';
+        modal.querySelector('.modal-content').style.opacity = '0';
+        setTimeout(() => {
+            modal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }, 300);
     }
 
     closeQuizAnswerModal() {
-        document.getElementById('quiz-answer-modal').style.display = 'none';
-        document.body.style.overflow = 'auto';
+        const modal = document.getElementById('quiz-answer-modal');
+        modal.querySelector('.modal-content').style.transform = 'translateY(-60px) scale(0.95)';
+        modal.querySelector('.modal-content').style.opacity = '0';
+        setTimeout(() => {
+            modal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }, 300);
     }
 
     closeExamAppointmentModal() {
-        document.getElementById('exam-appointment-modal').style.display = 'none';
-        document.body.style.overflow = 'auto';
+        const modal = document.getElementById('exam-appointment-modal');
+        modal.querySelector('.modal-content').style.transform = 'translateY(-60px) scale(0.95)';
+        modal.querySelector('.modal-content').style.opacity = '0';
+        setTimeout(() => {
+            modal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }, 300);
     }
 
     closeExamResultModal() {
-        document.getElementById('exam-result-modal').style.display = 'none';
-        document.body.style.overflow = 'auto';
+        const modal = document.getElementById('exam-result-modal');
+        modal.querySelector('.modal-content').style.transform = 'translateY(-60px) scale(0.95)';
+        modal.querySelector('.modal-content').style.opacity = '0';
+        setTimeout(() => {
+            modal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }, 300);
     }
 
     closeQuizResultModal() {
-        document.getElementById('quiz-result-modal').style.display = 'none';
-        document.body.style.overflow = 'auto';
+        const modal = document.getElementById('quiz-result-modal');
+        modal.querySelector('.modal-content').style.transform = 'translateY(-60px) scale(0.95)';
+        modal.querySelector('.modal-content').style.opacity = '0';
+        setTimeout(() => {
+            modal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }, 300);
     }
 
     showLoading() {
-        document.getElementById('loading-overlay').style.display = 'flex';
+        const overlay = document.getElementById('loading-overlay');
+        overlay.style.display = 'flex';
+        overlay.style.opacity = '1';
     }
 
     hideLoading() {
-        document.getElementById('loading-overlay').style.display = 'none';
+        const overlay = document.getElementById('loading-overlay');
+        overlay.style.opacity = '0';
+        setTimeout(() => {
+            overlay.style.display = 'none';
+        }, 300);
     }
 
     showToast(message, type = 'success') {
@@ -1519,17 +1699,21 @@ class SelfStudyExamManager {
         const toast = document.createElement('div');
         toast.className = `toast ${type}`;
         toast.innerHTML = `
-            <span class="toast-icon">${this.getToastIcon(type)}</span>
-            <span>${message}</span>
+        <span class="toast-icon">${this.getToastIcon(type)}</span>
+        <span>${message}</span>
         `;
-        
+
         container.appendChild(toast);
-        
+
         // Auto remove after 5 seconds
         setTimeout(() => {
-            if (toast.parentNode) {
-                toast.remove();
-            }
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(100%)';
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    toast.remove();
+                }
+            }, 300);
         }, 5000);
     }
 
@@ -1551,35 +1735,69 @@ class SelfStudyExamManager {
 
     formatDate(dateString) {
         if (!dateString) return 'N/A';
-        
+
         try {
             const date = new Date(dateString);
-            return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+            return date.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            });
         } catch {
             return dateString;
         }
     }
 
+    formatDateTime(dateString) {
+        if (!dateString) return 'N/A';
+
+        try {
+            const date = new Date(dateString);
+            return date.toLocaleString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        } catch {
+            return dateString;
+        }
+    }
 
     updateStatusBadges() {
-    // Apply status badge classes to all status elements
-    document.querySelectorAll('.status-badge').forEach(badge => {
-        const status = badge.textContent.toLowerCase();
-        if (status.includes('passed')) {
-            badge.className = 'status-badge status-passed';
-        } else if (status.includes('failed')) {
-            badge.className = 'status-badge status-failed';
-        } else if (status.includes('scheduled')) {
-            badge.className = 'status-badge status-scheduled';
-        } else if (status.includes('in progress')) {
-            badge.className = 'status-badge status-in-progress';
-        } else if (status.includes('completed')) {
-            badge.className = 'status-badge status-completed';
-        } else if (status.includes('cancelled')) {
-            badge.className = 'status-badge status-cancelled';
-        }
-    });
-}
+        // Apply status badge classes to all status elements
+        document.querySelectorAll('.status-badge').forEach(badge => {
+            const status = badge.textContent.toLowerCase().replace(/ /g, '-');
+            const statusClasses = [
+                'status-passed', 'status-failed', 'status-scheduled',
+                'status-in-progress', 'status-completed', 'status-cancelled',
+                'status-expired', 'status-taken-but-failed'
+            ];
+
+            // Remove existing status classes
+            badge.classList.remove(...statusClasses);
+
+            // Add appropriate class
+            if (status.includes('passed')) {
+                badge.classList.add('status-passed');
+            } else if (status.includes('failed') || status.includes('taken-but-failed')) {
+                badge.classList.add('status-failed');
+            } else if (status.includes('scheduled')) {
+                badge.classList.add('status-scheduled');
+            } else if (status.includes('in-progress')) {
+                badge.classList.add('status-in-progress');
+            } else if (status.includes('completed')) {
+                badge.classList.add('status-completed');
+            } else if (status.includes('cancelled')) {
+                badge.classList.add('status-cancelled');
+            } else if (status.includes('expired')) {
+                badge.classList.add('status-expired');
+            } else {
+                badge.classList.add('status-cancelled');
+            }
+        });
+    }
 }
 
 // Global functions for HTML onclick handlers
@@ -1588,24 +1806,24 @@ function switchTab(tabName) {
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.classList.remove('active');
     });
-    
+
     // Update tab content
     document.querySelectorAll('.tab-content').forEach(content => {
         content.classList.remove('active');
     });
-    
+
     // Activate the clicked tab button
     const activeTabBtn = document.querySelector(`.tab-btn[data-tab="${tabName}"]`);
     if (activeTabBtn) {
         activeTabBtn.classList.add('active');
     }
-    
+
     // Activate the corresponding tab content
     const tabContent = document.getElementById(`${tabName}-tab`);
     if (tabContent) {
         tabContent.classList.add('active');
     }
-    
+
     examManager.currentTab = tabName;
     examManager.loadTabData(tabName);
 }

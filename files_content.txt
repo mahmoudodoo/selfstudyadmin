@@ -1,0 +1,4803 @@
+FILES AND THEIR CONTENT
+================================================================================
+
+FILE 1: main/views/selfstudyexam.py
+--------------------------------------------------------------------------------
+import os
+import logging
+import random
+import requests
+import json
+import uuid
+from django.shortcuts import render
+from django.views import View
+from django.contrib.auth.decorators import login_required
+from django.utils.decorators import method_decorator
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
+
+logger = logging.getLogger(__name__)
+
+@method_decorator(login_required, name='dispatch')
+class SelfStudyExamView(View):
+    def get(self, request):
+        """Render the main exam management interface"""
+        try:
+            # Get dynamic domains for the template
+            domains = self.get_dynamic_domains()
+            courses = self.fetch_courses()
+            profiles = self.fetch_user_profiles()
+            
+            context = {
+                'domains': domains,
+                'courses': courses,
+                'profiles': profiles,
+            }
+            return render(request, 'selfstudyexam.html', context)
+        except Exception as e:
+            logger.error(f"Error loading exam interface: {str(e)}")
+            return render(request, 'selfstudyexam.html', {'error': str(e)})
+
+    def get_dynamic_domains(self):
+        """Fetch dynamic domains from SelfStudy Domains registry"""
+        try:
+            # SelfStudy Domains registry instances
+            SFS_DOMAINS = [
+                'https://sfsdomains1.pythonanywhere.com',
+                'https://sfsdomains2.pythonanywhere.com'
+            ]
+            
+            # App ID for SelfStudy Exam service
+            SELFSTUDY_EXAM_APP_ID = 20
+            AUTH_TOKEN = os.getenv('AUTH_TOKEN')
+            
+            # Try each registry instance
+            for domain in SFS_DOMAINS:
+                try:
+                    url = f"{domain}/apps/{SELFSTUDY_EXAM_APP_ID}/"
+                    headers = {'Authorization': f'Token {AUTH_TOKEN}'}
+                    
+                    response = requests.get(url, headers=headers, timeout=10)
+                    if response.status_code == 200:
+                        app_data = response.json()
+                        replica_urls = [replica['replica_url'].rstrip('/') for replica in app_data.get('replicas', [])]
+                        logger.info(f"Successfully fetched {len(replica_urls)} domains from {domain}")
+                        return replica_urls
+                except requests.RequestException as e:
+                    logger.warning(f"Registry {domain} failed: {str(e)}")
+                    continue
+            
+            logger.error("All registry instances failed")
+            return []
+            
+        except Exception as e:
+            logger.error(f"Error fetching dynamic domains: {str(e)}")
+            return []
+
+    def fetch_courses(self):
+        """Fetch courses from selfstudycourse app"""
+        try:
+            AUTH_TOKEN = os.getenv('AUTH_TOKEN')
+            domains = self.get_course_domains()
+            
+            if not domains:
+                logger.warning("No course domains available")
+                return []
+            
+            # Select first working domain for performance
+            selected_domain = self.get_working_domain(domains)
+            if not selected_domain:
+                return []
+                
+            url = f"{selected_domain}/courses/"
+            headers = {'Authorization': f'Token {AUTH_TOKEN}'}
+            
+            response = requests.get(url, headers=headers, timeout=10)
+            if response.status_code == 200:
+                courses = response.json()
+                logger.info(f"Successfully fetched {len(courses)} courses")
+                return courses
+            else:
+                logger.error(f"Failed to fetch courses: {response.status_code}")
+                return []
+                
+        except Exception as e:
+            logger.error(f"Error fetching courses: {str(e)}")
+            return []
+
+    def fetch_user_profiles(self):
+        """Fetch user profiles from selfstudyuserprofile app"""
+        try:
+            AUTH_TOKEN = os.getenv('AUTH_TOKEN')
+            domains = self.get_userprofile_domains()
+            
+            if not domains:
+                logger.warning("No userprofile domains available")
+                return []
+            
+            # Select first working domain for performance
+            selected_domain = self.get_working_domain(domains)
+            if not selected_domain:
+                return []
+                
+            url = f"{selected_domain}/profiles/"
+            headers = {'Authorization': f'Token {AUTH_TOKEN}'}
+            
+            response = requests.get(url, headers=headers, timeout=10)
+            if response.status_code == 200:
+                profiles = response.json()
+                logger.info(f"Successfully fetched {len(profiles)} profiles")
+                return profiles
+            else:
+                logger.error(f"Failed to fetch profiles: {response.status_code}")
+                return []
+                
+        except Exception as e:
+            logger.error(f"Error fetching profiles: {str(e)}")
+            return []
+
+    def get_course_domains(self):
+        """Get domains for selfstudycourse app (ID: 19)"""
+        return self._fetch_app_domains(19)
+
+    def get_userprofile_domains(self):
+        """Get domains for selfstudyuserprofile app (ID: 13)"""
+        return self._fetch_app_domains(13)
+
+    def _fetch_app_domains(self, app_id):
+        """Generic method to fetch domains for any app"""
+        try:
+            SFS_DOMAINS = [
+                'https://sfsdomains1.pythonanywhere.com',
+                'https://sfsdomains2.pythonanywhere.com'
+            ]
+            AUTH_TOKEN = os.getenv('AUTH_TOKEN')
+            
+            for domain in SFS_DOMAINS:
+                try:
+                    url = f"{domain}/apps/{app_id}/"
+                    headers = {'Authorization': f'Token {AUTH_TOKEN}'}
+                    
+                    response = requests.get(url, headers=headers, timeout=10)
+                    if response.status_code == 200:
+                        app_data = response.json()
+                        replica_urls = [replica['replica_url'].rstrip('/') for replica in app_data.get('replicas', [])]
+                        return replica_urls
+                except requests.RequestException:
+                    continue
+            
+            return []
+            
+        except Exception as e:
+            logger.error(f"Error fetching domains for app {app_id}: {str(e)}")
+            return []
+
+    def get_working_domain(self, domains):
+        """Get first working domain from list for better performance"""
+        for domain in domains:
+            try:
+                # Quick health check
+                response = requests.get(f"{domain}/health/", timeout=3)
+                if response.status_code == 200:
+                    return domain
+            except:
+                continue
+        return domains[0] if domains else None
+
+@method_decorator(csrf_exempt, name='dispatch')
+@method_decorator(login_required, name='dispatch')
+class SelfStudyExamAPIView(View):
+    """API endpoints for exam CRUD operations - COMPLETELY FIXED SYNC VERSION"""
+    
+    def get(self, request, *args, **kwargs):
+        """Fetch exams from dynamic domains"""
+        try:
+            action = request.GET.get('action')
+            
+            if action == 'fetch_exams':
+                return self.fetch_exams()
+            elif action == 'fetch_quizzes':
+                return self.fetch_quizzes()
+            elif action == 'fetch_lessons':
+                course_id = request.GET.get('course_id')
+                return self.fetch_lessons(course_id)
+            elif action == 'fetch_exam_questions':
+                exam_id = request.GET.get('exam_id')
+                return self.fetch_exam_questions(exam_id)
+            elif action == 'fetch_quiz_questions':
+                quiz_id = request.GET.get('quiz_id')
+                return self.fetch_quiz_questions(quiz_id)
+            elif action == 'fetch_exam_question_details':
+                question_id = request.GET.get('question_id')
+                return self.fetch_exam_question_details(question_id)
+            elif action == 'fetch_quiz_question_details':
+                question_id = request.GET.get('question_id')
+                return self.fetch_quiz_question_details(question_id)
+            elif action == 'fetch_exam_appointments':
+                return self.fetch_exam_appointments()
+            elif action == 'fetch_user_exam_results':
+                return self.fetch_user_exam_results()
+            elif action == 'fetch_user_quiz_results':
+                return self.fetch_user_quiz_results()
+            else:
+                return JsonResponse({'error': 'Invalid action'}, status=400)
+                
+        except Exception as e:
+            logger.error(f"Error in GET API: {str(e)}")
+            return JsonResponse({'error': str(e)}, status=500)
+
+    def post(self, request, *args, **kwargs):
+        """Create or update exam/quiz data - FIXED SYNC"""
+        try:
+            data = json.loads(request.body)
+            action = data.get('action')
+            
+            # CRUD operations for exams and quizzes
+            if action == 'create_exam':
+                return self.create_exam(data)
+            elif action == 'update_exam':
+                return self.update_exam(data)
+            elif action == 'delete_exam':
+                return self.delete_exam(data)
+            elif action == 'create_quiz':
+                return self.create_quiz(data)
+            elif action == 'update_quiz':
+                return self.update_quiz(data)
+            elif action == 'delete_quiz':
+                return self.delete_quiz(data)
+            
+            # Question operations
+            elif action == 'create_exam_question':
+                return self.create_exam_question_direct(data)
+            elif action == 'update_exam_question':
+                return self.update_exam_question_direct(data)
+            elif action == 'delete_exam_question':
+                return self.delete_exam_question_direct(data)
+            elif action == 'create_quiz_question':
+                return self.create_quiz_question_direct(data)
+            elif action == 'update_quiz_question':
+                return self.update_quiz_question_direct(data)
+            elif action == 'delete_quiz_question':
+                return self.delete_quiz_question_direct(data)
+            
+            # Answer operations
+            elif action == 'create_exam_answer':
+                return self.create_exam_answer_fixed(data)
+            elif action == 'update_exam_answer':
+                return self.update_exam_answer_fixed(data)
+            elif action == 'delete_exam_answer':
+                return self.delete_exam_answer_fixed(data)
+            elif action == 'create_quiz_answer':
+                return self.create_quiz_answer_fixed(data)
+            elif action == 'update_quiz_answer':
+                return self.update_quiz_answer_fixed(data)
+            elif action == 'delete_quiz_answer':
+                return self.delete_quiz_answer_fixed(data)
+            
+            # FIXED: Sync update operations - USE REGULAR ENDPOINTS WITH SYNC
+            elif action == 'update_exam_appointment':
+                return self.update_exam_appointment_complete(data)
+            elif action == 'update_user_exam_result':
+                return self.update_user_exam_result_complete(data)
+            elif action == 'update_user_quiz_result':
+                return self.update_user_quiz_result_complete(data)
+            else:
+                return JsonResponse({'error': 'Invalid action'}, status=400)
+                
+        except Exception as e:
+            logger.error(f"Error in POST API: {str(e)}")
+            return JsonResponse({'error': str(e)}, status=500)
+
+    # OPTIMIZED METHODS - SINGLE DOMAIN REQUESTS
+    def get_single_domain(self):
+        """Get a single working domain for better performance"""
+        domains = SelfStudyExamView().get_dynamic_domains()
+        if not domains:
+            return None
+        return SelfStudyExamView().get_working_domain(domains)
+
+    def fetch_exams(self):
+        """Fetch exams from single domain for performance"""
+        try:
+            AUTH_TOKEN = os.getenv('AUTH_TOKEN')
+            domain = self.get_single_domain()
+            
+            if not domain:
+                return JsonResponse({'error': 'No domains available'}, status=503)
+            
+            url = f"{domain}/exams/"
+            headers = {'Authorization': f'Token {AUTH_TOKEN}'}
+            
+            response = requests.get(url, headers=headers, timeout=10)
+            if response.status_code == 200:
+                exams = response.json()
+                return JsonResponse({'success': True, 'exams': exams})
+            else:
+                logger.error(f"Failed to fetch exams: {response.status_code}")
+                return JsonResponse({'error': f'Failed to fetch exams: {response.status_code}'}, status=response.status_code)
+            
+        except Exception as e:
+            logger.error(f"Error fetching exams: {str(e)}")
+            return JsonResponse({'error': str(e)}, status=500)
+
+    def fetch_quizzes(self):
+        """Fetch quizzes from single domain for performance"""
+        try:
+            AUTH_TOKEN = os.getenv('AUTH_TOKEN')
+            domain = self.get_single_domain()
+            
+            if not domain:
+                return JsonResponse({'error': 'No domains available'}, status=503)
+            
+            url = f"{domain}/quizzes/"
+            headers = {'Authorization': f'Token {AUTH_TOKEN}'}
+            
+            response = requests.get(url, headers=headers, timeout=10)
+            if response.status_code == 200:
+                quizzes = response.json()
+                return JsonResponse({'success': True, 'quizzes': quizzes})
+            else:
+                logger.error(f"Failed to fetch quizzes: {response.status_code}")
+                return JsonResponse({'error': f'Failed to fetch quizzes: {response.status_code}'}, status=response.status_code)
+            
+        except Exception as e:
+            logger.error(f"Error fetching quizzes: {str(e)}")
+            return JsonResponse({'error': str(e)}, status=500)
+
+    def fetch_exam_appointments(self):
+        """Fetch exam appointments from single domain"""
+        try:
+            AUTH_TOKEN = os.getenv('AUTH_TOKEN')
+            domain = self.get_single_domain()
+            
+            if not domain:
+                return JsonResponse({'error': 'No domains available'}, status=503)
+            
+            url = f"{domain}/exam-appointments/"
+            headers = {'Authorization': f'Token {AUTH_TOKEN}'}
+            
+            response = requests.get(url, headers=headers, timeout=10)
+            if response.status_code == 200:
+                appointments = response.json()
+                return JsonResponse({'success': True, 'appointments': appointments})
+            else:
+                logger.error(f"Failed to fetch exam appointments: {response.status_code}")
+                return JsonResponse({'error': f'Failed to fetch exam appointments: {response.status_code}'}, status=response.status_code)
+            
+        except Exception as e:
+            logger.error(f"Error fetching exam appointments: {str(e)}")
+            return JsonResponse({'error': str(e)}, status=500)
+
+    def fetch_user_exam_results(self):
+        """Fetch user exam results from single domain"""
+        try:
+            AUTH_TOKEN = os.getenv('AUTH_TOKEN')
+            domain = self.get_single_domain()
+            
+            if not domain:
+                return JsonResponse({'error': 'No domains available'}, status=503)
+            
+            url = f"{domain}/user-exam-results/"
+            headers = {'Authorization': f'Token {AUTH_TOKEN}'}
+            
+            response = requests.get(url, headers=headers, timeout=10)
+            if response.status_code == 200:
+                results = response.json()
+                return JsonResponse({'success': True, 'results': results})
+            else:
+                logger.error(f"Failed to fetch user exam results: {response.status_code}")
+                return JsonResponse({'error': f'Failed to fetch user exam results: {response.status_code}'}, status=response.status_code)
+            
+        except Exception as e:
+            logger.error(f"Error fetching user exam results: {str(e)}")
+            return JsonResponse({'error': str(e)}, status=500)
+
+    def fetch_user_quiz_results(self):
+        """Fetch user quiz results from single domain"""
+        try:
+            AUTH_TOKEN = os.getenv('AUTH_TOKEN')
+            domain = self.get_single_domain()
+            
+            if not domain:
+                return JsonResponse({'error': 'No domains available'}, status=503)
+            
+            url = f"{domain}/user-quiz-results/"
+            headers = {'Authorization': f'Token {AUTH_TOKEN}'}
+            
+            response = requests.get(url, headers=headers, timeout=10)
+            if response.status_code == 200:
+                results = response.json()
+                return JsonResponse({'success': True, 'results': results})
+            else:
+                logger.error(f"Failed to fetch user quiz results: {response.status_code}")
+                return JsonResponse({'error': f'Failed to fetch user quiz results: {response.status_code}'}, status=response.status_code)
+            
+        except Exception as e:
+            logger.error(f"Error fetching user quiz results: {str(e)}")
+            return JsonResponse({'error': str(e)}, status=500)
+
+    def fetch_lessons(self, course_id):
+        """Fetch lessons for a specific course"""
+        try:
+            AUTH_TOKEN = os.getenv('AUTH_TOKEN')
+            domains = SelfStudyExamView().get_course_domains()
+            
+            if not domains or not course_id:
+                return JsonResponse({'success': True, 'lessons': []})
+            
+            domain = SelfStudyExamView().get_working_domain(domains)
+            if not domain:
+                return JsonResponse({'success': True, 'lessons': []})
+            
+            url = f"{domain}/lessons/"
+            headers = {'Authorization': f'Token {AUTH_TOKEN}'}
+            params = {'course_id': course_id}
+            
+            response = requests.get(url, headers=headers, params=params, timeout=10)
+            if response.status_code == 200:
+                lessons = response.json()
+                return JsonResponse({'success': True, 'lessons': lessons})
+            else:
+                return JsonResponse({'success': True, 'lessons': []})
+            
+        except Exception as e:
+            logger.error(f"Error fetching lessons: {str(e)}")
+            return JsonResponse({'success': True, 'lessons': []})
+
+    def fetch_exam_questions(self, exam_id):
+        """Fetch questions for a specific exam"""
+        try:
+            AUTH_TOKEN = os.getenv('AUTH_TOKEN')
+            domain = self.get_single_domain()
+            
+            if not domain or not exam_id:
+                return JsonResponse({'success': True, 'questions': []})
+            
+            url = f"{domain}/exam-questions/"
+            headers = {'Authorization': f'Token {AUTH_TOKEN}'}
+            params = {'exam': exam_id}
+            
+            response = requests.get(url, headers=headers, params=params, timeout=10)
+            if response.status_code == 200:
+                questions = response.json()
+                return JsonResponse({'success': True, 'questions': questions})
+            else:
+                return JsonResponse({'success': True, 'questions': []})
+            
+        except Exception as e:
+            logger.error(f"Error fetching exam questions: {str(e)}")
+            return JsonResponse({'success': True, 'questions': []})
+
+    def fetch_quiz_questions(self, quiz_id):
+        """Fetch questions for a specific quiz"""
+        try:
+            AUTH_TOKEN = os.getenv('AUTH_TOKEN')
+            domain = self.get_single_domain()
+            
+            if not domain or not quiz_id:
+                return JsonResponse({'success': True, 'questions': []})
+            
+            url = f"{domain}/quiz-questions/"
+            headers = {'Authorization': f'Token {AUTH_TOKEN}'}
+            params = {'quiz': quiz_id}
+            
+            response = requests.get(url, headers=headers, params=params, timeout=10)
+            if response.status_code == 200:
+                questions = response.json()
+                return JsonResponse({'success': True, 'questions': questions})
+            else:
+                return JsonResponse({'success': True, 'questions': []})
+            
+        except Exception as e:
+            logger.error(f"Error fetching quiz questions: {str(e)}")
+            return JsonResponse({'success': True, 'questions': []})
+
+    def fetch_exam_question_details(self, question_id):
+        """Fetch detailed information for a specific exam question"""
+        try:
+            AUTH_TOKEN = os.getenv('AUTH_TOKEN')
+            domain = self.get_single_domain()
+            
+            if not domain or not question_id:
+                return JsonResponse({'error': 'Missing domain or question_id'}, status=400)
+            
+            url = f"{domain}/exam-questions/{question_id}/"
+            headers = {'Authorization': f'Token {AUTH_TOKEN}'}
+            
+            response = requests.get(url, headers=headers, timeout=10)
+            if response.status_code == 200:
+                question_data = response.json()
+                return JsonResponse({'success': True, 'question': question_data})
+            else:
+                return JsonResponse({'error': 'Failed to fetch question details'}, status=404)
+            
+        except Exception as e:
+            logger.error(f"Error fetching exam question details: {str(e)}")
+            return JsonResponse({'error': str(e)}, status=500)
+
+    def fetch_quiz_question_details(self, question_id):
+        """Fetch detailed information for a specific quiz question"""
+        try:
+            AUTH_TOKEN = os.getenv('AUTH_TOKEN')
+            domain = self.get_single_domain()
+            
+            if not domain or not question_id:
+                return JsonResponse({'error': 'Missing domain or question_id'}, status=400)
+            
+            url = f"{domain}/quiz-questions/{question_id}/"
+            headers = {'Authorization': f'Token {AUTH_TOKEN}'}
+            
+            response = requests.get(url, headers=headers, timeout=10)
+            if response.status_code == 200:
+                question_data = response.json()
+                return JsonResponse({'success': True, 'question': question_data})
+            else:
+                return JsonResponse({'error': 'Failed to fetch question details'}, status=404)
+            
+        except Exception as e:
+            logger.error(f"Error fetching quiz question details: {str(e)}")
+            return JsonResponse({'error': str(e)}, status=500)
+
+    # OPTIMIZED CRUD OPERATIONS - SINGLE DOMAIN
+    def create_exam(self, data):
+        """Create a new exam - single domain"""
+        try:
+            AUTH_TOKEN = os.getenv('AUTH_TOKEN')
+            domain = self.get_single_domain()
+            
+            if not domain:
+                return JsonResponse({'error': 'No domains available'}, status=503)
+            
+            # Generate external_id if not provided
+            if not data.get('external_id'):
+                data['external_id'] = str(uuid.uuid4())
+            
+            url = f"{domain}/exams/"
+            headers = {
+                'Authorization': f'Token {AUTH_TOKEN}',
+                'Content-Type': 'application/json'
+            }
+            
+            response = requests.post(url, json=data, headers=headers, timeout=10)
+            
+            if response.status_code in [200, 201]:
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Exam created successfully',
+                    'results': [{'domain': domain, 'status': response.status_code, 'success': True}]
+                })
+            else:
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Failed to create exam: {response.status_code} - {response.text}',
+                    'results': [{'domain': domain, 'status': response.status_code, 'success': False}]
+                }, status=500)
+                
+        except Exception as e:
+            logger.error(f"Error creating exam: {str(e)}")
+            return JsonResponse({'error': str(e)}, status=500)
+
+    def update_exam(self, data):
+        """Update an existing exam - single domain"""
+        try:
+            AUTH_TOKEN = os.getenv('AUTH_TOKEN')
+            domain = self.get_single_domain()
+            external_id = data.get('external_id')
+            
+            if not domain or not external_id:
+                return JsonResponse({'error': 'Missing domain or external_id'}, status=400)
+            
+            url = f"{domain}/exams/{external_id}/"
+            headers = {
+                'Authorization': f'Token {AUTH_TOKEN}',
+                'Content-Type': 'application/json'
+            }
+            
+            response = requests.put(url, json=data, headers=headers, timeout=10)
+            
+            if response.status_code in [200, 201]:
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Exam updated successfully',
+                    'results': [{'domain': domain, 'status': response.status_code, 'success': True}]
+                })
+            else:
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Failed to update exam: {response.status_code} - {response.text}',
+                    'results': [{'domain': domain, 'status': response.status_code, 'success': False}]
+                }, status=500)
+                
+        except Exception as e:
+            logger.error(f"Error updating exam: {str(e)}")
+            return JsonResponse({'error': str(e)}, status=500)
+
+    def delete_exam(self, data):
+        """Delete an exam - single domain"""
+        try:
+            AUTH_TOKEN = os.getenv('AUTH_TOKEN')
+            domain = self.get_single_domain()
+            external_id = data.get('external_id')
+            
+            if not domain or not external_id:
+                return JsonResponse({'error': 'Missing domain or external_id'}, status=400)
+            
+            url = f"{domain}/exams/{external_id}/"
+            headers = {'Authorization': f'Token {AUTH_TOKEN}'}
+            
+            response = requests.delete(url, headers=headers, timeout=10)
+            
+            if response.status_code in [200, 204]:
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Exam deleted successfully',
+                    'results': [{'domain': domain, 'status': response.status_code, 'success': True}]
+                })
+            else:
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Failed to delete exam: {response.status_code} - {response.text}',
+                    'results': [{'domain': domain, 'status': response.status_code, 'success': False}]
+                }, status=500)
+                
+        except Exception as e:
+            logger.error(f"Error deleting exam: {str(e)}")
+            return JsonResponse({'error': str(e)}, status=500)
+
+    def create_quiz(self, data):
+        """Create a new quiz - single domain"""
+        try:
+            AUTH_TOKEN = os.getenv('AUTH_TOKEN')
+            domain = self.get_single_domain()
+            
+            if not domain:
+                return JsonResponse({'error': 'No domains available'}, status=503)
+            
+            # Generate external_id if not provided
+            if not data.get('external_id'):
+                data['external_id'] = str(uuid.uuid4())
+            
+            url = f"{domain}/quizzes/"
+            headers = {
+                'Authorization': f'Token {AUTH_TOKEN}',
+                'Content-Type': 'application/json'
+            }
+            
+            response = requests.post(url, json=data, headers=headers, timeout=10)
+            
+            if response.status_code in [200, 201]:
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Quiz created successfully',
+                    'results': [{'domain': domain, 'status': response.status_code, 'success': True}]
+                })
+            else:
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Failed to create quiz: {response.status_code} - {response.text}',
+                    'results': [{'domain': domain, 'status': response.status_code, 'success': False}]
+                }, status=500)
+                
+        except Exception as e:
+            logger.error(f"Error creating quiz: {str(e)}")
+            return JsonResponse({'error': str(e)}, status=500)
+
+    def update_quiz(self, data):
+        """Update an existing quiz - single domain"""
+        try:
+            AUTH_TOKEN = os.getenv('AUTH_TOKEN')
+            domain = self.get_single_domain()
+            external_id = data.get('external_id')
+            
+            if not domain or not external_id:
+                return JsonResponse({'error': 'Missing domain or external_id'}, status=400)
+            
+            url = f"{domain}/quizzes/{external_id}/"
+            headers = {
+                'Authorization': f'Token {AUTH_TOKEN}',
+                'Content-Type': 'application/json'
+            }
+            
+            response = requests.put(url, json=data, headers=headers, timeout=10)
+            
+            if response.status_code in [200, 201]:
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Quiz updated successfully',
+                    'results': [{'domain': domain, 'status': response.status_code, 'success': True}]
+                })
+            else:
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Failed to update quiz: {response.status_code} - {response.text}',
+                    'results': [{'domain': domain, 'status': response.status_code, 'success': False}]
+                }, status=500)
+                
+        except Exception as e:
+            logger.error(f"Error updating quiz: {str(e)}")
+            return JsonResponse({'error': str(e)}, status=500)
+
+    def delete_quiz(self, data):
+        """Delete a quiz - single domain"""
+        try:
+            AUTH_TOKEN = os.getenv('AUTH_TOKEN')
+            domain = self.get_single_domain()
+            external_id = data.get('external_id')
+            
+            if not domain or not external_id:
+                return JsonResponse({'error': 'Missing domain or external_id'}, status=400)
+            
+            url = f"{domain}/quizzes/{external_id}/"
+            headers = {'Authorization': f'Token {AUTH_TOKEN}'}
+            
+            response = requests.delete(url, headers=headers, timeout=10)
+            
+            if response.status_code in [200, 204]:
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Quiz deleted successfully',
+                    'results': [{'domain': domain, 'status': response.status_code, 'success': True}]
+                })
+            else:
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Failed to delete quiz: {response.status_code} - {response.text}',
+                    'results': [{'domain': domain, 'status': response.status_code, 'success': False}]
+                }, status=500)
+                
+        except Exception as e:
+            logger.error(f"Error deleting quiz: {str(e)}")
+            return JsonResponse({'error': str(e)}, status=500)
+
+    # FIXED: Question operations
+    def create_exam_question_direct(self, data):
+        """Create a new exam question"""
+        try:
+            AUTH_TOKEN = os.getenv('AUTH_TOKEN')
+            domain = self.get_single_domain()
+            
+            if not domain:
+                return JsonResponse({'error': 'No domains available'}, status=503)
+            
+            # Generate external_id if not provided
+            if not data.get('external_id'):
+                data['external_id'] = str(uuid.uuid4())
+            
+            url = f"{domain}/exam-questions/"
+            headers = {
+                'Authorization': f'Token {AUTH_TOKEN}',
+                'Content-Type': 'application/json'
+            }
+            
+            logger.info(f"Creating exam question with data: {data}")
+            response = requests.post(url, json=data, headers=headers, timeout=10)
+            
+            if response.status_code in [200, 201]:
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Exam question created successfully',
+                    'results': [{'domain': domain, 'status': response.status_code, 'success': True}]
+                })
+            else:
+                logger.error(f"Failed to create exam question: {response.status_code} - {response.text}")
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Failed to create exam question: {response.status_code} - {response.text}',
+                    'results': [{'domain': domain, 'status': response.status_code, 'success': False}]
+                }, status=500)
+                
+        except Exception as e:
+            logger.error(f"Error creating exam question: {str(e)}")
+            return JsonResponse({'error': str(e)}, status=500)
+
+    def update_exam_question_direct(self, data):
+        """Update an existing exam question"""
+        try:
+            AUTH_TOKEN = os.getenv('AUTH_TOKEN')
+            domain = self.get_single_domain()
+            external_id = data.get('external_id')
+            
+            if not domain or not external_id:
+                return JsonResponse({'error': 'Missing domain or external_id'}, status=400)
+            
+            url = f"{domain}/exam-questions/{external_id}/"
+            headers = {
+                'Authorization': f'Token {AUTH_TOKEN}',
+                'Content-Type': 'application/json'
+            }
+            
+            logger.info(f"Updating exam question with data: {data}")
+            response = requests.put(url, json=data, headers=headers, timeout=10)
+            
+            if response.status_code in [200, 201]:
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Exam question updated successfully',
+                    'results': [{'domain': domain, 'status': response.status_code, 'success': True}]
+                })
+            else:
+                logger.error(f"Failed to update exam question: {response.status_code} - {response.text}")
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Failed to update exam question: {response.status_code} - {response.text}',
+                    'results': [{'domain': domain, 'status': response.status_code, 'success': False}]
+                }, status=500)
+                
+        except Exception as e:
+            logger.error(f"Error updating exam question: {str(e)}")
+            return JsonResponse({'error': str(e)}, status=500)
+
+    def delete_exam_question_direct(self, data):
+        """Delete an exam question"""
+        try:
+            AUTH_TOKEN = os.getenv('AUTH_TOKEN')
+            domain = self.get_single_domain()
+            external_id = data.get('external_id')
+            
+            if not domain or not external_id:
+                return JsonResponse({'error': 'Missing domain or external_id'}, status=400)
+            
+            url = f"{domain}/exam-questions/{external_id}/"
+            headers = {'Authorization': f'Token {AUTH_TOKEN}'}
+            
+            logger.info(f"Deleting exam question with external_id: {external_id}")
+            response = requests.delete(url, headers=headers, timeout=10)
+            
+            if response.status_code in [200, 204]:
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Exam question deleted successfully',
+                    'results': [{'domain': domain, 'status': response.status_code, 'success': True}]
+                })
+            else:
+                logger.error(f"Failed to delete exam question: {response.status_code} - {response.text}")
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Failed to delete exam question: {response.status_code} - {response.text}',
+                    'results': [{'domain': domain, 'status': response.status_code, 'success': False}]
+                }, status=500)
+                
+        except Exception as e:
+            logger.error(f"Error deleting exam question: {str(e)}")
+            return JsonResponse({'error': str(e)}, status=500)
+
+    def create_quiz_question_direct(self, data):
+        """Create a new quiz question"""
+        try:
+            AUTH_TOKEN = os.getenv('AUTH_TOKEN')
+            domain = self.get_single_domain()
+            
+            if not domain:
+                return JsonResponse({'error': 'No domains available'}, status=503)
+            
+            # Generate external_id if not provided
+            if not data.get('external_id'):
+                data['external_id'] = str(uuid.uuid4())
+            
+            url = f"{domain}/quiz-questions/"
+            headers = {
+                'Authorization': f'Token {AUTH_TOKEN}',
+                'Content-Type': 'application/json'
+            }
+            
+            logger.info(f"Creating quiz question with data: {data}")
+            response = requests.post(url, json=data, headers=headers, timeout=10)
+            
+            if response.status_code in [200, 201]:
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Quiz question created successfully',
+                    'results': [{'domain': domain, 'status': response.status_code, 'success': True}]
+                })
+            else:
+                logger.error(f"Failed to create quiz question: {response.status_code} - {response.text}")
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Failed to create quiz question: {response.status_code} - {response.text}',
+                    'results': [{'domain': domain, 'status': response.status_code, 'success': False}]
+                }, status=500)
+                
+        except Exception as e:
+            logger.error(f"Error creating quiz question: {str(e)}")
+            return JsonResponse({'error': str(e)}, status=500)
+
+    def update_quiz_question_direct(self, data):
+        """Update an existing quiz question"""
+        try:
+            AUTH_TOKEN = os.getenv('AUTH_TOKEN')
+            domain = self.get_single_domain()
+            external_id = data.get('external_id')
+            
+            if not domain or not external_id:
+                return JsonResponse({'error': 'Missing domain or external_id'}, status=400)
+            
+            url = f"{domain}/quiz-questions/{external_id}/"
+            headers = {
+                'Authorization': f'Token {AUTH_TOKEN}',
+                'Content-Type': 'application/json'
+            }
+            
+            logger.info(f"Updating quiz question with data: {data}")
+            response = requests.put(url, json=data, headers=headers, timeout=10)
+            
+            if response.status_code in [200, 201]:
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Quiz question updated successfully',
+                    'results': [{'domain': domain, 'status': response.status_code, 'success': True}]
+                })
+            else:
+                logger.error(f"Failed to update quiz question: {response.status_code} - {response.text}")
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Failed to update quiz question: {response.status_code} - {response.text}',
+                    'results': [{'domain': domain, 'status': response.status_code, 'success': False}]
+                }, status=500)
+                
+        except Exception as e:
+            logger.error(f"Error updating quiz question: {str(e)}")
+            return JsonResponse({'error': str(e)}, status=500)
+
+    def delete_quiz_question_direct(self, data):
+        """Delete a quiz question"""
+        try:
+            AUTH_TOKEN = os.getenv('AUTH_TOKEN')
+            domain = self.get_single_domain()
+            external_id = data.get('external_id')
+            
+            if not domain or not external_id:
+                return JsonResponse({'error': 'Missing domain or external_id'}, status=400)
+            
+            url = f"{domain}/quiz-questions/{external_id}/"
+            headers = {'Authorization': f'Token {AUTH_TOKEN}'}
+            
+            logger.info(f"Deleting quiz question with external_id: {external_id}")
+            response = requests.delete(url, headers=headers, timeout=10)
+            
+            if response.status_code in [200, 204]:
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Quiz question deleted successfully',
+                    'results': [{'domain': domain, 'status': response.status_code, 'success': True}]
+                })
+            else:
+                logger.error(f"Failed to delete quiz question: {response.status_code} - {response.text}")
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Failed to delete quiz question: {response.status_code} - {response.text}',
+                    'results': [{'domain': domain, 'status': response.status_code, 'success': False}]
+                }, status=500)
+                
+        except Exception as e:
+            logger.error(f"Error deleting quiz question: {str(e)}")
+            return JsonResponse({'error': str(e)}, status=500)
+
+    # FIXED: Answer operations
+    def create_exam_answer_fixed(self, data):
+        """Create a new exam answer"""
+        try:
+            AUTH_TOKEN = os.getenv('AUTH_TOKEN')
+            domain = self.get_single_domain()
+            
+            if not domain:
+                return JsonResponse({'error': 'No domains available'}, status=503)
+            
+            # Generate external_id if not provided
+            if not data.get('external_id'):
+                data['external_id'] = str(uuid.uuid4())
+            
+            # Get the actual question external_id from the hidden field
+            question_external_id = data.get('exam_question')
+            if not question_external_id:
+                return JsonResponse({'error': 'Question external_id is required'}, status=400)
+            
+            url = f"{domain}/exam-answers/"
+            headers = {
+                'Authorization': f'Token {AUTH_TOKEN}',
+                'Content-Type': 'application/json'
+            }
+            
+            payload = {
+                'external_id': data.get('external_id'),
+                'exam_question': question_external_id,
+                'text': data.get('text'),
+                'is_correct': data.get('is_correct', False)
+            }
+            
+            logger.info(f"Creating exam answer with payload: {payload}")
+            response = requests.post(url, json=payload, headers=headers, timeout=10)
+            
+            if response.status_code in [200, 201]:
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Exam answer created successfully',
+                    'results': [{'domain': domain, 'status': response.status_code, 'success': True}]
+                })
+            else:
+                logger.error(f"Failed to create exam answer: {response.status_code} - {response.text}")
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Failed to create exam answer: {response.status_code} - {response.text}',
+                    'results': [{'domain': domain, 'status': response.status_code, 'success': False}]
+                }, status=500)
+                
+        except Exception as e:
+            logger.error(f"Error creating exam answer: {str(e)}")
+            return JsonResponse({'error': str(e)}, status=500)
+
+    def update_exam_answer_fixed(self, data):
+        """Update an existing exam answer"""
+        try:
+            AUTH_TOKEN = os.getenv('AUTH_TOKEN')
+            domain = self.get_single_domain()
+            external_id = data.get('external_id')
+            
+            if not domain or not external_id:
+                return JsonResponse({'error': 'Missing domain or external_id'}, status=400)
+            
+            question_external_id = data.get('exam_question')
+            if not question_external_id:
+                return JsonResponse({'error': 'Question external_id is required'}, status=400)
+            
+            url = f"{domain}/exam-answers/{external_id}/"
+            headers = {
+                'Authorization': f'Token {AUTH_TOKEN}',
+                'Content-Type': 'application/json'
+            }
+            
+            payload = {
+                'external_id': external_id,
+                'exam_question': question_external_id,
+                'text': data.get('text'),
+                'is_correct': data.get('is_correct', False)
+            }
+            
+            logger.info(f"Updating exam answer with payload: {payload}")
+            response = requests.put(url, json=payload, headers=headers, timeout=10)
+            
+            if response.status_code in [200, 201]:
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Exam answer updated successfully',
+                    'results': [{'domain': domain, 'status': response.status_code, 'success': True}]
+                })
+            else:
+                logger.error(f"Failed to update exam answer: {response.status_code} - {response.text}")
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Failed to update exam answer: {response.status_code} - {response.text}',
+                    'results': [{'domain': domain, 'status': response.status_code, 'success': False}]
+                }, status=500)
+                
+        except Exception as e:
+            logger.error(f"Error updating exam answer: {str(e)}")
+            return JsonResponse({'error': str(e)}, status=500)
+
+    def delete_exam_answer_fixed(self, data):
+        """Delete an exam answer"""
+        try:
+            AUTH_TOKEN = os.getenv('AUTH_TOKEN')
+            domain = self.get_single_domain()
+            external_id = data.get('external_id')
+            
+            if not domain or not external_id:
+                return JsonResponse({'error': 'Missing domain or external_id'}, status=400)
+            
+            url = f"{domain}/exam-answers/{external_id}/"
+            headers = {'Authorization': f'Token {AUTH_TOKEN}'}
+            
+            logger.info(f"Deleting exam answer with external_id: {external_id}")
+            response = requests.delete(url, headers=headers, timeout=10)
+            
+            if response.status_code in [200, 204]:
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Exam answer deleted successfully',
+                    'results': [{'domain': domain, 'status': response.status_code, 'success': True}]
+                })
+            else:
+                logger.error(f"Failed to delete exam answer: {response.status_code} - {response.text}")
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Failed to delete exam answer: {response.status_code} - {response.text}',
+                    'results': [{'domain': domain, 'status': response.status_code, 'success': False}]
+                }, status=500)
+                
+        except Exception as e:
+            logger.error(f"Error deleting exam answer: {str(e)}")
+            return JsonResponse({'error': str(e)}, status=500)
+
+    def create_quiz_answer_fixed(self, data):
+        """Create a new quiz answer"""
+        try:
+            AUTH_TOKEN = os.getenv('AUTH_TOKEN')
+            domain = self.get_single_domain()
+            
+            if not domain:
+                return JsonResponse({'error': 'No domains available'}, status=503)
+            
+            # Generate external_id if not provided
+            if not data.get('external_id'):
+                data['external_id'] = str(uuid.uuid4())
+            
+            question_external_id = data.get('quiz_question')
+            if not question_external_id:
+                return JsonResponse({'error': 'Question external_id is required'}, status=400)
+            
+            url = f"{domain}/quiz-answers/"
+            headers = {
+                'Authorization': f'Token {AUTH_TOKEN}',
+                'Content-Type': 'application/json'
+            }
+            
+            payload = {
+                'external_id': data.get('external_id'),
+                'quiz_question': question_external_id,
+                'text': data.get('text'),
+                'is_correct': data.get('is_correct', False)
+            }
+            
+            logger.info(f"Creating quiz answer with payload: {payload}")
+            response = requests.post(url, json=payload, headers=headers, timeout=10)
+            
+            if response.status_code in [200, 201]:
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Quiz answer created successfully',
+                    'results': [{'domain': domain, 'status': response.status_code, 'success': True}]
+                })
+            else:
+                logger.error(f"Failed to create quiz answer: {response.status_code} - {response.text}")
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Failed to create quiz answer: {response.status_code} - {response.text}',
+                    'results': [{'domain': domain, 'status': response.status_code, 'success': False}]
+                }, status=500)
+                
+        except Exception as e:
+            logger.error(f"Error creating quiz answer: {str(e)}")
+            return JsonResponse({'error': str(e)}, status=500)
+
+    def update_quiz_answer_fixed(self, data):
+        """Update an existing quiz answer"""
+        try:
+            AUTH_TOKEN = os.getenv('AUTH_TOKEN')
+            domain = self.get_single_domain()
+            external_id = data.get('external_id')
+            
+            if not domain or not external_id:
+                return JsonResponse({'error': 'Missing domain or external_id'}, status=400)
+            
+            question_external_id = data.get('quiz_question')
+            if not question_external_id:
+                return JsonResponse({'error': 'Question external_id is required'}, status=400)
+            
+            url = f"{domain}/quiz-answers/{external_id}/"
+            headers = {
+                'Authorization': f'Token {AUTH_TOKEN}',
+                'Content-Type': 'application/json'
+            }
+            
+            payload = {
+                'external_id': external_id,
+                'quiz_question': question_external_id,
+                'text': data.get('text'),
+                'is_correct': data.get('is_correct', False)
+            }
+            
+            logger.info(f"Updating quiz answer with payload: {payload}")
+            response = requests.put(url, json=payload, headers=headers, timeout=10)
+            
+            if response.status_code in [200, 201]:
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Quiz answer updated successfully',
+                    'results': [{'domain': domain, 'status': response.status_code, 'success': True}]
+                })
+            else:
+                logger.error(f"Failed to update quiz answer: {response.status_code} - {response.text}")
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Failed to update quiz answer: {response.status_code} - {response.text}',
+                    'results': [{'domain': domain, 'status': response.status_code, 'success': False}]
+                }, status=500)
+                
+        except Exception as e:
+            logger.error(f"Error updating quiz answer: {str(e)}")
+            return JsonResponse({'error': str(e)}, status=500)
+
+    def delete_quiz_answer_fixed(self, data):
+        """Delete a quiz answer"""
+        try:
+            AUTH_TOKEN = os.getenv('AUTH_TOKEN')
+            domain = self.get_single_domain()
+            external_id = data.get('external_id')
+            
+            if not domain or not external_id:
+                return JsonResponse({'error': 'Missing domain or external_id'}, status=400)
+            
+            url = f"{domain}/quiz-answers/{external_id}/"
+            headers = {'Authorization': f'Token {AUTH_TOKEN}'}
+            
+            logger.info(f"Deleting quiz answer with external_id: {external_id}")
+            response = requests.delete(url, headers=headers, timeout=10)
+            
+            if response.status_code in [200, 204]:
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Quiz answer deleted successfully',
+                    'results': [{'domain': domain, 'status': response.status_code, 'success': True}]
+                })
+            else:
+                logger.error(f"Failed to delete quiz answer: {response.status_code} - {response.text}")
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Failed to delete quiz answer: {response.status_code} - {response.text}',
+                    'results': [{'domain': domain, 'status': response.status_code, 'success': False}]
+                }, status=500)
+                
+        except Exception as e:
+            logger.error(f"Error deleting quiz answer: {str(e)}")
+            return JsonResponse({'error': str(e)}, status=500)
+
+    # COMPLETELY FIXED: Sync update operations - USE REGULAR ENDPOINTS
+    def update_exam_appointment_complete(self, data):
+        """Update an exam appointment - USE REGULAR ENDPOINT FOR SYNC"""
+        try:
+            AUTH_TOKEN = os.getenv('AUTH_TOKEN')
+            domain = self.get_single_domain()
+            external_id = data.get('external_id')
+            
+            if not domain or not external_id:
+                return JsonResponse({'error': 'Missing domain or external_id'}, status=400)
+            
+            # Use the regular endpoint (NOT sync) - the sync will be handled by the selfstudyexam app
+            url = f"{domain}/exam-appointments/{external_id}/"
+            headers = {
+                'Authorization': f'Token {AUTH_TOKEN}',
+                'Content-Type': 'application/json'
+            }
+            
+            # Prepare complete payload
+            payload = {
+                'appointment_status': data.get('appointment_status'),
+                'can_start': data.get('can_start', False),
+                'is_entered': data.get('is_entered', False),
+                'proctor_id': data.get('proctor_id', '')
+            }
+            
+            # Remove empty proctor_id if not provided
+            if not payload['proctor_id']:
+                payload.pop('proctor_id', None)
+            
+            logger.info(f"Updating exam appointment with payload: {payload}")
+            response = requests.patch(url, json=payload, headers=headers, timeout=10)
+            
+            if response.status_code in [200, 201]:
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Exam appointment updated successfully',
+                    'results': [{'domain': domain, 'status': response.status_code, 'success': True}]
+                })
+            else:
+                logger.error(f"Failed to update exam appointment: {response.status_code} - {response.text}")
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Failed to update exam appointment: {response.status_code} - {response.text}',
+                    'results': [{'domain': domain, 'status': response.status_code, 'success': False}]
+                }, status=500)
+                
+        except Exception as e:
+            logger.error(f"Error updating exam appointment: {str(e)}")
+            return JsonResponse({'error': str(e)}, status=500)
+
+    def update_user_exam_result_complete(self, data):
+        """Update a user exam result - USE REGULAR ENDPOINT FOR SYNC"""
+        try:
+            AUTH_TOKEN = os.getenv('AUTH_TOKEN')
+            domain = self.get_single_domain()
+            external_id = data.get('external_id')
+            
+            if not domain or not external_id:
+                return JsonResponse({'error': 'Missing domain or external_id'}, status=400)
+            
+            # Use the regular endpoint (NOT sync) - the sync will be handled by the selfstudyexam app
+            url = f"{domain}/user-exam-results/{external_id}/"
+            headers = {
+                'Authorization': f'Token {AUTH_TOKEN}',
+                'Content-Type': 'application/json'
+            }
+            
+            # Prepare complete payload
+            payload = {
+                'score': data.get('score'),
+                'result_status': data.get('result_status'),
+                'result_message': data.get('result_message', '')
+            }
+            
+            # Remove empty result_message if not provided
+            if not payload['result_message']:
+                payload.pop('result_message', None)
+            
+            logger.info(f"Updating user exam result with payload: {payload}")
+            response = requests.patch(url, json=payload, headers=headers, timeout=10)
+            
+            if response.status_code in [200, 201]:
+                return JsonResponse({
+                    'success': True,
+                    'message': 'User exam result updated successfully',
+                    'results': [{'domain': domain, 'status': response.status_code, 'success': True}]
+                })
+            else:
+                logger.error(f"Failed to update user exam result: {response.status_code} - {response.text}")
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Failed to update user exam result: {response.status_code} - {response.text}',
+                    'results': [{'domain': domain, 'status': response.status_code, 'success': False}]
+                }, status=500)
+                
+        except Exception as e:
+            logger.error(f"Error updating user exam result: {str(e)}")
+            return JsonResponse({'error': str(e)}, status=500)
+
+    def update_user_quiz_result_complete(self, data):
+        """Update a user quiz result - USE REGULAR ENDPOINT FOR SYNC"""
+        try:
+            AUTH_TOKEN = os.getenv('AUTH_TOKEN')
+            domain = self.get_single_domain()
+            external_id = data.get('external_id')
+            
+            if not domain or not external_id:
+                return JsonResponse({'error': 'Missing domain or external_id'}, status=400)
+            
+            # Use the regular endpoint (NOT sync) - the sync will be handled by the selfstudyexam app
+            url = f"{domain}/user-quiz-results/{external_id}/"
+            headers = {
+                'Authorization': f'Token {AUTH_TOKEN}',
+                'Content-Type': 'application/json'
+            }
+            
+            # Prepare complete payload
+            payload = {
+                'score': data.get('score'),
+                'result_status': data.get('result_status'),
+                'result_message': data.get('result_message', '')
+            }
+            
+            # Remove empty result_message if not provided
+            if not payload['result_message']:
+                payload.pop('result_message', None)
+            
+            logger.info(f"Updating user quiz result with payload: {payload}")
+            response = requests.patch(url, json=payload, headers=headers, timeout=10)
+            
+            if response.status_code in [200, 201]:
+                return JsonResponse({
+                    'success': True,
+                    'message': 'User quiz result updated successfully',
+                    'results': [{'domain': domain, 'status': response.status_code, 'success': True}]
+                })
+            else:
+                logger.error(f"Failed to update user quiz result: {response.status_code} - {response.text}")
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Failed to update user quiz result: {response.status_code} - {response.text}',
+                    'results': [{'domain': domain, 'status': response.status_code, 'success': False}]
+                }, status=500)
+                
+        except Exception as e:
+            logger.error(f"Error updating user quiz result: {str(e)}")
+            return JsonResponse({'error': str(e)}, status=500)
+================================================================================
+
+FILE 2: main/urls.py
+--------------------------------------------------------------------------------
+from django.urls import path
+from . import views
+from .views.selfstudydomains import SelfStudyDomainsView, SelfStudyDomainsAPIView
+from .views.selfstudymedia import (
+    SelfStudyMediaView,
+    SelfStudyMediaAPIView,
+    ExternalDataAPIView,
+    ReplicaAPIView
+)
+from .views.selfstudychat import SelfStudyChatView, ChatRoomAPIView
+from .views.selfstudyotp import SelfStudyOTPView
+from .views.selfstudyrunbook import SelfStudyRunbookView
+from .views.selfstudyallauth import (
+    SelfStudyAllAuthView,
+)
+
+urlpatterns = [
+    # Authentication URLs
+    path('login/', views.CustomLoginView.as_view(), name='login'),
+    path('logout/', views.CustomLogoutView.as_view(), name='logout'),
+
+    # Admin Dashboard and User Management URLs
+    path('', views.AdminDashboardView.as_view(), name='admin_dashboard'),
+    path('users/create/', views.UserCreateView.as_view(), name='user_create'),
+    path('users/<int:user_id>/update/', views.UserUpdateView.as_view(), name='user_update'),
+    path('users/<int:user_id>/delete/', views.UserDeleteView.as_view(), name='user_delete'),
+
+    # Self Study URLs
+    path('selfstudyadmin/', views.SelfStudyAdminView.as_view(), name='selfstudyadmin'),
+    path('selfstudyuserprofile/', views.SelfStudyUserProfileView.as_view(), name='selfstudyuserprofile'),
+    path('selfstudyuserlab/', views.SelfStudyUserLabView.as_view(), name='selfstudyuserlab'),
+    path('selfstudycourse/', views.SelfStudyCourseView.as_view(), name='selfstudycourse'),
+    path('selfstudycourse/api/', views.CourseAPIView.as_view(), name='selfstudycourse_api'),
+
+    # Self Study Live Course URLs
+    path('selfstudylivecourse/', views.SelfStudyLiveCourseView.as_view(), name='selfstudylivecourse'),
+    path('selfstudylivecourse/api/data/', views.LiveCourseDataView.as_view(), name='selfstudylivecourse_api_data'),
+
+    # Self Study Exam URLs
+    path('selfstudyexam/', views.SelfStudyExamView.as_view(), name='selfstudyexam'),
+    path('selfstudyexam/api/', views.SelfStudyExamAPIView.as_view(), name='selfstudyexam_api'),
+
+    # Certificate Management URLs
+    path('selfstudycertificate/', views.SelfStudyCertificateView.as_view(), name='selfstudycertificate'),
+    path('selfstudycertificate/api/certificates/<str:certificate_type>/', views.CertificateAPIView.as_view(), name='certificate_api'),
+    path('selfstudycertificate/api/certificates/<str:certificate_type>/<str:certificate_id>/', views.CertificateAPIView.as_view(), name='certificate_api_detail'),
+    path('selfstudycertificate/api/lookup/<str:resource_type>/', views.LookupAPIView.as_view(), name='lookup_api'),
+
+    # Other Self Study URLs
+    path('selfstudynotification/', views.SelfStudyNotificationView.as_view(), name='selfstudynotification'),
+
+    # Notification API endpoints
+    path('selfstudynotification/api/', views.NotificationAPIView.as_view(), name='selfstudynotification_api'),
+    path('selfstudynotification/api/<str:notification_id>/', views.NotificationAPIView.as_view(), name='selfstudynotification_api_detail'),
+
+    # Users API endpoint
+    path('selfstudynotification/api/users/', views.UserAPIView.as_view(), name='selfstudynotification_users_api'),
+
+    # Payment Management URLs
+    path('selfstudypayment/', views.SelfStudyPaymentView.as_view(), name='selfstudypayment'),
+    path('selfstudypayment/api/', views.SelfStudyPaymentView.as_view(), name='selfstudypayment_api'),
+
+    # Subscription Management URLs - UPDATED
+    path('selfstudysubscriptions/', views.SelfStudySubscriptionsView.as_view(), name='selfstudysubscriptions'),
+    path('selfstudysubscriptions/api/', views.SubscriptionAPIView.as_view(), name='selfstudysubscriptions_api'),
+
+    # SelfStudy Media Management URLs - UPDATED
+    path('selfstudymedia/', SelfStudyMediaView.as_view(), name='selfstudymedia'),
+    path('selfstudymedia/api/media/', SelfStudyMediaAPIView.as_view(), name='selfstudymedia_api'),
+    path('selfstudymedia/api/external-data/', ExternalDataAPIView.as_view(), name='selfstudymedia_external_data'),
+    path('selfstudymedia/api/replicas/', ReplicaAPIView.as_view(), name='selfstudymedia_replicas'),
+
+    # SelfStudy Chat Management URLs - UPDATED with correct patterns
+    path('selfstudychat/', SelfStudyChatView.as_view(), name='selfstudychat'),
+    path('selfstudychat/api/rooms/', ChatRoomAPIView.as_view(), name='selfstudychat_api_rooms'),
+    path('selfstudychat/api/rooms/<int:room_id>/messages/', ChatRoomAPIView.as_view(), {'action': 'messages'}, name='selfstudychat_api_room_messages'),
+    path('selfstudychat/api/block-ip/', ChatRoomAPIView.as_view(), {'action': 'block-ip'}, name='selfstudychat_api_block_ip'),
+    path('selfstudychat/api/unblock-ip/', ChatRoomAPIView.as_view(), {'action': 'unblock-ip'}, name='selfstudychat_api_unblock_ip'),
+    path('selfstudychat/api/delete-room/', ChatRoomAPIView.as_view(), {'action': 'delete-room'}, name='selfstudychat_api_delete_room'),
+    path('selfstudychat/api/send-message/', ChatRoomAPIView.as_view(), {'action': 'send-message'}, name='selfstudychat_api_send_message'),
+    path('selfstudychat/api/mark-seen/', ChatRoomAPIView.as_view(), {'action': 'mark-seen'}, name='selfstudychat_api_mark_seen'),
+
+    # OTP Management URLs - NEW
+    path('selfstudyotp/', SelfStudyOTPView.as_view(), name='selfstudyotp'),
+
+    # Other Self Study Service URLs
+    path('selfstudydomains/', SelfStudyDomainsView.as_view(), name='selfstudydomains'),
+    path('selfstudydomains/api/', SelfStudyDomainsAPIView.as_view(), name='selfstudydomains_api'),
+
+    # SelfStudy Proctor URLs - UPDATED
+    path('selfstudyproctor/', views.SelfStudyProctorView.as_view(), name='selfstudyproctor'),
+    path('selfstudyproctor/api/', views.SelfStudyProctorAPIView.as_view(), name='selfstudyproctor_api'),
+    path('selfstudyproctor/api/<str:proctor_id>/', views.SelfStudyProctorAPIView.as_view(), name='selfstudyproctor_api_detail'),
+    path('selfstudyproctor/api/availability/', views.SelfStudyProctorAPIView.as_view(), {'action': 'update_availability'}, name='selfstudyproctor_api_availability'),
+
+    # SelfStudy Runbook URLs - NEW with proper import
+    path('selfstudyrunbook/', SelfStudyRunbookView.as_view(), name='selfstudyrunbook'),
+    
+    # Main management page
+    path('selfstudyallauth/', SelfStudyAllAuthView.as_view(), name='selfstudyallauth'),
+    
+    # API endpoints for AJAX requests
+    path('selfstudyallauth/api/', views.SelfStudyAllAuthAPIView.as_view(), name='selfstudyallauth_api'),
+    # User Lab URLs
+    path('selfstudyuserlab/', views.SelfStudyUserLabView.as_view(), name='selfstudyuserlab'),
+    path('selfstudyuserlab/api/', views.SelfStudyUserLabAPIView.as_view(), name='selfstudyuserlab_api'),
+]
+================================================================================
+
+FILE 3: static/css/selfstudyexam.css
+--------------------------------------------------------------------------------
+/* Enhanced SelfStudy Exam Management Styles */
+:root {
+    --primary-color: #4361ee;
+    --primary-light: #eef2ff;
+    --secondary-color: #3a0ca3;
+    --success-color: #10b981;
+    --warning-color: #f59e0b;
+    --danger-color: #ef4444;
+    --info-color: #06b6d4;
+    --light-color: #f8fafc;
+    --dark-color: #1e293b;
+    --gray-color: #64748b;
+    --border-color: #e2e8f0;
+    --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --radius: 12px;
+    --radius-sm: 8px;
+}
+
+/* Base Styles */
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    line-height: 1.6;
+    color: var(--dark-color);
+    background-color: #f1f5f9;
+}
+
+/* Page Layout */
+.page-content {
+    padding: 2rem;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.header-section {
+    text-align: center;
+    margin-bottom: 3rem;
+    padding: 2rem;
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    border-radius: var(--radius);
+    color: white;
+    box-shadow: var(--shadow);
+}
+
+.header-section h1 {
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+    font-weight: 700;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.header-section p {
+    font-size: 1.1rem;
+    opacity: 0.9;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+/* Stats Grid */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.stat-card {
+    background: white;
+    padding: 1.5rem;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    transition: var(--transition);
+    border-left: 4px solid var(--primary-color);
+    position: relative;
+    overflow: hidden;
+}
+
+.stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.3s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-lg);
+}
+
+.stat-card:hover::before {
+    transform: scaleX(1);
+}
+
+.stat-icon {
+    font-size: 2.5rem;
+    width: 70px;
+    height: 70px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--primary-light);
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.stat-info h3 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    margin: 0;
+    line-height: 1;
+}
+
+.stat-info p {
+    color: var(--gray-color);
+    margin: 0.5rem 0 0 0;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+/* Action Buttons */
+.action-buttons {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+}
+
+.btn {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    text-decoration: none;
+    font-size: 0.9rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 5px;
+    height: 5px;
+    background: rgba(255, 255, 255, 0.5);
+    opacity: 0;
+    border-radius: 100%;
+    transform: scale(1, 1) translate(-50%);
+    transform-origin: 50% 50%;
+}
+
+.btn:focus:not(:active)::after {
+    animation: ripple 1s ease-out;
+}
+
+@keyframes ripple {
+    0% {
+        transform: scale(0, 0);
+        opacity: 0.5;
+    }
+    100% {
+        transform: scale(20, 20);
+        opacity: 0;
+    }
+}
+
+.btn-primary {
+    background: var(--primary-color);
+    color: white;
+    box-shadow: 0 2px 5px rgba(67, 97, 238, 0.3);
+}
+
+.btn-primary:hover {
+    background: var(--secondary-color);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(67, 97, 238, 0.4);
+}
+
+.btn-secondary {
+    background: var(--secondary-color);
+    color: white;
+    box-shadow: 0 2px 5px rgba(58, 12, 163, 0.3);
+}
+
+.btn-secondary:hover {
+    background: var(--primary-color);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(58, 12, 163, 0.4);
+}
+
+.btn-outline {
+    background: transparent;
+    border: 2px solid var(--primary-color);
+    color: var(--primary-color);
+}
+
+.btn-outline:hover {
+    background: var(--primary-color);
+    color: white;
+    transform: translateY(-2px);
+}
+
+.btn-danger {
+    background: var(--danger-color);
+    color: white;
+    padding: 0.5rem 1rem;
+    font-size: 0.8rem;
+    box-shadow: 0 2px 5px rgba(239, 68, 68, 0.3);
+}
+
+.btn-danger:hover {
+    background: #dc2626;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(239, 68, 68, 0.4);
+}
+
+.btn-edit {
+    background: var(--info-color);
+    color: white;
+    padding: 0.5rem 1rem;
+    font-size: 0.8rem;
+    box-shadow: 0 2px 5px rgba(6, 182, 212, 0.3);
+}
+
+.btn-edit:hover {
+    background: #0891b2;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(6, 182, 212, 0.4);
+}
+
+.btn-info {
+    background: var(--info-color);
+    color: white;
+    padding: 0.5rem 1rem;
+    font-size: 0.8rem;
+    box-shadow: 0 2px 5px rgba(6, 182, 212, 0.3);
+}
+
+.btn-info:hover {
+    background: #0891b2;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(6, 182, 212, 0.4);
+}
+
+.btn-icon {
+    font-size: 1.1rem;
+}
+
+/* Tabs */
+.tabs-container {
+    margin-bottom: 2rem;
+    background: white;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+}
+
+.tabs {
+    display: flex;
+    background: white;
+    padding: 0.5rem;
+    position: relative;
+    overflow-x: auto;
+    scrollbar-width: none; /* Firefox */
+}
+
+.tabs::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Edge */
+}
+
+.tab-btn {
+    flex: 1;
+    padding: 1rem 1.5rem;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+    transition: var(--transition);
+    color: var(--gray-color);
+    white-space: nowrap;
+    min-width: max-content;
+    position: relative;
+}
+
+.tab-btn::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    width: 0;
+    height: 3px;
+    background: var(--primary-color);
+    transition: all 0.3s ease;
+    transform: translateX(-50%);
+}
+
+.tab-btn.active {
+    color: var(--primary-color);
+    background: var(--primary-light);
+}
+
+.tab-btn.active::after {
+    width: 80%;
+}
+
+.tab-btn:hover:not(.active) {
+    color: var(--primary-color);
+    background: rgba(67, 97, 238, 0.05);
+}
+
+.tab-content {
+    display: none;
+    padding: 0;
+}
+
+.tab-content.active {
+    display: block;
+    animation: fadeIn 0.5s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Tables */
+.table-container {
+    background: white;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    margin-bottom: 2rem;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.data-table th {
+    background: var(--primary-color);
+    color: white;
+    padding: 1rem;
+    text-align: left;
+    font-weight: 600;
+    font-size: 0.9rem;
+    position: sticky;
+    top: 0;
+}
+
+.data-table td {
+    padding: 1rem;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.9rem;
+}
+
+.data-table tbody tr {
+    transition: var(--transition);
+}
+
+.data-table tbody tr:hover {
+    background: var(--primary-light);
+}
+
+.data-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Status Badges */
+.status-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.status-passed {
+    background: rgba(16, 185, 129, 0.1);
+    color: var(--success-color);
+}
+
+.status-failed {
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--danger-color);
+}
+
+.status-scheduled {
+    background: rgba(59, 130, 246, 0.1);
+    color: #3b82f6;
+}
+
+.status-in-progress {
+    background: rgba(245, 158, 11, 0.1);
+    color: var(--warning-color);
+}
+
+.status-completed {
+    background: rgba(16, 185, 129, 0.1);
+    color: var(--success-color);
+}
+
+.status-cancelled {
+    background: rgba(107, 114, 128, 0.1);
+    color: #6b7280;
+}
+
+/* Action Buttons in Table */
+.table-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+/* Modals */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(5px);
+    animation: fadeIn 0.3s ease;
+    padding: 1rem;
+    overflow-y: auto;
+}
+
+.modal-content {
+    background-color: white;
+    margin: 2% auto;
+    border-radius: var(--radius);
+    width: 90%;
+    max-width: 600px;
+    box-shadow: var(--shadow-lg);
+    animation: slideIn 0.3s ease;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.large-modal {
+    max-width: 900px;
+}
+
+@keyframes slideIn {
+    from { transform: translateY(-50px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.modal-header {
+    padding: 1.5rem 2rem;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    background: white;
+    border-radius: var(--radius) var(--radius) 0 0;
+    z-index: 1;
+}
+
+.modal-header h2 {
+    margin: 0;
+    color: var(--primary-color);
+    flex: 1;
+}
+
+.close {
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: var(--gray-color);
+    transition: var(--transition);
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+}
+
+.close:hover {
+    color: var(--danger-color);
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.modal-body {
+    padding: 2rem;
+}
+
+/* Forms */
+.modal-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.form-group label {
+    font-weight: 600;
+    color: var(--dark-color);
+    font-size: 0.9rem;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    padding: 0.75rem;
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    font-size: 0.9rem;
+    transition: var(--transition);
+    font-family: inherit;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.1);
+}
+
+.form-group input:read-only {
+    background-color: var(--light-color);
+    cursor: not-allowed;
+}
+
+.form-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: flex-end;
+    margin-top: 1rem;
+    flex-wrap: wrap;
+}
+
+/* Checkbox styles */
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    margin-bottom: 10px;
+    gap: 0.75rem;
+}
+
+.checkbox-label input[type="checkbox"] {
+    display: none;
+}
+
+.checkmark {
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--border-color);
+    border-radius: 4px;
+    position: relative;
+    transition: var(--transition);
+    flex-shrink: 0;
+}
+
+.checkbox-label input[type="checkbox"]:checked + .checkmark {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.checkbox-label input[type="checkbox"]:checked + .checkmark:after {
+    content: '✓';
+    position: absolute;
+    color: white;
+    font-size: 14px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.checkbox-label:hover .checkmark {
+    border-color: var(--primary-color);
+}
+
+/* Loading Overlay */
+.loading-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.9);
+    z-index: 9999;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    backdrop-filter: blur(5px);
+}
+
+.loading-spinner {
+    width: 50px;
+    height: 50px;
+    border: 5px solid var(--border-color);
+    border-top: 5px solid var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 1rem;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.loading-overlay p {
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+/* Toast Notifications */
+.toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1001;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.toast {
+    padding: 1rem 1.5rem;
+    border-radius: var(--radius-sm);
+    color: white;
+    font-weight: 600;
+    box-shadow: var(--shadow-lg);
+    animation: slideInRight 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 300px;
+    max-width: 400px;
+}
+
+.toast.success {
+    background: var(--success-color);
+}
+
+.toast.error {
+    background: var(--danger-color);
+}
+
+.toast.warning {
+    background: var(--warning-color);
+}
+
+@keyframes slideInRight {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 3rem;
+    color: var(--gray-color);
+}
+
+.empty-state .empty-icon {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+    .page-content {
+        padding: 1.5rem;
+    }
+    
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .page-content {
+        padding: 1rem;
+    }
+
+    .header-section {
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .header-section h1 {
+        font-size: 2rem;
+    }
+
+    .stats-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .action-buttons {
+        flex-direction: column;
+    }
+
+    .btn {
+        justify-content: center;
+        width: 100%;
+    }
+
+    .tabs {
+        flex-direction: row;
+        overflow-x: auto;
+        padding: 0.25rem;
+    }
+
+    .tab-btn {
+        padding: 0.75rem 1rem;
+        font-size: 0.85rem;
+    }
+
+    .modal-content {
+        margin: 5% auto;
+        width: 95%;
+    }
+
+    .modal-body {
+        padding: 1.5rem;
+    }
+
+    .data-table {
+        display: block;
+        overflow-x: auto;
+    }
+
+    .table-actions {
+        flex-direction: column;
+    }
+
+    .form-actions {
+        flex-direction: column;
+    }
+
+    .form-actions .btn {
+        width: 100%;
+    }
+
+    .toast {
+        min-width: auto;
+        width: calc(100vw - 40px);
+    }
+}
+
+@media (max-width: 480px) {
+    .header-section h1 {
+        font-size: 1.5rem;
+    }
+
+    .stat-card {
+        flex-direction: column;
+        text-align: center;
+        padding: 1.25rem;
+    }
+
+    .stat-icon {
+        width: 60px;
+        height: 60px;
+        font-size: 2rem;
+    }
+
+    .modal-header {
+        padding: 1rem 1.5rem;
+    }
+
+    .modal-body {
+        padding: 1rem;
+    }
+
+    .table-container {
+        border-radius: var(--radius-sm);
+    }
+    
+    .data-table th,
+    .data-table td {
+        padding: 0.75rem 0.5rem;
+    }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --light-color: #1e293b;
+        --dark-color: #f1f5f9;
+        --border-color: #334155;
+        --primary-light: #1e1b4b;
+    }
+
+    body {
+        background-color: #0f172a;
+        color: var(--dark-color);
+    }
+
+    .table-container,
+    .stat-card,
+    .modal-content,
+    .tabs-container {
+        background: var(--light-color);
+        color: var(--dark-color);
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        background: #1e293b;
+        color: var(--dark-color);
+        border-color: var(--border-color);
+    }
+
+    .loading-overlay {
+        background: rgba(15, 23, 42, 0.9);
+    }
+    
+    .data-table tbody tr:hover {
+        background: #1e1b4b;
+    }
+}
+
+/* Print styles */
+@media print {
+    .action-buttons,
+    .tabs-container,
+    .table-actions {
+        display: none;
+    }
+    
+    .tab-content {
+        display: block !important;
+    }
+    
+    .page-content {
+        padding: 0;
+    }
+    
+    .header-section {
+        background: white !important;
+        color: black !important;
+    }
+}
+================================================================================
+
+FILE 4: static/js/selfstudyexam.js
+--------------------------------------------------------------------------------
+// SelfStudy Exam Management JavaScript - OPTIMIZED VERSION
+class SelfStudyExamManager {
+    constructor() {
+        this.currentTab = 'exams';
+        this.exams = [];
+        this.quizzes = [];
+        this.appointments = [];
+        this.examResults = [];
+        this.quizResults = [];
+        this.courses = [];
+        this.lessons = {};
+        this.examQuestions = {};
+        this.quizQuestions = {};
+        this.currentQuestionAnswers = {};
+        this.init();
+    }
+
+    init() {
+        this.bindEvents();
+        this.loadInitialData();
+        this.updateStats();
+    }
+
+    bindEvents() {
+        // Form submissions
+        document.getElementById('exam-form').addEventListener('submit', (e) => this.handleExamSubmit(e));
+        document.getElementById('quiz-form').addEventListener('submit', (e) => this.handleQuizSubmit(e));
+        document.getElementById('exam-question-form').addEventListener('submit', (e) => this.handleExamQuestionSubmit(e));
+        document.getElementById('quiz-question-form').addEventListener('submit', (e) => this.handleQuizQuestionSubmit(e));
+        document.getElementById('exam-answer-form').addEventListener('submit', (e) => this.handleExamAnswerSubmit(e));
+        document.getElementById('quiz-answer-form').addEventListener('submit', (e) => this.handleQuizAnswerSubmit(e));
+        document.getElementById('exam-appointment-form').addEventListener('submit', (e) => this.handleExamAppointmentSubmit(e));
+        document.getElementById('exam-result-form').addEventListener('submit', (e) => this.handleExamResultSubmit(e));
+        document.getElementById('quiz-result-form').addEventListener('submit', (e) => this.handleQuizResultSubmit(e));
+        
+        // Window events
+        window.addEventListener('click', (e) => {
+            if (e.target.classList.contains('modal')) {
+                this.closeModals();
+            }
+        });
+    }
+
+    async loadInitialData() {
+        this.showLoading();
+        
+        try {
+            await Promise.all([
+                this.fetchExams(),
+                this.fetchQuizzes()
+            ]);
+            
+            this.updateTables();
+            this.updateStats();
+            this.showToast('Data loaded successfully!', 'success');
+        } catch (error) {
+            console.error('Error loading data:', error);
+            this.showToast('Error loading data: ' + error.message, 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    async loadTabData(tabName) {
+        this.showLoading();
+        
+        try {
+            switch(tabName) {
+                case 'appointments':
+                    await this.fetchExamAppointments();
+                    break;
+                case 'exam-results':
+                    await this.fetchUserExamResults();
+                    break;
+                case 'quiz-results':
+                    await this.fetchUserQuizResults();
+                    break;
+            }
+            this.updateTables();
+            this.updateStats();
+        } catch (error) {
+            console.error(`Error loading ${tabName} data:`, error);
+            this.showToast(`Error loading ${tabName} data: ` + error.message, 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    async fetchExams() {
+        try {
+            const response = await this.apiRequest('GET', { action: 'fetch_exams' });
+            if (response.success) {
+                this.exams = response.exams || [];
+            } else {
+                throw new Error(response.error || 'Failed to fetch exams');
+            }
+        } catch (error) {
+            console.error('Error fetching exams:', error);
+            this.exams = [];
+            throw error;
+        }
+    }
+
+    async fetchQuizzes() {
+        try {
+            const response = await this.apiRequest('GET', { action: 'fetch_quizzes' });
+            if (response.success) {
+                this.quizzes = response.quizzes || [];
+            } else {
+                throw new Error(response.error || 'Failed to fetch quizzes');
+            }
+        } catch (error) {
+            console.error('Error fetching quizzes:', error);
+            this.quizzes = [];
+            throw error;
+        }
+    }
+
+    async fetchExamAppointments() {
+        try {
+            const response = await this.apiRequest('GET', { action: 'fetch_exam_appointments' });
+            if (response.success) {
+                this.appointments = response.appointments || [];
+            } else {
+                throw new Error(response.error || 'Failed to fetch exam appointments');
+            }
+        } catch (error) {
+            console.error('Error fetching exam appointments:', error);
+            this.appointments = [];
+            throw error;
+        }
+    }
+
+    async fetchUserExamResults() {
+        try {
+            const response = await this.apiRequest('GET', { action: 'fetch_user_exam_results' });
+            if (response.success) {
+                this.examResults = response.results || [];
+            } else {
+                throw new Error(response.error || 'Failed to fetch user exam results');
+            }
+        } catch (error) {
+            console.error('Error fetching user exam results:', error);
+            this.examResults = [];
+            throw error;
+        }
+    }
+
+    async fetchUserQuizResults() {
+        try {
+            const response = await this.apiRequest('GET', { action: 'fetch_user_quiz_results' });
+            if (response.success) {
+                this.quizResults = response.results || [];
+            } else {
+                throw new Error(response.error || 'Failed to fetch user quiz results');
+            }
+        } catch (error) {
+            console.error('Error fetching user quiz results:', error);
+            this.quizResults = [];
+            throw error;
+        }
+    }
+
+    async fetchExamQuestions(examId) {
+        if (!examId) return [];
+        
+        try {
+            const response = await this.apiRequest('GET', { 
+                action: 'fetch_exam_questions', 
+                exam_id: examId 
+            });
+            return response.questions || [];
+        } catch (error) {
+            console.error('Error fetching exam questions:', error);
+            return [];
+        }
+    }
+
+    async fetchQuizQuestions(quizId) {
+        if (!quizId) return [];
+        
+        try {
+            const response = await this.apiRequest('GET', { 
+                action: 'fetch_quiz_questions', 
+                quiz_id: quizId 
+            });
+            return response.questions || [];
+        } catch (error) {
+            console.error('Error fetching quiz questions:', error);
+            return [];
+        }
+    }
+
+    async fetchExamQuestionDetails(questionId) {
+        if (!questionId) return null;
+        
+        try {
+            const response = await this.apiRequest('GET', { 
+                action: 'fetch_exam_question_details', 
+                question_id: questionId 
+            });
+            return response.success ? response.question : null;
+        } catch (error) {
+            console.error('Error fetching exam question details:', error);
+            return null;
+        }
+    }
+
+    async fetchQuizQuestionDetails(questionId) {
+        if (!questionId) return null;
+        
+        try {
+            const response = await this.apiRequest('GET', { 
+                action: 'fetch_quiz_question_details', 
+                question_id: questionId 
+            });
+            return response.success ? response.question : null;
+        } catch (error) {
+            console.error('Error fetching quiz question details:', error);
+            return null;
+        }
+    }
+
+    async fetchLessons(courseId) {
+        if (!courseId) return [];
+        
+        try {
+            const response = await this.apiRequest('GET', { 
+                action: 'fetch_lessons', 
+                course_id: courseId 
+            });
+            return response.lessons || [];
+        } catch (error) {
+            console.error('Error fetching lessons:', error);
+            return [];
+        }
+    }
+
+    async apiRequest(method, data = null) {
+        const url = '/selfstudyexam/api/';
+        
+        const options = {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'same-origin'
+        };
+
+        if (data && method === 'GET') {
+            const params = new URLSearchParams(data);
+            const fullUrl = url + '?' + params.toString();
+            const response = await fetch(fullUrl, options);
+            return await response.json();
+        } else if (data && (method === 'POST')) {
+            options.body = JSON.stringify(data);
+            const response = await fetch(url, options);
+            return await response.json();
+        }
+    }
+
+    updateTables() {
+        this.updateExamsTable();
+        this.updateQuizzesTable();
+        this.updateAppointmentsTable();
+        this.updateExamResultsTable();
+        this.updateQuizResultsTable();
+        this.updateStatusBadges(); 
+    }
+
+    updateExamsTable() {
+        const tbody = document.getElementById('exams-tbody');
+        
+        if (this.exams.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="empty-state">
+                        <div class="empty-icon">📊</div>
+                        <p>No exams found</p>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        tbody.innerHTML = this.exams.map(exam => `
+            <tr>
+                <td>${this.escapeHtml(exam.title)}</td>
+                <td>${this.escapeHtml(exam.course_id)}</td>
+                <td>${exam.exam_duration} min</td>
+                <td>${exam.questions ? exam.questions.length : 0}</td>
+                <td>${this.formatDate(exam.date_added)}</td>
+                <td class="table-actions">
+                    <button class="btn btn-edit" onclick="examManager.editExam('${exam.external_id}')">
+                        ✏️ Edit
+                    </button>
+                    <button class="btn btn-info" onclick="examManager.manageExamQuestions('${exam.external_id}', '${this.escapeHtml(exam.title)}')">
+                        ❓ Questions
+                    </button>
+                    <button class="btn btn-danger" onclick="examManager.deleteExam('${exam.external_id}')">
+                        🗑️ Delete
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    updateQuizzesTable() {
+        const tbody = document.getElementById('quizzes-tbody');
+        
+        if (this.quizzes.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="7" class="empty-state">
+                        <div class="empty-icon">📝</div>
+                        <p>No quizzes found</p>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        tbody.innerHTML = this.quizzes.map(quiz => `
+            <tr>
+                <td>${this.escapeHtml(quiz.title)}</td>
+                <td>${this.escapeHtml(quiz.course_id)}</td>
+                <td>${this.escapeHtml(quiz.lesson_id)}</td>
+                <td>${quiz.quiz_duration} min</td>
+                <td>${quiz.questions ? quiz.questions.length : 0}</td>
+                <td>${this.formatDate(quiz.date_added)}</td>
+                <td class="table-actions">
+                    <button class="btn btn-edit" onclick="examManager.editQuiz('${quiz.external_id}')">
+                        ✏️ Edit
+                    </button>
+                    <button class="btn btn-info" onclick="examManager.manageQuizQuestions('${quiz.external_id}', '${this.escapeHtml(quiz.title)}')">
+                        ❓ Questions
+                    </button>
+                    <button class="btn btn-danger" onclick="examManager.deleteQuiz('${quiz.external_id}')">
+                        🗑️ Delete
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    updateAppointmentsTable() {
+        const tbody = document.getElementById('appointments-tbody');
+        
+        if (this.appointments.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="7" class="empty-state">
+                        <div class="empty-icon">📅</div>
+                        <p>No exam appointments found</p>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        tbody.innerHTML = this.appointments.map(appointment => `
+            <tr>
+                <td>${this.escapeHtml(appointment.username)}</td>
+                <td>${this.escapeHtml(appointment.exam_title || appointment.exam)}</td>
+                <td>${this.formatDate(appointment.appointment_date)}</td>
+                <td><span class="status-badge status-${appointment.appointment_status.toLowerCase().replace(' ', '-')}">${appointment.appointment_status}</span></td>
+                <td>${appointment.can_start ? '✅ Yes' : '❌ No'}</td>
+                <td>${appointment.is_entered ? '✅ Yes' : '❌ No'}</td>
+                <td class="table-actions">
+                    <button class="btn btn-edit" onclick="examManager.editExamAppointment('${appointment.external_id}')">
+                        ✏️ Edit
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    updateExamResultsTable() {
+        const tbody = document.getElementById('exam-results-tbody');
+        
+        if (this.examResults.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="empty-state">
+                        <div class="empty-icon">🎯</div>
+                        <p>No exam results found</p>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        tbody.innerHTML = this.examResults.map(result => `
+            <tr>
+                <td>${this.escapeHtml(result.username)}</td>
+                <td>${this.escapeHtml(result.exam_title || result.exam)}</td>
+                <td>${result.score}</td>
+                <td><span class="status-badge status-${result.result_status.toLowerCase()}">${result.result_status}</span></td>
+                <td>${this.formatDate(result.date_taken)}</td>
+                <td class="table-actions">
+                    <button class="btn btn-edit" onclick="examManager.editExamResult('${result.external_id}')">
+                        ✏️ Edit
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    updateQuizResultsTable() {
+        const tbody = document.getElementById('quiz-results-tbody');
+        
+        if (this.quizResults.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="empty-state">
+                        <div class="empty-icon">🎯</div>
+                        <p>No quiz results found</p>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        tbody.innerHTML = this.quizResults.map(result => `
+            <tr>
+                <td>${this.escapeHtml(result.username)}</td>
+                <td>${this.escapeHtml(result.quiz_title || result.quiz)}</td>
+                <td>${result.score}</td>
+                <td><span class="status-badge status-${result.result_status.toLowerCase()}">${result.result_status}</span></td>
+                <td>${this.formatDate(result.date_taken)}</td>
+                <td class="table-actions">
+                    <button class="btn btn-edit" onclick="examManager.editQuizResult('${result.external_id}')">
+                        ✏️ Edit
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    updateStats() {
+        document.getElementById('exams-count').textContent = this.exams.length;
+        document.getElementById('quizzes-count').textContent = this.quizzes.length;
+        document.getElementById('appointments-count').textContent = this.appointments.length;
+        document.getElementById('results-count').textContent = this.examResults.length + this.quizResults.length;
+    }
+
+    // Exam Methods
+    openCreateExamModal() {
+        document.getElementById('exam-modal-title').textContent = 'Create New Exam';
+        document.getElementById('exam-form').reset();
+        document.getElementById('exam-external-id').value = '';
+        this.showModal('exam-modal');
+    }
+
+    async editExam(externalId) {
+        const exam = this.exams.find(e => e.external_id === externalId);
+        if (!exam) return;
+
+        document.getElementById('exam-modal-title').textContent = 'Edit Exam';
+        document.getElementById('exam-external-id').value = exam.external_id;
+        document.getElementById('exam-title').value = exam.title;
+        document.getElementById('exam-course-id').value = exam.course_id;
+        document.getElementById('exam-duration').value = exam.exam_duration;
+        document.getElementById('exam-instructions').value = exam.exam_instructions || '';
+        document.getElementById('exam-video-url').value = exam.video_instructions_url || '';
+
+        // Set course selection
+        const courseSelect = document.getElementById('exam-course');
+        const option = Array.from(courseSelect.options).find(opt => 
+            opt.value === exam.course_id
+        );
+        if (option) {
+            courseSelect.value = exam.course_id;
+        }
+
+        this.showModal('exam-modal');
+    }
+
+    async handleExamSubmit(e) {
+        e.preventDefault();
+        
+        const formData = {
+            action: document.getElementById('exam-external-id').value ? 'update_exam' : 'create_exam',
+            external_id: document.getElementById('exam-external-id').value,
+            title: document.getElementById('exam-title').value,
+            course_id: document.getElementById('exam-course-id').value,
+            exam_duration: parseInt(document.getElementById('exam-duration').value),
+            exam_instructions: document.getElementById('exam-instructions').value,
+            video_instructions_url: document.getElementById('exam-video-url').value
+        };
+
+        // Validate required fields
+        if (!formData.title || !formData.course_id || !formData.exam_duration) {
+            this.showToast('Please fill in all required fields', 'error');
+            return;
+        }
+
+        this.showLoading();
+        
+        try {
+            const response = await this.apiRequest('POST', formData);
+            
+            if (response.success) {
+                this.showToast('Exam saved successfully!', 'success');
+                this.closeExamModal();
+                await this.loadInitialData();
+            } else {
+                throw new Error(response.error || 'Failed to save exam');
+            }
+        } catch (error) {
+            this.showToast('Error saving exam: ' + error.message, 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    async deleteExam(externalId) {
+        if (!confirm('Are you sure you want to delete this exam? This action cannot be undone.')) {
+            return;
+        }
+
+        this.showLoading();
+        
+        try {
+            const response = await this.apiRequest('POST', {
+                action: 'delete_exam',
+                external_id: externalId
+            });
+            
+            if (response.success) {
+                this.showToast('Exam deleted successfully!', 'success');
+                await this.loadInitialData();
+            } else {
+                throw new Error(response.error || 'Failed to delete exam');
+            }
+        } catch (error) {
+            this.showToast('Error deleting exam: ' + error.message, 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    // Quiz Methods
+    openCreateQuizModal() {
+        document.getElementById('quiz-modal-title').textContent = 'Create New Quiz';
+        document.getElementById('quiz-form').reset();
+        document.getElementById('quiz-external-id').value = '';
+        document.getElementById('quiz-lesson').innerHTML = '<option value="">Select a lesson</option>';
+        document.getElementById('quiz-lesson-id').value = '';
+        this.showModal('quiz-modal');
+    }
+
+    async editQuiz(externalId) {
+        const quiz = this.quizzes.find(q => q.external_id === externalId);
+        if (!quiz) return;
+
+        document.getElementById('quiz-modal-title').textContent = 'Edit Quiz';
+        document.getElementById('quiz-external-id').value = quiz.external_id;
+        document.getElementById('quiz-title').value = quiz.title;
+        document.getElementById('quiz-course-id').value = quiz.course_id;
+        document.getElementById('quiz-lesson-id').value = quiz.lesson_id;
+        document.getElementById('quiz-duration').value = quiz.quiz_duration;
+        document.getElementById('quiz-description').value = quiz.description || '';
+
+        // Set course selection and load lessons
+        const courseSelect = document.getElementById('quiz-course');
+        const courseOption = Array.from(courseSelect.options).find(opt => 
+            opt.value === quiz.course_id
+        );
+        if (courseOption) {
+            courseSelect.value = quiz.course_id;
+            await this.loadLessonsForCourse(quiz.course_id, quiz.lesson_id);
+        }
+
+        this.showModal('quiz-modal');
+    }
+
+    async handleQuizSubmit(e) {
+        e.preventDefault();
+        
+        const formData = {
+            action: document.getElementById('quiz-external-id').value ? 'update_quiz' : 'create_quiz',
+            external_id: document.getElementById('quiz-external-id').value,
+            title: document.getElementById('quiz-title').value,
+            course_id: document.getElementById('quiz-course-id').value,
+            lesson_id: document.getElementById('quiz-lesson-id').value,
+            quiz_duration: parseInt(document.getElementById('quiz-duration').value),
+            description: document.getElementById('quiz-description').value
+        };
+
+        // Validate required fields
+        if (!formData.title || !formData.course_id || !formData.lesson_id || !formData.quiz_duration) {
+            this.showToast('Please fill in all required fields', 'error');
+            return;
+        }
+
+        this.showLoading();
+        
+        try {
+            const response = await this.apiRequest('POST', formData);
+            
+            if (response.success) {
+                this.showToast('Quiz saved successfully!', 'success');
+                this.closeQuizModal();
+                await this.loadInitialData();
+            } else {
+                throw new Error(response.error || 'Failed to save quiz');
+            }
+        } catch (error) {
+            this.showToast('Error saving quiz: ' + error.message, 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    async deleteQuiz(externalId) {
+        if (!confirm('Are you sure you want to delete this quiz? This action cannot be undone.')) {
+            return;
+        }
+
+        this.showLoading();
+        
+        try {
+            const response = await this.apiRequest('POST', {
+                action: 'delete_quiz',
+                external_id: externalId
+            });
+            
+            if (response.success) {
+                this.showToast('Quiz deleted successfully!', 'success');
+                await this.loadInitialData();
+            } else {
+                throw new Error(response.error || 'Failed to delete quiz');
+            }
+        } catch (error) {
+            this.showToast('Error deleting quiz: ' + error.message, 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    // Question Management Methods
+    async manageExamQuestions(examId, examTitle) {
+        this.currentExamId = examId;
+        document.getElementById('exam-questions-title').textContent = `Manage Questions: ${examTitle}`;
+        
+        this.showLoading();
+        try {
+            const questions = await this.fetchExamQuestions(examId);
+            this.examQuestions[examId] = questions;
+            this.updateExamQuestionsTable(examId);
+            this.showModal('exam-questions-modal');
+        } catch (error) {
+            this.showToast('Error loading exam questions: ' + error.message, 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    async manageQuizQuestions(quizId, quizTitle) {
+        this.currentQuizId = quizId;
+        document.getElementById('quiz-questions-title').textContent = `Manage Questions: ${quizTitle}`;
+        
+        this.showLoading();
+        try {
+            const questions = await this.fetchQuizQuestions(quizId);
+            this.quizQuestions[quizId] = questions;
+            this.updateQuizQuestionsTable(quizId);
+            this.showModal('quiz-questions-modal');
+        } catch (error) {
+            this.showToast('Error loading quiz questions: ' + error.message, 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    updateExamQuestionsTable(examId) {
+        const tbody = document.getElementById('exam-questions-tbody');
+        const questions = this.examQuestions[examId] || [];
+        
+        if (questions.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="empty-state">
+                        <div class="empty-icon">❓</div>
+                        <p>No questions found</p>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        tbody.innerHTML = questions.map((question, index) => `
+            <tr>
+                <td>${index + 1}</td>
+                <td>${this.escapeHtml(question.text)}</td>
+                <td>${question.score || 1}</td>
+                <td>${question.answers ? question.answers.length : 0}</td>
+                <td>${this.getCorrectAnswerText(question.answers)}</td>
+                <td class="table-actions">
+                    <button class="btn btn-edit" onclick="examManager.editExamQuestion('${question.external_id}')">
+                        ✏️ Edit
+                    </button>
+                    <button class="btn btn-info" onclick="examManager.manageExamQuestionAnswers('${question.external_id}', '${this.escapeHtml(question.text)}')">
+                        📝 Answers
+                    </button>
+                    <button class="btn btn-danger" onclick="examManager.deleteExamQuestion('${question.external_id}')">
+                        🗑️ Delete
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    updateQuizQuestionsTable(quizId) {
+        const tbody = document.getElementById('quiz-questions-tbody');
+        const questions = this.quizQuestions[quizId] || [];
+        
+        if (questions.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="empty-state">
+                        <div class="empty-icon">❓</div>
+                        <p>No questions found</p>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        tbody.innerHTML = questions.map((question, index) => `
+            <tr>
+                <td>${index + 1}</td>
+                <td>${this.escapeHtml(question.text)}</td>
+                <td>${question.score || 1}</td>
+                <td>${question.answers ? question.answers.length : 0}</td>
+                <td>${this.getCorrectAnswerText(question.answers)}</td>
+                <td class="table-actions">
+                    <button class="btn btn-edit" onclick="examManager.editQuizQuestion('${question.external_id}')">
+                        ✏️ Edit
+                    </button>
+                    <button class="btn btn-info" onclick="examManager.manageQuizQuestionAnswers('${question.external_id}', '${this.escapeHtml(question.text)}')">
+                        📝 Answers
+                    </button>
+                    <button class="btn btn-danger" onclick="examManager.deleteQuizQuestion('${question.external_id}')">
+                        🗑️ Delete
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    getCorrectAnswerText(answers) {
+        if (!answers || !Array.isArray(answers)) return 'None';
+        const correctAnswer = answers.find(answer => answer.is_correct);
+        return correctAnswer ? this.escapeHtml(correctAnswer.text).substring(0, 30) + '...' : 'None';
+    }
+
+    openCreateExamQuestionModal() {
+        document.getElementById('exam-question-modal-title').textContent = 'Create New Exam Question';
+        document.getElementById('exam-question-form').reset();
+        document.getElementById('exam-question-external-id').value = '';
+        document.getElementById('exam-question-exam-id').value = this.currentExamId;
+        this.showModal('exam-question-modal');
+    }
+
+    openCreateQuizQuestionModal() {
+        document.getElementById('quiz-question-modal-title').textContent = 'Create New Quiz Question';
+        document.getElementById('quiz-question-form').reset();
+        document.getElementById('quiz-question-external-id').value = '';
+        document.getElementById('quiz-question-quiz-id').value = this.currentQuizId;
+        this.showModal('quiz-question-modal');
+    }
+
+    async editExamQuestion(questionId) {
+        try {
+            const question = await this.fetchExamQuestionDetails(questionId);
+            if (question) {
+                document.getElementById('exam-question-modal-title').textContent = 'Edit Exam Question';
+                document.getElementById('exam-question-external-id').value = question.external_id;
+                document.getElementById('exam-question-exam-id').value = question.exam;
+                document.getElementById('exam-question-text').value = question.text;
+                document.getElementById('exam-question-score').value = question.score || 1;
+                
+                this.showModal('exam-question-modal');
+            } else {
+                throw new Error('Failed to fetch question details');
+            }
+        } catch (error) {
+            this.showToast('Error loading question: ' + error.message, 'error');
+        }
+    }
+
+    async editQuizQuestion(questionId) {
+        try {
+            const question = await this.fetchQuizQuestionDetails(questionId);
+            if (question) {
+                document.getElementById('quiz-question-modal-title').textContent = 'Edit Quiz Question';
+                document.getElementById('quiz-question-external-id').value = question.external_id;
+                document.getElementById('quiz-question-quiz-id').value = question.quiz;
+                document.getElementById('quiz-question-text').value = question.text;
+                document.getElementById('quiz-question-score').value = question.score || 1;
+                
+                this.showModal('quiz-question-modal');
+            } else {
+                throw new Error('Failed to fetch question details');
+            }
+        } catch (error) {
+            this.showToast('Error loading question: ' + error.message, 'error');
+        }
+    }
+
+    async manageExamQuestionAnswers(questionId, questionText) {
+        this.currentQuestionId = questionId;
+        this.currentQuestionType = 'exam';
+        document.getElementById('exam-answers-title').textContent = `Manage Answers: ${questionText}`;
+        
+        this.showLoading();
+        try {
+            const question = await this.fetchExamQuestionDetails(questionId);
+            if (question && question.answers) {
+                this.currentQuestionAnswers = question.answers;
+                this.updateExamAnswersTable();
+                this.showModal('exam-answers-modal');
+            } else {
+                this.currentQuestionAnswers = [];
+                this.updateExamAnswersTable();
+                this.showModal('exam-answers-modal');
+            }
+        } catch (error) {
+            this.showToast('Error loading answers: ' + error.message, 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    async manageQuizQuestionAnswers(questionId, questionText) {
+        this.currentQuestionId = questionId;
+        this.currentQuestionType = 'quiz';
+        document.getElementById('quiz-answers-title').textContent = `Manage Answers: ${questionText}`;
+        
+        this.showLoading();
+        try {
+            const question = await this.fetchQuizQuestionDetails(questionId);
+            if (question && question.answers) {
+                this.currentQuestionAnswers = question.answers;
+                this.updateQuizAnswersTable();
+                this.showModal('quiz-answers-modal');
+            } else {
+                this.currentQuestionAnswers = [];
+                this.updateQuizAnswersTable();
+                this.showModal('quiz-answers-modal');
+            }
+        } catch (error) {
+            this.showToast('Error loading answers: ' + error.message, 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    updateExamAnswersTable() {
+        const tbody = document.getElementById('exam-answers-tbody');
+        const answers = this.currentQuestionAnswers || [];
+        
+        if (answers.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="4" class="empty-state">
+                        <div class="empty-icon">📝</div>
+                        <p>No answers found</p>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        tbody.innerHTML = answers.map((answer, index) => `
+            <tr>
+                <td>${index + 1}</td>
+                <td>${this.escapeHtml(answer.text)}</td>
+                <td>${answer.is_correct ? '✅ Correct' : '❌ Incorrect'}</td>
+                <td class="table-actions">
+                    <button class="btn btn-edit" onclick="examManager.editExamAnswer('${answer.external_id}')">
+                        ✏️ Edit
+                    </button>
+                    <button class="btn btn-danger" onclick="examManager.deleteExamAnswer('${answer.external_id}')">
+                        🗑️ Delete
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    updateQuizAnswersTable() {
+        const tbody = document.getElementById('quiz-answers-tbody');
+        const answers = this.currentQuestionAnswers || [];
+        
+        if (answers.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="4" class="empty-state">
+                        <div class="empty-icon">📝</div>
+                        <p>No answers found</p>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        tbody.innerHTML = answers.map((answer, index) => `
+            <tr>
+                <td>${index + 1}</td>
+                <td>${this.escapeHtml(answer.text)}</td>
+                <td>${answer.is_correct ? '✅ Correct' : '❌ Incorrect'}</td>
+                <td class="table-actions">
+                    <button class="btn btn-edit" onclick="examManager.editQuizAnswer('${answer.external_id}')">
+                        ✏️ Edit
+                    </button>
+                    <button class="btn btn-danger" onclick="examManager.deleteQuizAnswer('${answer.external_id}')">
+                        🗑️ Delete
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    openCreateExamAnswerModal() {
+        document.getElementById('exam-answer-modal-title').textContent = 'Create New Exam Answer';
+        document.getElementById('exam-answer-form').reset();
+        document.getElementById('exam-answer-external-id').value = '';
+        document.getElementById('exam-answer-question-id').value = this.currentQuestionId;
+        document.getElementById('exam-answer-is-correct').checked = false;
+        this.showModal('exam-answer-modal');
+    }
+
+    openCreateQuizAnswerModal() {
+        document.getElementById('quiz-answer-modal-title').textContent = 'Create New Quiz Answer';
+        document.getElementById('quiz-answer-form').reset();
+        document.getElementById('quiz-answer-external-id').value = '';
+        document.getElementById('quiz-answer-question-id').value = this.currentQuestionId;
+        document.getElementById('quiz-answer-is-correct').checked = false;
+        this.showModal('quiz-answer-modal');
+    }
+
+    async editExamAnswer(answerId) {
+        const answer = this.currentQuestionAnswers.find(a => a.external_id === answerId);
+        if (!answer) return;
+
+        document.getElementById('exam-answer-modal-title').textContent = 'Edit Exam Answer';
+        document.getElementById('exam-answer-external-id').value = answer.external_id;
+        document.getElementById('exam-answer-question-id').value = this.currentQuestionId;
+        document.getElementById('exam-answer-text').value = answer.text;
+        document.getElementById('exam-answer-is-correct').checked = answer.is_correct;
+        
+        this.showModal('exam-answer-modal');
+    }
+
+    async editQuizAnswer(answerId) {
+        const answer = this.currentQuestionAnswers.find(a => a.external_id === answerId);
+        if (!answer) return;
+
+        document.getElementById('quiz-answer-modal-title').textContent = 'Edit Quiz Answer';
+        document.getElementById('quiz-answer-external-id').value = answer.external_id;
+        document.getElementById('quiz-answer-question-id').value = this.currentQuestionId;
+        document.getElementById('quiz-answer-text').value = answer.text;
+        document.getElementById('quiz-answer-is-correct').checked = answer.is_correct;
+        
+        this.showModal('quiz-answer-modal');
+    }
+
+    // New Methods for Appointments and Results
+    async editExamAppointment(externalId) {
+        const appointment = this.appointments.find(a => a.external_id === externalId);
+        if (!appointment) return;
+
+        document.getElementById('exam-appointment-modal-title').textContent = 'Edit Exam Appointment';
+        document.getElementById('exam-appointment-external-id').value = appointment.external_id;
+        document.getElementById('exam-appointment-status').value = appointment.appointment_status;
+        document.getElementById('exam-appointment-can-start').checked = appointment.can_start;
+        document.getElementById('exam-appointment-is-entered').checked = appointment.is_entered;
+        document.getElementById('exam-appointment-proctor').value = appointment.proctor_id || '';
+        
+        this.showModal('exam-appointment-modal');
+    }
+
+    async editExamResult(externalId) {
+        const result = this.examResults.find(r => r.external_id === externalId);
+        if (!result) return;
+
+        document.getElementById('exam-result-modal-title').textContent = 'Edit Exam Result';
+        document.getElementById('exam-result-external-id').value = result.external_id;
+        document.getElementById('exam-result-score').value = result.score;
+        document.getElementById('exam-result-status').value = result.result_status;
+        document.getElementById('exam-result-message').value = result.result_message || '';
+        
+        this.showModal('exam-result-modal');
+    }
+
+    async editQuizResult(externalId) {
+        const result = this.quizResults.find(r => r.external_id === externalId);
+        if (!result) return;
+
+        document.getElementById('quiz-result-modal-title').textContent = 'Edit Quiz Result';
+        document.getElementById('quiz-result-external-id').value = result.external_id;
+        document.getElementById('quiz-result-score').value = result.score;
+        document.getElementById('quiz-result-status').value = result.result_status;
+        document.getElementById('quiz-result-message').value = result.result_message || '';
+        
+        this.showModal('quiz-result-modal');
+    }
+
+    async handleExamAppointmentSubmit(e) {
+        e.preventDefault();
+        
+        const formData = {
+            action: 'update_exam_appointment',
+            external_id: document.getElementById('exam-appointment-external-id').value,
+            appointment_status: document.getElementById('exam-appointment-status').value,
+            can_start: document.getElementById('exam-appointment-can-start').checked,
+            is_entered: document.getElementById('exam-appointment-is-entered').checked,
+            proctor_id: document.getElementById('exam-appointment-proctor').value
+        };
+
+        this.showLoading();
+        
+        try {
+            const response = await this.apiRequest('POST', formData);
+            
+            if (response.success) {
+                this.showToast('Exam appointment updated successfully!', 'success');
+                this.closeExamAppointmentModal();
+                await this.loadTabData('appointments');
+            } else {
+                throw new Error(response.error || 'Failed to update exam appointment');
+            }
+        } catch (error) {
+            this.showToast('Error updating exam appointment: ' + error.message, 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    async handleExamResultSubmit(e) {
+        e.preventDefault();
+        
+        const formData = {
+            action: 'update_user_exam_result',
+            external_id: document.getElementById('exam-result-external-id').value,
+            score: parseFloat(document.getElementById('exam-result-score').value),
+            result_status: document.getElementById('exam-result-status').value,
+            result_message: document.getElementById('exam-result-message').value
+        };
+
+        this.showLoading();
+        
+        try {
+            const response = await this.apiRequest('POST', formData);
+            
+            if (response.success) {
+                this.showToast('Exam result updated successfully!', 'success');
+                this.closeExamResultModal();
+                await this.loadTabData('exam-results');
+            } else {
+                throw new Error(response.error || 'Failed to update exam result');
+            }
+        } catch (error) {
+            this.showToast('Error updating exam result: ' + error.message, 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    async handleQuizResultSubmit(e) {
+        e.preventDefault();
+        
+        const formData = {
+            action: 'update_user_quiz_result',
+            external_id: document.getElementById('quiz-result-external-id').value,
+            score: parseFloat(document.getElementById('quiz-result-score').value),
+            result_status: document.getElementById('quiz-result-status').value,
+            result_message: document.getElementById('quiz-result-message').value
+        };
+
+        this.showLoading();
+        
+        try {
+            const response = await this.apiRequest('POST', formData);
+            
+            if (response.success) {
+                this.showToast('Quiz result updated successfully!', 'success');
+                this.closeQuizResultModal();
+                await this.loadTabData('quiz-results');
+            } else {
+                throw new Error(response.error || 'Failed to update quiz result');
+            }
+        } catch (error) {
+            this.showToast('Error updating quiz result: ' + error.message, 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    async handleExamQuestionSubmit(e) {
+        e.preventDefault();
+        
+        const formData = {
+            action: document.getElementById('exam-question-external-id').value ? 'update_exam_question' : 'create_exam_question',
+            external_id: document.getElementById('exam-question-external-id').value,
+            exam: document.getElementById('exam-question-exam-id').value,
+            text: document.getElementById('exam-question-text').value,
+            score: parseInt(document.getElementById('exam-question-score').value) || 1
+        };
+
+        if (!formData.text || !formData.exam) {
+            this.showToast('Please fill in all required fields', 'error');
+            return;
+        }
+
+        this.showLoading();
+        
+        try {
+            const response = await this.apiRequest('POST', formData);
+            
+            if (response.success) {
+                this.showToast('Exam question saved successfully!', 'success');
+                this.closeExamQuestionModal();
+                // Refresh the questions list
+                await this.manageExamQuestions(this.currentExamId, '');
+            } else {
+                throw new Error(response.error || 'Failed to save exam question');
+            }
+        } catch (error) {
+            this.showToast('Error saving exam question: ' + error.message, 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    async handleQuizQuestionSubmit(e) {
+        e.preventDefault();
+        
+        const formData = {
+            action: document.getElementById('quiz-question-external-id').value ? 'update_quiz_question' : 'create_quiz_question',
+            external_id: document.getElementById('quiz-question-external-id').value,
+            quiz: document.getElementById('quiz-question-quiz-id').value,
+            text: document.getElementById('quiz-question-text').value,
+            score: parseInt(document.getElementById('quiz-question-score').value) || 1
+        };
+
+        if (!formData.text || !formData.quiz) {
+            this.showToast('Please fill in all required fields', 'error');
+            return;
+        }
+
+        this.showLoading();
+        
+        try {
+            const response = await this.apiRequest('POST', formData);
+            
+            if (response.success) {
+                this.showToast('Quiz question saved successfully!', 'success');
+                this.closeQuizQuestionModal();
+                // Refresh the questions list
+                await this.manageQuizQuestions(this.currentQuizId, '');
+            } else {
+                throw new Error(response.error || 'Failed to save quiz question');
+            }
+        } catch (error) {
+            this.showToast('Error saving quiz question: ' + error.message, 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    async handleExamAnswerSubmit(e) {
+        e.preventDefault();
+        
+        const formData = {
+            action: document.getElementById('exam-answer-external-id').value ? 'update_exam_answer' : 'create_exam_answer',
+            external_id: document.getElementById('exam-answer-external-id').value,
+            exam_question: document.getElementById('exam-answer-question-id').value,
+            text: document.getElementById('exam-answer-text').value,
+            is_correct: document.getElementById('exam-answer-is-correct').checked
+        };
+
+        if (!formData.text || !formData.exam_question) {
+            this.showToast('Please fill in all required fields', 'error');
+            return;
+        }
+
+        this.showLoading();
+        
+        try {
+            const response = await this.apiRequest('POST', formData);
+            
+            if (response.success) {
+                this.showToast('Exam answer saved successfully!', 'success');
+                this.closeExamAnswerModal();
+                // Refresh the answers list
+                await this.manageExamQuestionAnswers(this.currentQuestionId, '');
+            } else {
+                throw new Error(response.error || 'Failed to save exam answer');
+            }
+        } catch (error) {
+            this.showToast('Error saving exam answer: ' + error.message, 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    async handleQuizAnswerSubmit(e) {
+        e.preventDefault();
+        
+        const formData = {
+            action: document.getElementById('quiz-answer-external-id').value ? 'update_quiz_answer' : 'create_quiz_answer',
+            external_id: document.getElementById('quiz-answer-external-id').value,
+            quiz_question: document.getElementById('quiz-answer-question-id').value,
+            text: document.getElementById('quiz-answer-text').value,
+            is_correct: document.getElementById('quiz-answer-is-correct').checked
+        };
+
+        if (!formData.text || !formData.quiz_question) {
+            this.showToast('Please fill in all required fields', 'error');
+            return;
+        }
+
+        this.showLoading();
+        
+        try {
+            const response = await this.apiRequest('POST', formData);
+            
+            if (response.success) {
+                this.showToast('Quiz answer saved successfully!', 'success');
+                this.closeQuizAnswerModal();
+                // Refresh the answers list
+                await this.manageQuizQuestionAnswers(this.currentQuestionId, '');
+            } else {
+                throw new Error(response.error || 'Failed to save quiz answer');
+            }
+        } catch (error) {
+            this.showToast('Error saving quiz answer: ' + error.message, 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    async deleteExamQuestion(questionId) {
+        if (!confirm('Are you sure you want to delete this exam question? This action cannot be undone.')) {
+            return;
+        }
+
+        this.showLoading();
+        
+        try {
+            const response = await this.apiRequest('POST', {
+                action: 'delete_exam_question',
+                external_id: questionId
+            });
+            
+            if (response.success) {
+                this.showToast('Exam question deleted successfully!', 'success');
+                // Refresh the questions list
+                await this.manageExamQuestions(this.currentExamId, '');
+            } else {
+                throw new Error(response.error || 'Failed to delete exam question');
+            }
+        } catch (error) {
+            this.showToast('Error deleting exam question: ' + error.message, 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    async deleteQuizQuestion(questionId) {
+        if (!confirm('Are you sure you want to delete this quiz question? This action cannot be undone.')) {
+            return;
+        }
+
+        this.showLoading();
+        
+        try {
+            const response = await this.apiRequest('POST', {
+                action: 'delete_quiz_question',
+                external_id: questionId
+            });
+            
+            if (response.success) {
+                this.showToast('Quiz question deleted successfully!', 'success');
+                // Refresh the questions list
+                await this.manageQuizQuestions(this.currentQuizId, '');
+            } else {
+                throw new Error(response.error || 'Failed to delete quiz question');
+            }
+        } catch (error) {
+            this.showToast('Error deleting quiz question: ' + error.message, 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    async deleteExamAnswer(answerId) {
+        if (!confirm('Are you sure you want to delete this exam answer? This action cannot be undone.')) {
+            return;
+        }
+
+        this.showLoading();
+        
+        try {
+            const response = await this.apiRequest('POST', {
+                action: 'delete_exam_answer',
+                external_id: answerId
+            });
+            
+            if (response.success) {
+                this.showToast('Exam answer deleted successfully!', 'success');
+                // Refresh the answers list
+                await this.manageExamQuestionAnswers(this.currentQuestionId, '');
+            } else {
+                throw new Error(response.error || 'Failed to delete exam answer');
+            }
+        } catch (error) {
+            this.showToast('Error deleting exam answer: ' + error.message, 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    async deleteQuizAnswer(answerId) {
+        if (!confirm('Are you sure you want to delete this quiz answer? This action cannot be undone.')) {
+            return;
+        }
+
+        this.showLoading();
+        
+        try {
+            const response = await this.apiRequest('POST', {
+                action: 'delete_quiz_answer',
+                external_id: answerId
+            });
+            
+            if (response.success) {
+                this.showToast('Quiz answer deleted successfully!', 'success');
+                // Refresh the answers list
+                await this.manageQuizQuestionAnswers(this.currentQuestionId, '');
+            } else {
+                throw new Error(response.error || 'Failed to delete quiz answer');
+            }
+        } catch (error) {
+            this.showToast('Error deleting quiz answer: ' + error.message, 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    // Course and Lesson Handling
+    async onCourseSelect(type) {
+        const courseSelect = document.getElementById(`${type}-course`);
+        const courseIdInput = document.getElementById(`${type}-course-id`);
+        const selectedOption = courseSelect.options[courseSelect.selectedIndex];
+        
+        if (selectedOption && selectedOption.value) {
+            courseIdInput.value = selectedOption.value;
+            
+            if (type === 'quiz') {
+                await this.loadLessonsForCourse(selectedOption.value);
+            }
+        } else {
+            courseIdInput.value = '';
+            if (type === 'quiz') {
+                document.getElementById('quiz-lesson').innerHTML = '<option value="">Select a lesson</option>';
+                document.getElementById('quiz-lesson-id').value = '';
+            }
+        }
+    }
+
+    async loadLessonsForCourse(courseId, selectedLessonId = '') {
+        const lessonSelect = document.getElementById('quiz-lesson');
+        const lessonIdInput = document.getElementById('quiz-lesson-id');
+        
+        lessonSelect.innerHTML = '<option value="">Loading lessons...</option>';
+        lessonSelect.disabled = true;
+        
+        try {
+            const lessons = await this.fetchLessons(courseId);
+            
+            lessonSelect.innerHTML = '<option value="">Select a lesson</option>';
+            lessons.forEach(lesson => {
+                const option = document.createElement('option');
+                option.value = lesson.external_lesson_id;
+                option.textContent = lesson.title;
+                option.dataset.id = lesson.external_lesson_id;
+                if (lesson.external_lesson_id === selectedLessonId) {
+                    option.selected = true;
+                    lessonIdInput.value = lesson.external_lesson_id;
+                }
+                lessonSelect.appendChild(option);
+            });
+            
+            lessonSelect.disabled = false;
+            
+            if (lessons.length === 0) {
+                this.showToast('No lessons found for this course', 'warning');
+            }
+        } catch (error) {
+            lessonSelect.innerHTML = '<option value="">Error loading lessons</option>';
+            console.error('Error loading lessons:', error);
+        }
+    }
+
+    onLessonSelect() {
+        const lessonSelect = document.getElementById('quiz-lesson');
+        const lessonIdInput = document.getElementById('quiz-lesson-id');
+        const selectedOption = lessonSelect.options[lessonSelect.selectedIndex];
+        
+        if (selectedOption && selectedOption.value) {
+            lessonIdInput.value = selectedOption.value;
+        } else {
+            lessonIdInput.value = '';
+        }
+    }
+
+    // UI Utility Methods
+    showModal(modalId) {
+        document.getElementById(modalId).style.display = 'block';
+        document.body.style.overflow = 'hidden';
+    }
+
+    closeModals() {
+        this.closeExamModal();
+        this.closeQuizModal();
+        this.closeExamQuestionsModal();
+        this.closeQuizQuestionsModal();
+        this.closeExamQuestionModal();
+        this.closeQuizQuestionModal();
+        this.closeExamAnswersModal();
+        this.closeQuizAnswersModal();
+        this.closeExamAnswerModal();
+        this.closeQuizAnswerModal();
+        this.closeExamAppointmentModal();
+        this.closeExamResultModal();
+        this.closeQuizResultModal();
+    }
+
+    closeExamModal() {
+        document.getElementById('exam-modal').style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+
+    closeQuizModal() {
+        document.getElementById('quiz-modal').style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+
+    closeExamQuestionsModal() {
+        document.getElementById('exam-questions-modal').style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+
+    closeQuizQuestionsModal() {
+        document.getElementById('quiz-questions-modal').style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+
+    closeExamQuestionModal() {
+        document.getElementById('exam-question-modal').style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+
+    closeQuizQuestionModal() {
+        document.getElementById('quiz-question-modal').style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+
+    closeExamAnswersModal() {
+        document.getElementById('exam-answers-modal').style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+
+    closeQuizAnswersModal() {
+        document.getElementById('quiz-answers-modal').style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+
+    closeExamAnswerModal() {
+        document.getElementById('exam-answer-modal').style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+
+    closeQuizAnswerModal() {
+        document.getElementById('quiz-answer-modal').style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+
+    closeExamAppointmentModal() {
+        document.getElementById('exam-appointment-modal').style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+
+    closeExamResultModal() {
+        document.getElementById('exam-result-modal').style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+
+    closeQuizResultModal() {
+        document.getElementById('quiz-result-modal').style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+
+    showLoading() {
+        document.getElementById('loading-overlay').style.display = 'flex';
+    }
+
+    hideLoading() {
+        document.getElementById('loading-overlay').style.display = 'none';
+    }
+
+    showToast(message, type = 'success') {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.innerHTML = `
+            <span class="toast-icon">${this.getToastIcon(type)}</span>
+            <span>${message}</span>
+        `;
+        
+        container.appendChild(toast);
+        
+        // Auto remove after 5 seconds
+        setTimeout(() => {
+            if (toast.parentNode) {
+                toast.remove();
+            }
+        }, 5000);
+    }
+
+    getToastIcon(type) {
+        const icons = {
+            success: '✅',
+            error: '❌',
+            warning: '⚠️'
+        };
+        return icons[type] || 'ℹ️';
+    }
+
+    escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    formatDate(dateString) {
+        if (!dateString) return 'N/A';
+        
+        try {
+            const date = new Date(dateString);
+            return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+        } catch {
+            return dateString;
+        }
+    }
+
+
+    updateStatusBadges() {
+    // Apply status badge classes to all status elements
+    document.querySelectorAll('.status-badge').forEach(badge => {
+        const status = badge.textContent.toLowerCase();
+        if (status.includes('passed')) {
+            badge.className = 'status-badge status-passed';
+        } else if (status.includes('failed')) {
+            badge.className = 'status-badge status-failed';
+        } else if (status.includes('scheduled')) {
+            badge.className = 'status-badge status-scheduled';
+        } else if (status.includes('in progress')) {
+            badge.className = 'status-badge status-in-progress';
+        } else if (status.includes('completed')) {
+            badge.className = 'status-badge status-completed';
+        } else if (status.includes('cancelled')) {
+            badge.className = 'status-badge status-cancelled';
+        }
+    });
+}
+}
+
+// Global functions for HTML onclick handlers
+function switchTab(tabName) {
+    // Update tab buttons
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    // Update tab content
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.remove('active');
+    });
+    
+    // Activate the clicked tab button
+    const activeTabBtn = document.querySelector(`.tab-btn[data-tab="${tabName}"]`);
+    if (activeTabBtn) {
+        activeTabBtn.classList.add('active');
+    }
+    
+    // Activate the corresponding tab content
+    const tabContent = document.getElementById(`${tabName}-tab`);
+    if (tabContent) {
+        tabContent.classList.add('active');
+    }
+    
+    examManager.currentTab = tabName;
+    examManager.loadTabData(tabName);
+}
+
+function openCreateExamModal() {
+    examManager.openCreateExamModal();
+}
+
+function openCreateQuizModal() {
+    examManager.openCreateQuizModal();
+}
+
+function openCreateExamQuestionModal() {
+    examManager.openCreateExamQuestionModal();
+}
+
+function openCreateQuizQuestionModal() {
+    examManager.openCreateQuizQuestionModal();
+}
+
+function openCreateExamAnswerModal() {
+    examManager.openCreateExamAnswerModal();
+}
+
+function openCreateQuizAnswerModal() {
+    examManager.openCreateQuizAnswerModal();
+}
+
+function closeExamModal() {
+    examManager.closeExamModal();
+}
+
+function closeQuizModal() {
+    examManager.closeQuizModal();
+}
+
+function closeExamQuestionsModal() {
+    examManager.closeExamQuestionsModal();
+}
+
+function closeQuizQuestionsModal() {
+    examManager.closeQuizQuestionsModal();
+}
+
+function closeExamQuestionModal() {
+    examManager.closeExamQuestionModal();
+}
+
+function closeQuizQuestionModal() {
+    examManager.closeQuizQuestionModal();
+}
+
+function closeExamAnswersModal() {
+    examManager.closeExamAnswersModal();
+}
+
+function closeQuizAnswersModal() {
+    examManager.closeQuizAnswersModal();
+}
+
+function closeExamAnswerModal() {
+    examManager.closeExamAnswerModal();
+}
+
+function closeQuizAnswerModal() {
+    examManager.closeQuizAnswerModal();
+}
+
+function closeExamAppointmentModal() {
+    examManager.closeExamAppointmentModal();
+}
+
+function closeExamResultModal() {
+    examManager.closeExamResultModal();
+}
+
+function closeQuizResultModal() {
+    examManager.closeQuizResultModal();
+}
+
+function onCourseSelect(type) {
+    examManager.onCourseSelect(type);
+}
+
+function onLessonSelect() {
+    examManager.onLessonSelect();
+}
+
+async function refreshData() {
+    await examManager.loadInitialData();
+}
+
+// Initialize the exam manager when the page loads
+let examManager;
+document.addEventListener('DOMContentLoaded', function() {
+    examManager = new SelfStudyExamManager();
+});
+================================================================================
+
+FILE 5: templates/selfstudyexam.html
+--------------------------------------------------------------------------------
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Exams Management{% endblock %}
+{% block page_title %}Exams & Quizzes Management{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/selfstudyexam.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="page-content">
+    <!-- Header Section -->
+    <div class="header-section">
+        <h1>Exams & Quizzes Management</h1>
+        <p>Manage exams, quizzes, questions, answers, appointments, and results across all domains</p>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon">📊</div>
+            <div class="stat-info">
+                <h3 id="exams-count">0</h3>
+                <p>Total Exams</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">📝</div>
+            <div class="stat-info">
+                <h3 id="quizzes-count">0</h3>
+                <p>Total Quizzes</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">📅</div>
+            <div class="stat-info">
+                <h3 id="appointments-count">0</h3>
+                <p>Exam Appointments</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">🎯</div>
+            <div class="stat-info">
+                <h3 id="results-count">0</h3>
+                <p>User Results</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="action-buttons">
+        <button class="btn btn-primary" onclick="openCreateExamModal()">
+            <span class="btn-icon">➕</span> Create Exam
+        </button>
+        <button class="btn btn-secondary" onclick="openCreateQuizModal()">
+            <span class="btn-icon">📝</span> Create Quiz
+        </button>
+        <button class="btn btn-outline" onclick="refreshData()">
+            <span class="btn-icon">🔄</span> Refresh Data
+        </button>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs-container">
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="exams" onclick="switchTab('exams')">Exams</button>
+            <button class="tab-btn" data-tab="quizzes" onclick="switchTab('quizzes')">Quizzes</button>
+            <button class="tab-btn" data-tab="appointments" onclick="switchTab('appointments')">Exam Appointments</button>
+            <button class="tab-btn" data-tab="exam-results" onclick="switchTab('exam-results')">Exam Results</button>
+            <button class="tab-btn" data-tab="quiz-results" onclick="switchTab('quiz-results')">Quiz Results</button>
+        </div>
+    </div>
+
+    <!-- Exams Table -->
+    <div id="exams-tab" class="tab-content active">
+        <div class="table-container">
+            <table id="exams-table" class="data-table">
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Course</th>
+                        <th>Duration</th>
+                        <th>Questions</th>
+                        <th>Date Added</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="exams-tbody">
+                    <!-- Data will be loaded via JavaScript -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Quizzes Table -->
+    <div id="quizzes-tab" class="tab-content">
+        <div class="table-container">
+            <table id="quizzes-table" class="data-table">
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Course</th>
+                        <th>Lesson</th>
+                        <th>Duration</th>
+                        <th>Questions</th>
+                        <th>Date Added</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="quizzes-tbody">
+                    <!-- Data will be loaded via JavaScript -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Exam Appointments Table -->
+    <div id="appointments-tab" class="tab-content">
+        <div class="table-container">
+            <table id="appointments-table" class="data-table">
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Exam</th>
+                        <th>Appointment Date</th>
+                        <th>Status</th>
+                        <th>Can Start</th>
+                        <th>Is Entered</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="appointments-tbody">
+                    <!-- Data will be loaded via JavaScript -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Exam Results Table -->
+    <div id="exam-results-tab" class="tab-content">
+        <div class="table-container">
+            <table id="exam-results-table" class="data-table">
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Exam</th>
+                        <th>Score</th>
+                        <th>Status</th>
+                        <th>Date Taken</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="exam-results-tbody">
+                    <!-- Data will be loaded via JavaScript -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Quiz Results Table -->
+    <div id="quiz-results-tab" class="tab-content">
+        <div class="table-container">
+            <table id="quiz-results-table" class="data-table">
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Quiz</th>
+                        <th>Score</th>
+                        <th>Status</th>
+                        <th>Date Taken</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="quiz-results-tbody">
+                    <!-- Data will be loaded via JavaScript -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Create/Edit Exam Modal -->
+<div id="exam-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="exam-modal-title">Create New Exam</h2>
+            <span class="close" onclick="closeExamModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form id="exam-form" class="modal-form">
+                <input type="hidden" id="exam-external-id">
+                
+                <div class="form-group">
+                    <label for="exam-title">Exam Title *</label>
+                    <input type="text" id="exam-title" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="exam-course">Course *</label>
+                    <select id="exam-course" required onchange="onCourseSelect('exam')">
+                        <option value="">Select a course</option>
+                        {% for course in courses %}
+                        <option value="{{ course.external_course_id }}" data-title="{{ course.title }}">
+                            {{ course.title }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="exam-course-id">Course ID *</label>
+                    <input type="text" id="exam-course-id" readonly required>
+                </div>
+
+                <div class="form-group">
+                    <label for="exam-duration">Duration (minutes) *</label>
+                    <input type="number" id="exam-duration" min="1" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="exam-instructions">Exam Instructions</label>
+                    <textarea id="exam-instructions" rows="4"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="exam-video-url">Video Instructions URL</label>
+                    <input type="url" id="exam-video-url">
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-outline" onclick="closeExamModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Exam</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Create/Edit Quiz Modal -->
+<div id="quiz-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="quiz-modal-title">Create New Quiz</h2>
+            <span class="close" onclick="closeQuizModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form id="quiz-form" class="modal-form">
+                <input type="hidden" id="quiz-external-id">
+                
+                <div class="form-group">
+                    <label for="quiz-title">Quiz Title *</label>
+                    <input type="text" id="quiz-title" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="quiz-course">Course *</label>
+                    <select id="quiz-course" required onchange="onCourseSelect('quiz')">
+                        <option value="">Select a course</option>
+                        {% for course in courses %}
+                        <option value="{{ course.external_course_id }}" data-title="{{ course.title }}">
+                            {{ course.title }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="quiz-course-id">Course ID *</label>
+                    <input type="text" id="quiz-course-id" readonly required>
+                </div>
+
+                <div class="form-group">
+                    <label for="quiz-lesson">Lesson *</label>
+                    <select id="quiz-lesson" required onchange="onLessonSelect()">
+                        <option value="">Select a lesson</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="quiz-lesson-id">Lesson ID *</label>
+                    <input type="text" id="quiz-lesson-id" readonly required>
+                </div>
+
+                <div class="form-group">
+                    <label for="quiz-duration">Duration (minutes) *</label>
+                    <input type="number" id="quiz-duration" min="1" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="quiz-description">Description</label>
+                    <textarea id="quiz-description" rows="4"></textarea>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-outline" onclick="closeQuizModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Quiz</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Exam Questions Management Modal -->
+<div id="exam-questions-modal" class="modal">
+    <div class="modal-content large-modal">
+        <div class="modal-header">
+            <h2 id="exam-questions-title">Manage Exam Questions</h2>
+            <span class="close" onclick="closeExamQuestionsModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div class="action-buttons">
+                <button class="btn btn-primary" onclick="openCreateExamQuestionModal()">
+                    <span class="btn-icon">➕</span> Add Question
+                </button>
+            </div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Question Text</th>
+                            <th>Score</th>
+                            <th>Answers</th>
+                            <th>Correct Answer</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="exam-questions-tbody">
+                        <!-- Questions will be loaded via JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quiz Questions Management Modal -->
+<div id="quiz-questions-modal" class="modal">
+    <div class="modal-content large-modal">
+        <div class="modal-header">
+            <h2 id="quiz-questions-title">Manage Quiz Questions</h2>
+            <span class="close" onclick="closeQuizQuestionsModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div class="action-buttons">
+                <button class="btn btn-primary" onclick="openCreateQuizQuestionModal()">
+                    <span class="btn-icon">➕</span> Add Question
+                </button>
+            </div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Question Text</th>
+                            <th>Score</th>
+                            <th>Answers</th>
+                            <th>Correct Answer</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="quiz-questions-tbody">
+                        <!-- Questions will be loaded via JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create/Edit Exam Question Modal -->
+<div id="exam-question-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="exam-question-modal-title">Create New Exam Question</h2>
+            <span class="close" onclick="closeExamQuestionModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form id="exam-question-form" class="modal-form">
+                <input type="hidden" id="exam-question-external-id">
+                <input type="hidden" id="exam-question-exam-id">
+                
+                <div class="form-group">
+                    <label for="exam-question-text">Question Text *</label>
+                    <textarea id="exam-question-text" rows="4" required placeholder="Enter the question text..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="exam-question-score">Score *</label>
+                    <input type="number" id="exam-question-score" min="1" value="1" required>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-outline" onclick="closeExamQuestionModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Question</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Create/Edit Quiz Question Modal -->
+<div id="quiz-question-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="quiz-question-modal-title">Create New Quiz Question</h2>
+            <span class="close" onclick="closeQuizQuestionModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form id="quiz-question-form" class="modal-form">
+                <input type="hidden" id="quiz-question-external-id">
+                <input type="hidden" id="quiz-question-quiz-id">
+                
+                <div class="form-group">
+                    <label for="quiz-question-text">Question Text *</label>
+                    <textarea id="quiz-question-text" rows="4" required placeholder="Enter the question text..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="quiz-question-score">Score *</label>
+                    <input type="number" id="quiz-question-score" min="1" value="1" required>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-outline" onclick="closeQuizQuestionModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Question</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Exam Answers Management Modal -->
+<div id="exam-answers-modal" class="modal">
+    <div class="modal-content large-modal">
+        <div class="modal-header">
+            <h2 id="exam-answers-title">Manage Exam Answers</h2>
+            <span class="close" onclick="closeExamAnswersModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div class="action-buttons">
+                <button class="btn btn-primary" onclick="openCreateExamAnswerModal()">
+                    <span class="btn-icon">➕</span> Add Answer
+                </button>
+            </div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Answer Text</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="exam-answers-tbody">
+                        <!-- Answers will be loaded via JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quiz Answers Management Modal -->
+<div id="quiz-answers-modal" class="modal">
+    <div class="modal-content large-modal">
+        <div class="modal-header">
+            <h2 id="quiz-answers-title">Manage Quiz Answers</h2>
+            <span class="close" onclick="closeQuizAnswersModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div class="action-buttons">
+                <button class="btn btn-primary" onclick="openCreateQuizAnswerModal()">
+                    <span class="btn-icon">➕</span> Add Answer
+                </button>
+            </div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Answer Text</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="quiz-answers-tbody">
+                        <!-- Answers will be loaded via JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create/Edit Exam Answer Modal -->
+<div id="exam-answer-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="exam-answer-modal-title">Create New Exam Answer</h2>
+            <span class="close" onclick="closeExamAnswerModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form id="exam-answer-form" class="modal-form">
+                <input type="hidden" id="exam-answer-external-id">
+                <input type="hidden" id="exam-answer-question-id">
+                
+                <div class="form-group">
+                    <label for="exam-answer-text">Answer Text *</label>
+                    <textarea id="exam-answer-text" rows="4" required placeholder="Enter the answer text..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="exam-answer-is-correct">
+                        <span class="checkmark"></span>
+                        This is the correct answer
+                    </label>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-outline" onclick="closeExamAnswerModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Answer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Create/Edit Quiz Answer Modal -->
+<div id="quiz-answer-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="quiz-answer-modal-title">Create New Quiz Answer</h2>
+            <span class="close" onclick="closeQuizAnswerModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form id="quiz-answer-form" class="modal-form">
+                <input type="hidden" id="quiz-answer-external-id">
+                <input type="hidden" id="quiz-answer-question-id">
+                
+                <div class="form-group">
+                    <label for="quiz-answer-text">Answer Text *</label>
+                    <textarea id="quiz-answer-text" rows="4" required placeholder="Enter the answer text..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="quiz-answer-is-correct">
+                        <span class="checkmark"></span>
+                        This is the correct answer
+                    </label>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-outline" onclick="closeQuizAnswerModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Answer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Exam Appointment Modal -->
+<div id="exam-appointment-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="exam-appointment-modal-title">Edit Exam Appointment</h2>
+            <span class="close" onclick="closeExamAppointmentModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form id="exam-appointment-form" class="modal-form">
+                <input type="hidden" id="exam-appointment-external-id">
+                
+                <div class="form-group">
+                    <label for="exam-appointment-status">Appointment Status *</label>
+                    <select id="exam-appointment-status" required>
+                        <option value="No Reservation Yet">No Reservation Yet</option>
+                        <option value="Scheduled">Scheduled</option>
+                        <option value="In Progress">In Progress</option>
+                        <option value="Completed">Completed</option>
+                        <option value="Taken but Failed">Taken but Failed</option>
+                        <option value="Cancelled">Cancelled</option>
+                        <option value="Expired">Expired</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="exam-appointment-can-start">
+                        <span class="checkmark"></span>
+                        Can Start Exam
+                    </label>
+                </div>
+
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="exam-appointment-is-entered">
+                        <span class="checkmark"></span>
+                        User Has Entered
+                    </label>
+                </div>
+
+                <div class="form-group">
+                    <label for="exam-appointment-proctor">Proctor ID</label>
+                    <input type="text" id="exam-appointment-proctor">
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-outline" onclick="closeExamAppointmentModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Appointment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Exam Result Modal -->
+<div id="exam-result-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="exam-result-modal-title">Edit Exam Result</h2>
+            <span class="close" onclick="closeExamResultModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form id="exam-result-form" class="modal-form">
+                <input type="hidden" id="exam-result-external-id">
+                
+                <div class="form-group">
+                    <label for="exam-result-score">Score *</label>
+                    <input type="number" id="exam-result-score" step="0.01" min="0" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="exam-result-status">Result Status *</label>
+                    <select id="exam-result-status" required>
+                        <option value="PASSED">PASSED</option>
+                        <option value="FAILED">FAILED</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="exam-result-message">Result Message</label>
+                    <textarea id="exam-result-message" rows="3" placeholder="Enter result message..."></textarea>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-outline" onclick="closeExamResultModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Result</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Quiz Result Modal -->
+<div id="quiz-result-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="quiz-result-modal-title">Edit Quiz Result</h2>
+            <span class="close" onclick="closeQuizResultModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form id="quiz-result-form" class="modal-form">
+                <input type="hidden" id="quiz-result-external-id">
+                
+                <div class="form-group">
+                    <label for="quiz-result-score">Score *</label>
+                    <input type="number" id="quiz-result-score" step="0.01" min="0" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="quiz-result-status">Result Status *</label>
+                    <select id="quiz-result-status" required>
+                        <option value="PASSED">PASSED</option>
+                        <option value="FAILED">FAILED</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="quiz-result-message">Result Message</label>
+                    <textarea id="quiz-result-message" rows="3" placeholder="Enter result message..."></textarea>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-outline" onclick="closeQuizResultModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Result</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Overlay -->
+<div id="loading-overlay" class="loading-overlay">
+    <div class="loading-spinner"></div>
+    <p>Loading data...</p>
+</div>
+
+<!-- Toast Notifications -->
+<div id="toast-container" class="toast-container"></div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/selfstudyexam.js' %}"></script>
+{% endblock %}
