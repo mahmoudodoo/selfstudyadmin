@@ -23,11 +23,14 @@ class SelfStudyExamView(View):
             domains = self.get_dynamic_domains()
             courses = self.fetch_courses()
             profiles = self.fetch_user_profiles()
+            # Fetch proctors for the appointments tab
+            proctors = self.fetch_proctors()
 
             context = {
                 'domains': domains,
                 'courses': courses,
                 'profiles': profiles,
+                'proctors': proctors,  # Add proctors to context
             }
             return render(request, 'selfstudyexam.html', context)
         except Exception as e:
@@ -37,11 +40,12 @@ class SelfStudyExamView(View):
     def get_dynamic_domains(self):
         """Fetch dynamic domains from SelfStudy Domains registry"""
         try:
-            # SelfStudy Domains registry instances
+            # Select random registry instance
             SFS_DOMAINS = [
                 'https://sfsdomains1.pythonanywhere.com',
                 'https://sfsdomains2.pythonanywhere.com'
             ]
+            random.shuffle(SFS_DOMAINS)
 
             # App ID for SelfStudy Exam service
             SELFSTUDY_EXAM_APP_ID = 20
@@ -132,6 +136,37 @@ class SelfStudyExamView(View):
             logger.error(f"Error fetching profiles: {str(e)}")
             return []
 
+    def fetch_proctors(self):
+        """Fetch proctors from selfstudyproctor app"""
+        try:
+            AUTH_TOKEN = os.getenv('AUTH_TOKEN')
+            domains = self.get_proctor_domains()
+
+            if not domains:
+                logger.warning("No proctor domains available")
+                return []
+
+            # Select first working domain for performance
+            selected_domain = self.get_working_domain(domains)
+            if not selected_domain:
+                return []
+
+            url = f"{selected_domain}/proctors/"
+            headers = {'Authorization': f'Token {AUTH_TOKEN}'}
+
+            response = requests.get(url, headers=headers, timeout=10)
+            if response.status_code == 200:
+                proctors = response.json()
+                logger.info(f"Successfully fetched {len(proctors)} proctors")
+                return proctors
+            else:
+                logger.error(f"Failed to fetch proctors: {response.status_code}")
+                return []
+
+        except Exception as e:
+            logger.error(f"Error fetching proctors: {str(e)}")
+            return []
+
     def get_course_domains(self):
         """Get domains for selfstudycourse app (ID: 19)"""
         return self._fetch_app_domains(19)
@@ -140,13 +175,20 @@ class SelfStudyExamView(View):
         """Get domains for selfstudyuserprofile app (ID: 13)"""
         return self._fetch_app_domains(13)
 
+    def get_proctor_domains(self):
+        """Get domains for selfstudyproctor app (ID: 21)"""
+        return self._fetch_app_domains(21)
+
     def _fetch_app_domains(self, app_id):
         """Generic method to fetch domains for any app"""
         try:
+            # Select random registry instance
             SFS_DOMAINS = [
                 'https://sfsdomains1.pythonanywhere.com',
                 'https://sfsdomains2.pythonanywhere.com'
             ]
+            random.shuffle(SFS_DOMAINS)
+            
             AUTH_TOKEN = os.getenv('AUTH_TOKEN')
 
             for domain in SFS_DOMAINS:
@@ -215,6 +257,8 @@ class SelfStudyExamAPIView(View):
                 return self.fetch_user_exam_results()
             elif action == 'fetch_user_quiz_results':
                 return self.fetch_user_quiz_results()
+            elif action == 'fetch_proctors':
+                return self.fetch_proctors()
             else:
                 return JsonResponse({'error': 'Invalid action'}, status=400)
 
@@ -292,6 +336,13 @@ class SelfStudyExamAPIView(View):
             return None
         return SelfStudyExamView().get_working_domain(domains)
 
+    def get_proctor_domain(self):
+        """Get a single working domain for proctor service"""
+        domains = SelfStudyExamView().get_proctor_domains()
+        if not domains:
+            return None
+        return SelfStudyExamView().get_working_domain(domains)
+
     def fetch_exams(self):
         """Fetch exams from single domain for performance"""
         try:
@@ -338,6 +389,30 @@ class SelfStudyExamAPIView(View):
 
         except Exception as e:
             logger.error(f"Error fetching quizzes: {str(e)}")
+            return JsonResponse({'error': str(e)}, status=500)
+
+    def fetch_proctors(self):
+        """Fetch proctors from proctor service"""
+        try:
+            AUTH_TOKEN = os.getenv('AUTH_TOKEN')
+            domain = self.get_proctor_domain()
+
+            if not domain:
+                return JsonResponse({'error': 'No proctor domains available'}, status=503)
+
+            url = f"{domain}/proctors/"
+            headers = {'Authorization': f'Token {AUTH_TOKEN}'}
+
+            response = requests.get(url, headers=headers, timeout=10)
+            if response.status_code == 200:
+                proctors = response.json()
+                return JsonResponse({'success': True, 'proctors': proctors})
+            else:
+                logger.error(f"Failed to fetch proctors: {response.status_code}")
+                return JsonResponse({'error': f'Failed to fetch proctors: {response.status_code}'}, status=response.status_code)
+
+        except Exception as e:
+            logger.error(f"Error fetching proctors: {str(e)}")
             return JsonResponse({'error': str(e)}, status=500)
 
     def fetch_exam_appointments(self):

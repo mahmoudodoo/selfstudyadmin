@@ -8,6 +8,13 @@ class SelfStudyExamManager {
         this.examResults = [];
         this.quizResults = [];
         this.courses = [];
+        this.proctors = []; // Added proctors array
+        this.courseMap = {}; // Map course_id to course name
+        this.lessonMap = {}; // Map lesson_id to lesson name
+        this.examMap = {}; // Map exam_id to exam name
+        this.quizMap = {}; // Map quiz_id to quiz name
+        this.proctorMap = {}; // Map proctor_id to proctor name
+        this.userMap = {}; // Map user_id to username
         this.lessons = {};
         this.examQuestions = {};
         this.quizQuestions = {};
@@ -45,11 +52,21 @@ class SelfStudyExamManager {
         this.showLoading();
 
         try {
+            // First, build the course map from template data
+            this.buildCourseMap();
+            // Build proctor map from template data
+            this.buildProctorMap();
+            
+            // Then fetch and build other maps
             await Promise.all([
                 this.fetchExams(),
-                              this.fetchQuizzes()
+                this.fetchQuizzes()
             ]);
 
+            // Build exam and quiz maps
+            this.buildExamMap();
+            this.buildQuizMap();
+            
             this.updateTables();
             this.updateStats();
             this.showToast('Data loaded successfully!', 'success');
@@ -71,9 +88,11 @@ class SelfStudyExamManager {
                     break;
                 case 'exam-results':
                     await this.fetchUserExamResults();
+                    await this.buildUserMap(); // Build user map for results
                     break;
                 case 'quiz-results':
                     await this.fetchUserQuizResults();
+                    await this.buildUserMap(); // Build user map for results
                     break;
             }
             this.updateTables();
@@ -84,6 +103,109 @@ class SelfStudyExamManager {
         } finally {
             this.hideLoading();
         }
+    }
+
+    // Build course map from template data
+    buildCourseMap() {
+        // Course data is already loaded from template
+        this.courses = window.courses || [];
+        this.courseMap = {};
+        this.courses.forEach(course => {
+            this.courseMap[course.external_course_id] = course.title;
+        });
+    }
+
+    // Build proctor map from template data
+    buildProctorMap() {
+        // Proctor data is loaded from template
+        this.proctors = window.proctors || [];
+        this.proctorMap = {};
+        this.proctors.forEach(proctor => {
+            // Map proctor's external_id to proctor's username
+            this.proctorMap[proctor.external_id] = proctor.username;
+        });
+        console.log('Proctor map built:', this.proctorMap);
+    }
+
+    // Fetch proctors from API if needed
+    async fetchProctors() {
+        try {
+            const response = await this.apiRequest('GET', { action: 'fetch_proctors' });
+            if (response.success) {
+                this.proctors = response.proctors || [];
+                this.proctorMap = {};
+                this.proctors.forEach(proctor => {
+                    this.proctorMap[proctor.external_id] = proctor.username;
+                });
+                console.log('Proctors fetched from API:', this.proctors);
+                console.log('Proctor map updated:', this.proctorMap);
+            } else {
+                throw new Error(response.error || 'Failed to fetch proctors');
+            }
+        } catch (error) {
+            console.error('Error fetching proctors:', error);
+            this.proctors = [];
+            throw error;
+        }
+    }
+
+    // Build exam map from exams data
+    buildExamMap() {
+        this.examMap = {};
+        this.exams.forEach(exam => {
+            this.examMap[exam.external_id] = exam.title;
+        });
+    }
+
+    // Build quiz map from quizzes data
+    buildQuizMap() {
+        this.quizMap = {};
+        this.quizzes.forEach(quiz => {
+            this.quizMap[quiz.external_id] = quiz.title;
+        });
+    }
+
+    // Build lesson map (will be populated when lessons are fetched)
+    async buildLessonMap() {
+        this.lessonMap = {};
+        // Fetch lessons for all courses to build map
+        const courseIds = [...new Set(this.quizzes.map(q => q.course_id))];
+        
+        for (const courseId of courseIds) {
+            if (courseId) {
+                try {
+                    const lessons = await this.fetchLessons(courseId);
+                    lessons.forEach(lesson => {
+                        this.lessonMap[lesson.external_lesson_id] = lesson.title;
+                    });
+                } catch (error) {
+                    console.error(`Error fetching lessons for course ${courseId}:`, error);
+                }
+            }
+        }
+    }
+
+    // Build user map (simplified - in real app, you'd fetch user data)
+    async buildUserMap() {
+        this.userMap = {};
+        // Build from exam results
+        this.examResults.forEach(result => {
+            if (result.username) {
+                this.userMap[result.user] = result.username;
+            }
+        });
+        // Build from quiz results
+        this.quizResults.forEach(result => {
+            if (result.username) {
+                this.userMap[result.user] = result.username;
+            }
+        });
+        // Build from appointments
+        this.appointments.forEach(appointment => {
+            if (appointment.username) {
+                this.userMap[appointment.user] = appointment.username;
+            }
+        });
     }
 
     async fetchExams() {
@@ -106,6 +228,8 @@ class SelfStudyExamManager {
             const response = await this.apiRequest('GET', { action: 'fetch_quizzes' });
             if (response.success) {
                 this.quizzes = response.quizzes || [];
+                // Build lesson map after fetching quizzes
+                await this.buildLessonMap();
             } else {
                 throw new Error(response.error || 'Failed to fetch quizzes');
             }
@@ -121,6 +245,11 @@ class SelfStudyExamManager {
             const response = await this.apiRequest('GET', { action: 'fetch_exam_appointments' });
             if (response.success) {
                 this.appointments = response.appointments || [];
+                console.log('Appointments fetched:', this.appointments);
+                // Log proctor IDs for debugging
+                this.appointments.forEach(app => {
+                    console.log(`Appointment ${app.external_id}: proctor_id=${app.proctor_id}, proctor=${app.proctor}`);
+                });
             } else {
                 throw new Error(response.error || 'Failed to fetch exam appointments');
             }
@@ -324,7 +453,7 @@ class SelfStudyExamManager {
         tbody.innerHTML = this.exams.map(exam => `
         <tr>
         <td>${this.escapeHtml(exam.title)}</td>
-        <td>${this.escapeHtml(exam.course_id)}</td>
+        <td>${this.escapeHtml(this.courseMap[exam.course_id] || exam.course_id)}</td>
         <td>${exam.exam_duration} min</td>
         <td>${exam.questions ? exam.questions.length : 0}</td>
         <td>${this.formatDate(exam.date_added)}</td>
@@ -361,8 +490,8 @@ class SelfStudyExamManager {
         tbody.innerHTML = this.quizzes.map(quiz => `
         <tr>
         <td>${this.escapeHtml(quiz.title)}</td>
-        <td>${this.escapeHtml(quiz.course_id)}</td>
-        <td>${this.escapeHtml(quiz.lesson_id)}</td>
+        <td>${this.escapeHtml(this.courseMap[quiz.course_id] || quiz.course_id)}</td>
+        <td>${this.escapeHtml(this.lessonMap[quiz.lesson_id] || quiz.lesson_id)}</td>
         <td>${quiz.quiz_duration} min</td>
         <td>${quiz.questions ? quiz.questions.length : 0}</td>
         <td>${this.formatDate(quiz.date_added)}</td>
@@ -396,24 +525,30 @@ class SelfStudyExamManager {
             return;
         }
 
-        tbody.innerHTML = this.appointments.map(appointment => `
-        <tr>
-        <td>${this.escapeHtml(appointment.username)}</td>
-        <td>${this.escapeHtml(appointment.exam_title || appointment.exam)}</td>
-        <td>${this.formatDateTime(appointment.appointment_date)}</td>
-        <td><span class="status-badge status-${appointment.appointment_status.toLowerCase().replace(/ /g, '-')}">${appointment.appointment_status}</span></td>
-        <td>${appointment.proctor_id || '-'}</td>
-        <td>${appointment.can_start ? '<span class="status-badge status-scheduled">Yes</span>' : '<span class="status-badge status-cancelled">No</span>'}</td>
-        <td>${appointment.is_entered ? '<span class="status-badge status-completed">Yes</span>' : '<span class="status-badge status-cancelled">No</span>'}</td>
-        <td>${appointment.exam_time ? appointment.exam_time + ' min' : '-'}</td>
-        <td>${this.formatDateTime(appointment.entered_datetime)}</td>
-        <td class="table-actions">
-        <button class="btn btn-edit" onclick="examManager.editExamAppointment('${appointment.external_id}')">
-        <span class="btn-icon">✏️</span> Edit
-        </button>
-        </td>
-        </tr>
-        `).join('');
+        tbody.innerHTML = this.appointments.map(appointment => {
+            // Get proctor username from proctorMap
+            const proctorId = appointment.proctor_id || appointment.proctor;
+            const proctorUsername = proctorId ? this.proctorMap[proctorId] : null;
+            
+            return `
+            <tr>
+            <td>${this.escapeHtml(appointment.username || appointment.user || 'N/A')}</td>
+            <td>${this.escapeHtml(this.examMap[appointment.exam] || appointment.exam)}</td>
+            <td>${this.formatDateTime(appointment.appointment_date)}</td>
+            <td><span class="status-badge status-${appointment.appointment_status.toLowerCase().replace(/ /g, '-')}">${appointment.appointment_status}</span></td>
+            <td>${proctorUsername ? this.escapeHtml(proctorUsername) : (proctorId ? this.escapeHtml(proctorId) : '-')}</td>
+            <td>${appointment.can_start ? '<span class="status-badge status-scheduled">Yes</span>' : '<span class="status-badge status-cancelled">No</span>'}</td>
+            <td>${appointment.is_entered ? '<span class="status-badge status-completed">Yes</span>' : '<span class="status-badge status-cancelled">No</span>'}</td>
+            <td>${appointment.exam_time ? appointment.exam_time + ' min' : '-'}</td>
+            <td>${this.formatDateTime(appointment.entered_datetime)}</td>
+            <td class="table-actions">
+            <button class="btn btn-edit" onclick="examManager.editExamAppointment('${appointment.external_id}')">
+            <span class="btn-icon">✏️</span> Edit
+            </button>
+            </td>
+            </tr>
+            `;
+        }).join('');
     }
 
     updateExamResultsTable() {
@@ -433,8 +568,8 @@ class SelfStudyExamManager {
 
         tbody.innerHTML = this.examResults.map(result => `
         <tr>
-        <td>${this.escapeHtml(result.username)}</td>
-        <td>${this.escapeHtml(result.exam_title || result.exam)}</td>
+        <td>${this.escapeHtml(result.username || result.user || 'N/A')}</td>
+        <td>${this.escapeHtml(this.examMap[result.exam] || result.exam)}</td>
         <td><strong>${result.score}</strong></td>
         <td><span class="status-badge status-${result.result_status.toLowerCase()}">${result.result_status}</span></td>
         <td>${this.formatDateTime(result.date_taken)}</td>
@@ -464,8 +599,8 @@ class SelfStudyExamManager {
 
         tbody.innerHTML = this.quizResults.map(result => `
         <tr>
-        <td>${this.escapeHtml(result.username)}</td>
-        <td>${this.escapeHtml(result.quiz_title || result.quiz)}</td>
+        <td>${this.escapeHtml(result.username || result.user || 'N/A')}</td>
+        <td>${this.escapeHtml(this.quizMap[result.quiz] || result.quiz)}</td>
         <td><strong>${result.score}</strong></td>
         <td><span class="status-badge status-${result.result_status.toLowerCase()}">${result.result_status}</span></td>
         <td>${this.formatDateTime(result.date_taken)}</td>

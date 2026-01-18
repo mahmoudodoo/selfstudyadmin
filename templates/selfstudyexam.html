@@ -652,8 +652,13 @@
 
                 <div class="form-grid">
                     <div class="form-group">
-                        <label for="exam-appointment-proctor">Proctor ID</label>
-                        <input type="text" id="exam-appointment-proctor" placeholder="Enter proctor ID...">
+                        <label for="exam-appointment-proctor">Proctor</label>
+                        <select id="exam-appointment-proctor">
+                            <option value="">Select a proctor</option>
+                            {% for proctor in proctors %}
+                            <option value="{{ proctor.external_id }}">{{ proctor.username }} ({{ proctor.email }})</option>
+                            {% endfor %}
+                        </select>
                     </div>
 
                     <div class="form-group">
@@ -800,5 +805,27 @@
 {% endblock %}
 
 {% block extra_js %}
+<script>
+    // Pass course data from Django template to JavaScript
+    window.courses = [
+        {% for course in courses %}
+        {
+            external_course_id: "{{ course.external_course_id|escapejs }}",
+            title: "{{ course.title|escapejs }}"
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+    
+    // Pass proctor data from Django template to JavaScript
+    window.proctors = [
+        {% for proctor in proctors %}
+        {
+            external_id: "{{ proctor.external_id|escapejs }}",
+            username: "{{ proctor.username|escapejs }}",
+            email: "{{ proctor.email|escapejs }}"
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+</script>
 <script src="{% static 'js/selfstudyexam.js' %}"></script>
 {% endblock %}
