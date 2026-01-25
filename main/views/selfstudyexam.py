@@ -188,7 +188,7 @@ class SelfStudyExamView(View):
                 'https://sfsdomains2.pythonanywhere.com'
             ]
             random.shuffle(SFS_DOMAINS)
-            
+
             AUTH_TOKEN = os.getenv('AUTH_TOKEN')
 
             for domain in SFS_DOMAINS:
@@ -314,13 +314,24 @@ class SelfStudyExamAPIView(View):
             elif action == 'delete_quiz_answer':
                 return self.delete_quiz_answer_fixed(data)
 
-            # FIXED: Sync update operations - USE REGULAR ENDPOINTS WITH SYNC
+            # Appointment operations
             elif action == 'update_exam_appointment':
                 return self.update_exam_appointment_complete(data)
+            elif action == 'delete_exam_appointment':
+                return self.delete_exam_appointment_complete(data)
+
+            # Exam result operations
             elif action == 'update_user_exam_result':
                 return self.update_user_exam_result_complete(data)
+            elif action == 'delete_user_exam_result':
+                return self.delete_user_exam_result_complete(data)
+
+            # Quiz result operations
             elif action == 'update_user_quiz_result':
                 return self.update_user_quiz_result_complete(data)
+            elif action == 'delete_user_quiz_result':
+                return self.delete_user_quiz_result_complete(data)
+
             else:
                 return JsonResponse({'error': 'Invalid action'}, status=400)
 
@@ -1386,6 +1397,40 @@ class SelfStudyExamAPIView(View):
             logger.error(f"Error updating exam appointment: {str(e)}")
             return JsonResponse({'error': str(e)}, status=500)
 
+    def delete_exam_appointment_complete(self, data):
+        """Delete an exam appointment"""
+        try:
+            AUTH_TOKEN = os.getenv('AUTH_TOKEN')
+            domain = self.get_single_domain()
+            external_id = data.get('external_id')
+
+            if not domain or not external_id:
+                return JsonResponse({'error': 'Missing domain or external_id'}, status=400)
+
+            url = f"{domain}/exam-appointments/{external_id}/"
+            headers = {'Authorization': f'Token {AUTH_TOKEN}'}
+
+            logger.info(f"Deleting exam appointment with external_id: {external_id}")
+            response = requests.delete(url, headers=headers, timeout=10)
+
+            if response.status_code in [200, 204]:
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Exam appointment deleted successfully',
+                    'results': [{'domain': domain, 'status': response.status_code, 'success': True}]
+                })
+            else:
+                logger.error(f"Failed to delete exam appointment: {response.status_code} - {response.text}")
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Failed to delete exam appointment: {response.status_code} - {response.text}',
+                    'results': [{'domain': domain, 'status': response.status_code, 'success': False}]
+                }, status=500)
+
+        except Exception as e:
+            logger.error(f"Error deleting exam appointment: {str(e)}")
+            return JsonResponse({'error': str(e)}, status=500)
+
     def update_user_exam_result_complete(self, data):
         """Update a user exam result - USE REGULAR ENDPOINT FOR SYNC"""
         try:
@@ -1435,6 +1480,40 @@ class SelfStudyExamAPIView(View):
             logger.error(f"Error updating user exam result: {str(e)}")
             return JsonResponse({'error': str(e)}, status=500)
 
+    def delete_user_exam_result_complete(self, data):
+        """Delete a user exam result"""
+        try:
+            AUTH_TOKEN = os.getenv('AUTH_TOKEN')
+            domain = self.get_single_domain()
+            external_id = data.get('external_id')
+
+            if not domain or not external_id:
+                return JsonResponse({'error': 'Missing domain or external_id'}, status=400)
+
+            url = f"{domain}/user-exam-results/{external_id}/"
+            headers = {'Authorization': f'Token {AUTH_TOKEN}'}
+
+            logger.info(f"Deleting user exam result with external_id: {external_id}")
+            response = requests.delete(url, headers=headers, timeout=10)
+
+            if response.status_code in [200, 204]:
+                return JsonResponse({
+                    'success': True,
+                    'message': 'User exam result deleted successfully',
+                    'results': [{'domain': domain, 'status': response.status_code, 'success': True}]
+                })
+            else:
+                logger.error(f"Failed to delete user exam result: {response.status_code} - {response.text}")
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Failed to delete user exam result: {response.status_code} - {response.text}',
+                    'results': [{'domain': domain, 'status': response.status_code, 'success': False}]
+                }, status=500)
+
+        except Exception as e:
+            logger.error(f"Error deleting user exam result: {str(e)}")
+            return JsonResponse({'error': str(e)}, status=500)
+
     def update_user_quiz_result_complete(self, data):
         """Update a user quiz result - USE REGULAR ENDPOINT FOR SYNC"""
         try:
@@ -1482,4 +1561,38 @@ class SelfStudyExamAPIView(View):
 
         except Exception as e:
             logger.error(f"Error updating user quiz result: {str(e)}")
+            return JsonResponse({'error': str(e)}, status=500)
+
+    def delete_user_quiz_result_complete(self, data):
+        """Delete a user quiz result"""
+        try:
+            AUTH_TOKEN = os.getenv('AUTH_TOKEN')
+            domain = self.get_single_domain()
+            external_id = data.get('external_id')
+
+            if not domain or not external_id:
+                return JsonResponse({'error': 'Missing domain or external_id'}, status=400)
+
+            url = f"{domain}/user-quiz-results/{external_id}/"
+            headers = {'Authorization': f'Token {AUTH_TOKEN}'}
+
+            logger.info(f"Deleting user quiz result with external_id: {external_id}")
+            response = requests.delete(url, headers=headers, timeout=10)
+
+            if response.status_code in [200, 204]:
+                return JsonResponse({
+                    'success': True,
+                    'message': 'User quiz result deleted successfully',
+                    'results': [{'domain': domain, 'status': response.status_code, 'success': True}]
+                })
+            else:
+                logger.error(f"Failed to delete user quiz result: {response.status_code} - {response.text}")
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Failed to delete user quiz result: {response.status_code} - {response.text}',
+                    'results': [{'domain': domain, 'status': response.status_code, 'success': False}]
+                }, status=500)
+
+        except Exception as e:
+            logger.error(f"Error deleting user quiz result: {str(e)}")
             return JsonResponse({'error': str(e)}, status=500)

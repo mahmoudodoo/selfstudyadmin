@@ -56,17 +56,17 @@ class SelfStudyExamManager {
             this.buildCourseMap();
             // Build proctor map from template data
             this.buildProctorMap();
-            
+
             // Then fetch and build other maps
             await Promise.all([
                 this.fetchExams(),
-                this.fetchQuizzes()
+                              this.fetchQuizzes()
             ]);
 
             // Build exam and quiz maps
             this.buildExamMap();
             this.buildQuizMap();
-            
+
             this.updateTables();
             this.updateStats();
             this.showToast('Data loaded successfully!', 'success');
@@ -170,7 +170,7 @@ class SelfStudyExamManager {
         this.lessonMap = {};
         // Fetch lessons for all courses to build map
         const courseIds = [...new Set(this.quizzes.map(q => q.course_id))];
-        
+
         for (const courseId of courseIds) {
             if (courseId) {
                 try {
@@ -529,7 +529,7 @@ class SelfStudyExamManager {
             // Get proctor username from proctorMap
             const proctorId = appointment.proctor_id || appointment.proctor;
             const proctorUsername = proctorId ? this.proctorMap[proctorId] : null;
-            
+
             return `
             <tr>
             <td>${this.escapeHtml(appointment.username || appointment.user || 'N/A')}</td>
@@ -545,6 +545,9 @@ class SelfStudyExamManager {
             <button class="btn btn-edit" onclick="examManager.editExamAppointment('${appointment.external_id}')">
             <span class="btn-icon">✏️</span> Edit
             </button>
+            <button class="btn btn-danger" onclick="examManager.deleteExamAppointment('${appointment.external_id}')">
+            <span class="btn-icon">🗑️</span> Delete
+            </button>
             </td>
             </tr>
             `;
@@ -557,7 +560,7 @@ class SelfStudyExamManager {
         if (this.examResults.length === 0) {
             tbody.innerHTML = `
             <tr>
-            <td colspan="6" class="empty-state">
+            <td colspan="7" class="empty-state">
             <div class="empty-icon">🎯</div>
             <p>No exam results found</p>
             </td>
@@ -577,6 +580,9 @@ class SelfStudyExamManager {
         <button class="btn btn-edit" onclick="examManager.editExamResult('${result.external_id}')">
         <span class="btn-icon">✏️</span> Edit
         </button>
+        <button class="btn btn-danger" onclick="examManager.deleteExamResult('${result.external_id}')">
+        <span class="btn-icon">🗑️</span> Delete
+        </button>
         </td>
         </tr>
         `).join('');
@@ -588,7 +594,7 @@ class SelfStudyExamManager {
         if (this.quizResults.length === 0) {
             tbody.innerHTML = `
             <tr>
-            <td colspan="6" class="empty-state">
+            <td colspan="7" class="empty-state">
             <div class="empty-icon">🎯</div>
             <p>No quiz results found</p>
             </td>
@@ -607,6 +613,9 @@ class SelfStudyExamManager {
         <td class="table-actions">
         <button class="btn btn-edit" onclick="examManager.editQuizResult('${result.external_id}')">
         <span class="btn-icon">✏️</span> Edit
+        </button>
+        <button class="btn btn-danger" onclick="examManager.deleteQuizResult('${result.external_id}')">
+        <span class="btn-icon">🗑️</span> Delete
         </button>
         </td>
         </tr>
@@ -1220,6 +1229,85 @@ class SelfStudyExamManager {
         document.getElementById('quiz-result-message').value = result.result_message || '';
 
         this.showModal('quiz-result-modal');
+    }
+
+    // NEW: Delete methods for appointments and results
+    async deleteExamAppointment(externalId) {
+        if (!confirm('Are you sure you want to delete this exam appointment? This action cannot be undone.')) {
+            return;
+        }
+
+        this.showLoading();
+
+        try {
+            const response = await this.apiRequest('POST', {
+                action: 'delete_exam_appointment',
+                external_id: externalId
+            });
+
+            if (response.success) {
+                this.showToast('Exam appointment deleted successfully!', 'success');
+                await this.loadTabData('appointments');
+            } else {
+                throw new Error(response.error || 'Failed to delete exam appointment');
+            }
+        } catch (error) {
+            this.showToast('Error deleting exam appointment: ' + error.message, 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    async deleteExamResult(externalId) {
+        if (!confirm('Are you sure you want to delete this exam result? This action cannot be undone.')) {
+            return;
+        }
+
+        this.showLoading();
+
+        try {
+            const response = await this.apiRequest('POST', {
+                action: 'delete_user_exam_result',
+                external_id: externalId
+            });
+
+            if (response.success) {
+                this.showToast('Exam result deleted successfully!', 'success');
+                await this.loadTabData('exam-results');
+            } else {
+                throw new Error(response.error || 'Failed to delete exam result');
+            }
+        } catch (error) {
+            this.showToast('Error deleting exam result: ' + error.message, 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    async deleteQuizResult(externalId) {
+        if (!confirm('Are you sure you want to delete this quiz result? This action cannot be undone.')) {
+            return;
+        }
+
+        this.showLoading();
+
+        try {
+            const response = await this.apiRequest('POST', {
+                action: 'delete_user_quiz_result',
+                external_id: externalId
+            });
+
+            if (response.success) {
+                this.showToast('Quiz result deleted successfully!', 'success');
+                await this.loadTabData('quiz-results');
+            } else {
+                throw new Error(response.error || 'Failed to delete quiz result');
+            }
+        } catch (error) {
+            this.showToast('Error deleting quiz result: ' + error.message, 'error');
+        } finally {
+            this.hideLoading();
+        }
     }
 
     // ENHANCED: Handle Exam Appointment Submit with ALL fields

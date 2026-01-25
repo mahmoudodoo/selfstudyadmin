@@ -815,7 +815,7 @@
         }{% if not forloop.last %},{% endif %}
         {% endfor %}
     ];
-    
+
     // Pass proctor data from Django template to JavaScript
     window.proctors = [
         {% for proctor in proctors %}
