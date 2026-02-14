@@ -332,11 +332,17 @@ class SelfStudyExamAPIView(View):
             elif action == 'delete_user_quiz_result':
                 return self.delete_user_quiz_result_complete(data)
 
-            # ===== NEW: Full JSON import actions =====
+            # Full JSON import actions
             elif action == 'create_exam_full':
                 return self._create_exam_full(data)
             elif action == 'create_quiz_full':
                 return self._create_quiz_full(data)
+
+            # Validation actions
+            elif action == 'validate_course':
+                return self._validate_course(data)
+            elif action == 'validate_course_lesson':
+                return self._validate_course_lesson(data)
 
             else:
                 return JsonResponse({'error': 'Invalid action'}, status=400)
@@ -1603,9 +1609,9 @@ class SelfStudyExamAPIView(View):
             logger.error(f"Error deleting user quiz result: {str(e)}")
             return JsonResponse({'error': str(e)}, status=500)
 
-    # ===== NEW: Full JSON import methods =====
+    # ===== ENHANCED Full JSON import methods with detailed error tracking =====
     def _create_exam_full(self, data):
-        """Create exam with nested questions and answers."""
+        """Create exam with nested questions and answers. Checks for existing IDs first."""
         AUTH_TOKEN = os.getenv('AUTH_TOKEN')
         domain = self.get_single_domain()
         if not domain:
@@ -1616,14 +1622,65 @@ class SelfStudyExamAPIView(View):
         if not exam_ext_id:
             return JsonResponse({'error': 'external_id is required'}, status=400)
 
-        check_url = f"{domain}/exams/{exam_ext_id}/"
         headers = {'Authorization': f'Token {AUTH_TOKEN}'}
+        check_url = f"{domain}/exams/{exam_ext_id}/"
         try:
             resp = requests.get(check_url, headers=headers, timeout=10)
             if resp.status_code == 200:
                 return JsonResponse({'error': f'Exam with external_id {exam_ext_id} already exists'}, status=400)
         except requests.RequestException as e:
             logger.warning(f"Failed to check exam existence: {e}")
+
+        # Collect all question and answer external_ids
+        question_ids = []
+        answer_ids = []
+        questions = data.get('questions', [])
+        for q in questions:
+            q_id = q.get('external_id')
+            if q_id:
+                question_ids.append(q_id)
+            for a in q.get('answers', []):
+                a_id = a.get('external_id')
+                if a_id:
+                    answer_ids.append(a_id)
+
+        # Check for existing questions
+        existing_questions = []
+        for qid in question_ids:
+            url = f"{domain}/exam-questions/{qid}/"
+            try:
+                resp = requests.get(url, headers=headers, timeout=5)
+                if resp.status_code == 200:
+                    existing_questions.append(qid)
+                elif resp.status_code != 404:
+                    logger.error(f"Unexpected response checking question {qid}: {resp.status_code}")
+                    return JsonResponse({'error': f'Failed to verify question ID {qid}'}, status=500)
+            except requests.RequestException as e:
+                logger.error(f"Error checking question {qid}: {e}")
+                return JsonResponse({'error': f'Error checking question ID {qid}: {str(e)}'}, status=500)
+
+        # Check for existing answers
+        existing_answers = []
+        for aid in answer_ids:
+            url = f"{domain}/exam-answers/{aid}/"
+            try:
+                resp = requests.get(url, headers=headers, timeout=5)
+                if resp.status_code == 200:
+                    existing_answers.append(aid)
+                elif resp.status_code != 404:
+                    logger.error(f"Unexpected response checking answer {aid}: {resp.status_code}")
+                    return JsonResponse({'error': f'Failed to verify answer ID {aid}'}, status=500)
+            except requests.RequestException as e:
+                logger.error(f"Error checking answer {aid}: {e}")
+                return JsonResponse({'error': f'Error checking answer ID {aid}: {str(e)}'}, status=500)
+
+        if existing_questions or existing_answers:
+            error_msg = "Conflict: The following IDs already exist"
+            if existing_questions:
+                error_msg += f"\nQuestions: {', '.join(existing_questions)}"
+            if existing_answers:
+                error_msg += f"\nAnswers: {', '.join(existing_answers)}"
+            return JsonResponse({'error': error_msg}, status=409)  # 409 Conflict
 
         # Prepare exam data (remove nested fields)
         exam_data = {
@@ -1646,8 +1703,16 @@ class SelfStudyExamAPIView(View):
             logger.error(f"Error creating exam: {e}")
             return JsonResponse({'error': str(e)}, status=500)
 
+        # Track statistics
+        stats = {
+            'questions_created': 0,
+            'questions_failed': 0,
+            'answers_created': 0,
+            'answers_failed': 0,
+            'errors': []
+        }
+
         # Create questions and answers
-        questions = data.get('questions', [])
         for q in questions:
             q_data = {
                 'external_id': q.get('external_id'),
@@ -1658,11 +1723,15 @@ class SelfStudyExamAPIView(View):
             q_url = f"{domain}/exam-questions/"
             try:
                 q_resp = requests.post(q_url, json=q_data, headers=headers, timeout=10)
-                if q_resp.status_code not in (200, 201):
-                    logger.error(f"Failed to create question: {q_resp.text}")
-                    # Optionally rollback? For simplicity, continue but log.
+                if q_resp.status_code in (200, 201):
+                    stats['questions_created'] += 1
+                else:
+                    stats['questions_failed'] += 1
+                    stats['errors'].append(f"Question {q.get('external_id')}: {q_resp.status_code} - {q_resp.text}")
+                    continue  # skip answers for this question
             except requests.RequestException as e:
-                logger.error(f"Error creating question: {e}")
+                stats['questions_failed'] += 1
+                stats['errors'].append(f"Question {q.get('external_id')}: {str(e)}")
                 continue
 
             # Create answers for this question
@@ -1677,15 +1746,30 @@ class SelfStudyExamAPIView(View):
                 a_url = f"{domain}/exam-answers/"
                 try:
                     a_resp = requests.post(a_url, json=a_data, headers=headers, timeout=10)
-                    if a_resp.status_code not in (200, 201):
-                        logger.error(f"Failed to create answer: {a_resp.text}")
+                    if a_resp.status_code in (200, 201):
+                        stats['answers_created'] += 1
+                    else:
+                        stats['answers_failed'] += 1
+                        stats['errors'].append(f"Answer {a.get('external_id')}: {a_resp.status_code} - {a_resp.text}")
                 except requests.RequestException as e:
-                    logger.error(f"Error creating answer: {e}")
+                    stats['answers_failed'] += 1
+                    stats['errors'].append(f"Answer {a.get('external_id')}: {str(e)}")
 
-        return JsonResponse({'success': True, 'message': 'Exam created successfully'})
+        # Build response message
+        message = f"Exam created. Questions: {stats['questions_created']} ok, {stats['questions_failed']} failed. Answers: {stats['answers_created']} ok, {stats['answers_failed']} failed."
+        if stats['errors']:
+            message += " Check logs for details."
+            logger.error(f"Errors during exam import: {stats['errors']}")
+
+        return JsonResponse({
+            'success': True,
+            'message': message,
+            'stats': stats
+        })
+
 
     def _create_quiz_full(self, data):
-        """Create quiz with nested questions and answers."""
+        """Create quiz with nested questions and answers. Checks for existing IDs first."""
         AUTH_TOKEN = os.getenv('AUTH_TOKEN')
         domain = self.get_single_domain()
         if not domain:
@@ -1695,14 +1779,65 @@ class SelfStudyExamAPIView(View):
         if not quiz_ext_id:
             return JsonResponse({'error': 'external_id is required'}, status=400)
 
-        check_url = f"{domain}/quizzes/{quiz_ext_id}/"
         headers = {'Authorization': f'Token {AUTH_TOKEN}'}
+        check_url = f"{domain}/quizzes/{quiz_ext_id}/"
         try:
             resp = requests.get(check_url, headers=headers, timeout=10)
             if resp.status_code == 200:
                 return JsonResponse({'error': f'Quiz with external_id {quiz_ext_id} already exists'}, status=400)
         except requests.RequestException as e:
             logger.warning(f"Failed to check quiz existence: {e}")
+
+        # Collect all question and answer external_ids
+        question_ids = []
+        answer_ids = []
+        questions = data.get('questions', [])
+        for q in questions:
+            q_id = q.get('external_id')
+            if q_id:
+                question_ids.append(q_id)
+            for a in q.get('answers', []):
+                a_id = a.get('external_id')
+                if a_id:
+                    answer_ids.append(a_id)
+
+        # Check for existing questions
+        existing_questions = []
+        for qid in question_ids:
+            url = f"{domain}/quiz-questions/{qid}/"
+            try:
+                resp = requests.get(url, headers=headers, timeout=5)
+                if resp.status_code == 200:
+                    existing_questions.append(qid)
+                elif resp.status_code != 404:
+                    logger.error(f"Unexpected response checking question {qid}: {resp.status_code}")
+                    return JsonResponse({'error': f'Failed to verify question ID {qid}'}, status=500)
+            except requests.RequestException as e:
+                logger.error(f"Error checking question {qid}: {e}")
+                return JsonResponse({'error': f'Error checking question ID {qid}: {str(e)}'}, status=500)
+
+        # Check for existing answers
+        existing_answers = []
+        for aid in answer_ids:
+            url = f"{domain}/quiz-answers/{aid}/"
+            try:
+                resp = requests.get(url, headers=headers, timeout=5)
+                if resp.status_code == 200:
+                    existing_answers.append(aid)
+                elif resp.status_code != 404:
+                    logger.error(f"Unexpected response checking answer {aid}: {resp.status_code}")
+                    return JsonResponse({'error': f'Failed to verify answer ID {aid}'}, status=500)
+            except requests.RequestException as e:
+                logger.error(f"Error checking answer {aid}: {e}")
+                return JsonResponse({'error': f'Error checking answer ID {aid}: {str(e)}'}, status=500)
+
+        if existing_questions or existing_answers:
+            error_msg = "Conflict: The following IDs already exist"
+            if existing_questions:
+                error_msg += f"\nQuestions: {', '.join(existing_questions)}"
+            if existing_answers:
+                error_msg += f"\nAnswers: {', '.join(existing_answers)}"
+            return JsonResponse({'error': error_msg}, status=409)
 
         quiz_data = {
             'external_id': quiz_ext_id,
@@ -1723,7 +1858,14 @@ class SelfStudyExamAPIView(View):
             logger.error(f"Error creating quiz: {e}")
             return JsonResponse({'error': str(e)}, status=500)
 
-        questions = data.get('questions', [])
+        stats = {
+            'questions_created': 0,
+            'questions_failed': 0,
+            'answers_created': 0,
+            'answers_failed': 0,
+            'errors': []
+        }
+
         for q in questions:
             q_data = {
                 'external_id': q.get('external_id'),
@@ -1734,10 +1876,15 @@ class SelfStudyExamAPIView(View):
             q_url = f"{domain}/quiz-questions/"
             try:
                 q_resp = requests.post(q_url, json=q_data, headers=headers, timeout=10)
-                if q_resp.status_code not in (200, 201):
-                    logger.error(f"Failed to create question: {q_resp.text}")
+                if q_resp.status_code in (200, 201):
+                    stats['questions_created'] += 1
+                else:
+                    stats['questions_failed'] += 1
+                    stats['errors'].append(f"Question {q.get('external_id')}: {q_resp.status_code} - {q_resp.text}")
+                    continue
             except requests.RequestException as e:
-                logger.error(f"Error creating question: {e}")
+                stats['questions_failed'] += 1
+                stats['errors'].append(f"Question {q.get('external_id')}: {str(e)}")
                 continue
 
             answers = q.get('answers', [])
@@ -1751,9 +1898,146 @@ class SelfStudyExamAPIView(View):
                 a_url = f"{domain}/quiz-answers/"
                 try:
                     a_resp = requests.post(a_url, json=a_data, headers=headers, timeout=10)
-                    if a_resp.status_code not in (200, 201):
-                        logger.error(f"Failed to create answer: {a_resp.text}")
+                    if a_resp.status_code in (200, 201):
+                        stats['answers_created'] += 1
+                    else:
+                        stats['answers_failed'] += 1
+                        stats['errors'].append(f"Answer {a.get('external_id')}: {a_resp.status_code} - {a_resp.text}")
                 except requests.RequestException as e:
-                    logger.error(f"Error creating answer: {e}")
+                    stats['answers_failed'] += 1
+                    stats['errors'].append(f"Answer {a.get('external_id')}: {str(e)}")
 
-        return JsonResponse({'success': True, 'message': 'Quiz created successfully'})
+        message = f"Quiz created. Questions: {stats['questions_created']} ok, {stats['questions_failed']} failed. Answers: {stats['answers_created']} ok, {stats['answers_failed']} failed."
+        if stats['errors']:
+            message += " Check logs for details."
+            logger.error(f"Errors during quiz import: {stats['errors']}")
+
+        return JsonResponse({
+            'success': True,
+            'message': message,
+            'stats': stats
+        })
+    
+    # ===== NEW: Validation methods =====
+    def _validate_course(self, data):
+        """Check if a course exists in the selfstudycourse service."""
+        course_id = data.get('course_id')
+        if not course_id:
+            return JsonResponse({'error': 'course_id is required'}, status=400)
+
+        # Get a working course domain
+        course_domains = SelfStudyExamView().get_course_domains()
+        if not course_domains:
+            return JsonResponse({'error': 'No course domains available'}, status=503)
+
+        domain = SelfStudyExamView().get_working_domain(course_domains)
+        if not domain:
+            return JsonResponse({'error': 'No working course domain'}, status=503)
+
+        AUTH_TOKEN = os.getenv('AUTH_TOKEN')
+        url = f"{domain}/courses/{course_id}/"
+        headers = {'Authorization': f'Token {AUTH_TOKEN}'}
+
+        try:
+            response = requests.get(url, headers=headers, timeout=10)
+            if response.status_code == 200:
+                course_data = response.json()
+                return JsonResponse({
+                    'success': True,
+                    'exists': True,
+                    'course': course_data
+                })
+            elif response.status_code == 404:
+                return JsonResponse({
+                    'success': True,
+                    'exists': False,
+                    'message': f'Course with ID "{course_id}" not found.'
+                })
+            else:
+                logger.error(f"Course validation failed: {response.status_code} - {response.text}")
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Failed to validate course: {response.status_code}'
+                }, status=500)
+        except requests.RequestException as e:
+            logger.error(f"Error validating course: {e}")
+            return JsonResponse({'error': str(e)}, status=500)
+
+    def _validate_course_lesson(self, data):
+        """Check if a course exists and if a lesson belongs to that course."""
+        course_id = data.get('course_id')
+        lesson_id = data.get('lesson_id')
+        if not course_id:
+            return JsonResponse({'error': 'course_id is required'}, status=400)
+        if not lesson_id:
+            return JsonResponse({'error': 'lesson_id is required'}, status=400)
+
+        # Get a working course domain
+        course_domains = SelfStudyExamView().get_course_domains()
+        if not course_domains:
+            return JsonResponse({'error': 'No course domains available'}, status=503)
+
+        domain = SelfStudyExamView().get_working_domain(course_domains)
+        if not domain:
+            return JsonResponse({'error': 'No working course domain'}, status=503)
+
+        AUTH_TOKEN = os.getenv('AUTH_TOKEN')
+        headers = {'Authorization': f'Token {AUTH_TOKEN}'}
+
+        # First check course
+        course_url = f"{domain}/courses/{course_id}/"
+        try:
+            course_resp = requests.get(course_url, headers=headers, timeout=10)
+            if course_resp.status_code != 200:
+                return JsonResponse({
+                    'success': True,
+                    'course_exists': False,
+                    'message': f'Course with ID "{course_id}" not found.'
+                })
+        except requests.RequestException as e:
+            logger.error(f"Error checking course: {e}")
+            return JsonResponse({'error': str(e)}, status=500)
+
+        # Then fetch lessons for this course and check if lesson_id is in the list
+        lessons_url = f"{domain}/lessons/"
+        params = {'course_id': course_id}
+        try:
+            lessons_resp = requests.get(lessons_url, headers=headers, params=params, timeout=10)
+            if lessons_resp.status_code != 200:
+                logger.error(f"Failed to fetch lessons: {lessons_resp.status_code}")
+                return JsonResponse({
+                    'success': True,
+                    'course_exists': True,
+                    'lesson_exists': False,
+                    'message': 'Could not verify lesson due to server error.'
+                }, status=500)
+
+            lessons = lessons_resp.json()
+            # Try to match lesson by external_id, id, or external_lesson_id
+            lesson_found = None
+            for lesson in lessons:
+                # Check multiple possible ID fields
+                if (lesson.get('external_id') == lesson_id or
+                    lesson.get('id') == lesson_id or
+                    lesson.get('external_lesson_id') == lesson_id):
+                    lesson_found = lesson
+                    break
+
+            if lesson_found:
+                return JsonResponse({
+                    'success': True,
+                    'course_exists': True,
+                    'lesson_exists': True,
+                    'course': course_resp.json(),
+                    'lesson': lesson_found
+                })
+            else:
+                return JsonResponse({
+                    'success': True,
+                    'course_exists': True,
+                    'lesson_exists': False,
+                    'message': f'Lesson with ID "{lesson_id}" not found under this course.'
+                })
+        except requests.RequestException as e:
+            logger.error(f"Error validating lesson: {e}")
+            return JsonResponse({'error': str(e)}, status=500)

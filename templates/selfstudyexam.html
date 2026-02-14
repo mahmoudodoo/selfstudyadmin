@@ -629,7 +629,7 @@
     </div>
 </div>
 
-<!-- ENHANCED: Edit Exam Appointment Modal with ALL fields -->
+<!-- Edit Exam Appointment Modal -->
 <div id="exam-appointment-modal" class="modal">
     <div class="modal-content large-modal">
         <div class="modal-header">
@@ -820,9 +820,28 @@
                     <label for="exam-json-text">Or paste JSON below</label>
                     <textarea id="exam-json-text" rows="12" placeholder='Paste your exam JSON here...'></textarea>
                 </div>
+
+                <!-- NEW: Course selector and copy button -->
+                <div class="form-group">
+                    <label for="import-exam-course-select">Select Course (to get ID)</label>
+                    <div style="display: flex; gap: 10px;">
+                        <select id="import-exam-course-select" style="flex: 1;" onchange="onImportExamCourseSelect()">
+                            <option value="">Choose a course</option>
+                            {% for course in courses %}
+                            <option value="{{ course.external_course_id }}">{{ course.title }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group" style="display: flex; align-items: center; gap: 10px;">
+                    <input type="text" id="import-exam-course-id" readonly placeholder="Course ID will appear here" style="flex: 1;">
+                    <button type="button" class="btn btn-outline" onclick="copyToClipboard('import-exam-course-id')" title="Copy course ID">📋 Copy</button>
+                </div>
+
                 <div class="form-actions">
                     <button type="button" class="btn btn-outline" onclick="closeImportExamModal()">Cancel</button>
-                    <button type="button" class="btn btn-primary" onclick="validateExamJSON()">Validate</button>
+                    <button type="button" class="btn btn-primary" onclick="validateExamJSON()">Validate JSON</button>
+                    <button type="button" class="btn btn-info" onclick="validateExamCourse()">Validate Course</button>
                     <button type="submit" class="btn btn-success">Create Exam</button>
                 </div>
             </form>
@@ -847,9 +866,42 @@
                     <label for="quiz-json-text">Or paste JSON below</label>
                     <textarea id="quiz-json-text" rows="12" placeholder='Paste your quiz JSON here...'></textarea>
                 </div>
+
+                <!-- NEW: Course selector and copy button -->
+                <div class="form-group">
+                    <label for="import-quiz-course-select">Select Course</label>
+                    <div style="display: flex; gap: 10px;">
+                        <select id="import-quiz-course-select" style="flex: 1;" onchange="onImportQuizCourseSelect()">
+                            <option value="">Choose a course</option>
+                            {% for course in courses %}
+                            <option value="{{ course.external_course_id }}">{{ course.title }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group" style="display: flex; align-items: center; gap: 10px;">
+                    <input type="text" id="import-quiz-course-id" readonly placeholder="Course ID will appear here" style="flex: 1;">
+                    <button type="button" class="btn btn-outline" onclick="copyToClipboard('import-quiz-course-id')" title="Copy course ID">📋 Copy</button>
+                </div>
+
+                <!-- NEW: Lesson selector (populated based on course) and copy button -->
+                <div class="form-group">
+                    <label for="import-quiz-lesson-select">Select Lesson</label>
+                    <div style="display: flex; gap: 10px;">
+                        <select id="import-quiz-lesson-select" style="flex: 1;" onchange="onImportQuizLessonSelect()" disabled>
+                            <option value="">First select a course</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group" style="display: flex; align-items: center; gap: 10px;">
+                    <input type="text" id="import-quiz-lesson-id" readonly placeholder="Lesson ID will appear here" style="flex: 1;">
+                    <button type="button" class="btn btn-outline" onclick="copyToClipboard('import-quiz-lesson-id')" title="Copy lesson ID">📋 Copy</button>
+                </div>
+
                 <div class="form-actions">
                     <button type="button" class="btn btn-outline" onclick="closeImportQuizModal()">Cancel</button>
-                    <button type="button" class="btn btn-primary" onclick="validateQuizJSON()">Validate</button>
+                    <button type="button" class="btn btn-primary" onclick="validateQuizJSON()">Validate JSON</button>
+                    <button type="button" class="btn btn-info" onclick="validateQuizCourseLesson()">Validate Course & Lesson</button>
                     <button type="submit" class="btn btn-success">Create Quiz</button>
                 </div>
             </form>
