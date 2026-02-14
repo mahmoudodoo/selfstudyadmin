@@ -1,17 +1,50 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Dashboard{% endblock %}
-{% block page_title %}Dashboard{% endblock %}
+{% block title %}Dashboard - System Metrics{% endblock %}
+{% block page_title %}Infrastructure Monitoring{% endblock %}
 
 {% block extra_css %}
-
 <link rel="stylesheet" href="{% static 'css/admin_dashboard.css' %}">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 {% endblock %}
 
 {% block content %}
-<div class="page-content">
-    <h2>Welcome to Admin Dashboard</h2>
-    <p>This is the main dashboard page. Select a section from the sidebar to manage.</p>
+<div class="dashboard-container">
+    <!-- Control Panel -->
+    <div class="control-panel glass-effect">
+        <div class="selector-group">
+            <label for="app-select"><i class="bi bi-grid-3x3-gap-fill"></i> Application</label>
+            <select id="app-select" class="form-select modern-select">
+                <option value="">-- Select an App --</option>
+            </select>
+        </div>
+        <div class="selector-group">
+            <label for="replica-select"><i class="bi bi-hdd-stack-fill"></i> Replica</label>
+            <select id="replica-select" class="form-select modern-select" disabled>
+                <option value="">-- All Replicas --</option>
+            </select>
+        </div>
+        <button id="refresh-btn" class="btn-primary neon-glow" disabled>
+            <i class="bi bi-arrow-repeat"></i> Load Metrics
+        </button>
+    </div>
+
+    <!-- Loading Indicator -->
+    <div id="loading" class="loading-spinner" style="display: none;">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+
+    <!-- Metrics Dashboard -->
+    <div id="dashboard-grid" class="dashboard-grid">
+        <!-- Cards will be injected here by JavaScript -->
+    </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="{% static 'js/admin_dashboard.js' %}"></script>
 {% endblock %}

@@ -1,6 +1,11 @@
 import os
 import fnmatch
 from pathlib import Path
+import tkinter as tk
+from tkinter import ttk, filedialog, messagebox, scrolledtext
+import pyperclip  # For clipboard functionality
+
+# Install required module: pip install pyperclip
 
 # Define folders and files to ignore
 IGNORE_FOLDERS = {
@@ -23,311 +28,454 @@ IGNORE_FILE_PATTERNS = {
     '*.log'
 }
 
-def should_ignore(path, is_dir=False):
-    """Check if a path should be ignored based on ignore rules"""
-    # Check folder ignore
-    if is_dir:
-        dir_name = os.path.basename(path)
-        if dir_name in IGNORE_FOLDERS:
-            return True
-        # Also check if any part of the path contains ignored folders
+class FileTreeApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("File Content Extractor")
+        self.root.geometry("1200x800")
+        self.root.minsize(1000, 600)
+
+        # Variables
+        self.current_dir = os.getcwd()
+        self.all_files = []
+        self.filtered_files = []
+        self.checkbox_vars = {}
+        self.file_paths = {}  # Map display text to actual file path
+
+        # Configure styles
+        self.setup_styles()
+
+        # Setup UI
+        self.setup_ui()
+
+        # Load files
+        self.load_files()
+
+    def setup_styles(self):
+        style = ttk.Style()
+        style.configure("Treeview", rowheight=25)
+        style.configure("Treeview.Heading", font=('Arial', 10, 'bold'))
+
+    def setup_ui(self):
+        # Main container
+        main_container = ttk.Frame(self.root)
+        main_container.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        # Top frame for controls
+        top_frame = ttk.Frame(main_container)
+        top_frame.pack(fill=tk.X, pady=(0, 10))
+
+        # Directory selection
+        ttk.Label(top_frame, text="Directory:").pack(side=tk.LEFT, padx=(0, 5))
+        self.dir_var = tk.StringVar(value=self.current_dir)
+        dir_entry = ttk.Entry(top_frame, textvariable=self.dir_var, width=50)
+        dir_entry.pack(side=tk.LEFT, padx=(0, 5))
+
+        ttk.Button(top_frame, text="Browse", command=self.browse_directory).pack(side=tk.LEFT, padx=(0, 10))
+        ttk.Button(top_frame, text="Refresh", command=self.load_files).pack(side=tk.LEFT, padx=(0, 10))
+
+        # Search frame
+        search_frame = ttk.Frame(main_container)
+        search_frame.pack(fill=tk.X, pady=(0, 10))
+
+        ttk.Label(search_frame, text="Search:").pack(side=tk.LEFT, padx=(0, 5))
+        self.search_var = tk.StringVar()
+        search_entry = ttk.Entry(search_frame, textvariable=self.search_var, width=40)
+        search_entry.pack(side=tk.LEFT, padx=(0, 5))
+        search_entry.bind('<KeyRelease>', self.filter_files)
+
+        ttk.Button(search_frame, text="Clear", command=self.clear_search).pack(side=tk.LEFT, padx=(0, 10))
+
+        # Treeview frame with scrollbars
+        tree_frame = ttk.Frame(main_container)
+        tree_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+
+        # Create treeview
+        self.tree = ttk.Treeview(tree_frame, columns=("Select", "File"), show="tree headings")
+        self.tree.heading("#0", text="")
+        self.tree.heading("Select", text="Select")
+        self.tree.heading("File", text="File")
+
+        # Configure columns
+        self.tree.column("#0", width=0, stretch=False)
+        self.tree.column("Select", width=60, anchor="center")
+        self.tree.column("File", width=400)
+
+        # Add scrollbars
+        vsb = ttk.Scrollbar(tree_frame, orient="vertical", command=self.tree.yview)
+        hsb = ttk.Scrollbar(tree_frame, orient="horizontal", command=self.tree.xview)
+        self.tree.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
+
+        # Grid layout
+        self.tree.grid(row=0, column=0, sticky="nsew")
+        vsb.grid(row=0, column=1, sticky="ns")
+        hsb.grid(row=1, column=0, sticky="ew")
+
+        tree_frame.grid_rowconfigure(0, weight=1)
+        tree_frame.grid_columnconfigure(0, weight=1)
+
+        # Selection buttons frame
+        selection_frame = ttk.Frame(main_container)
+        selection_frame.pack(fill=tk.X, pady=(0, 10))
+
+        ttk.Button(selection_frame, text="Check All", command=self.check_all).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(selection_frame, text="Uncheck All", command=self.uncheck_all).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(selection_frame, text="Check *.py", command=lambda: self.check_pattern("*.py")).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(selection_frame, text="Check *.txt", command=lambda: self.check_pattern("*.txt")).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(selection_frame, text="Check *.md", command=lambda: self.check_pattern("*.md")).pack(side=tk.LEFT)
+
+        # Bottom frame for actions and output
+        bottom_frame = ttk.Frame(main_container)
+        bottom_frame.pack(fill=tk.BOTH, expand=True)
+
+        # Left frame for action buttons
+        action_frame = ttk.Frame(bottom_frame)
+        action_frame.pack(side=tk.LEFT, fill=tk.Y, padx=(0, 10))
+
+        # Output filename
+        ttk.Label(action_frame, text="Output File:").pack(anchor=tk.W, pady=(0, 5))
+        self.output_var = tk.StringVar(value="files_content.txt")
+        output_entry = ttk.Entry(action_frame, textvariable=self.output_var, width=30)
+        output_entry.pack(fill=tk.X, pady=(0, 10))
+
+        # Action buttons
+        ttk.Button(action_frame, text="Generate Output", command=self.generate_output).pack(fill=tk.X, pady=5)
+        ttk.Button(action_frame, text="Preview Selected", command=self.preview_selected).pack(fill=tk.X, pady=5)
+        ttk.Button(action_frame, text="Copy to Clipboard", command=self.copy_to_clipboard).pack(fill=tk.X, pady=5)
+        ttk.Button(action_frame, text="Save to File", command=self.save_to_file).pack(fill=tk.X, pady=5)
+
+        # Status label
+        self.status_var = tk.StringVar(value="Ready")
+        ttk.Label(action_frame, textvariable=self.status_var).pack(anchor=tk.W, pady=(10, 0))
+
+        # Right frame for output display
+        output_frame = ttk.LabelFrame(bottom_frame, text="Output Preview")
+        output_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
+
+        # Scrolled text for output
+        self.output_text = scrolledtext.ScrolledText(output_frame, wrap=tk.WORD, width=60, height=20)
+        self.output_text.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+
+        # Configure tags for syntax highlighting
+        self.output_text.tag_configure("header", foreground="blue", font=('Arial', 10, 'bold'))
+        self.output_text.tag_configure("path", foreground="darkgreen")
+        self.output_text.tag_configure("separator", foreground="gray")
+
+    def should_ignore(self, path, is_dir=False):
+        """Check if a path should be ignored based on ignore rules"""
+        # Check folder ignore
+        if is_dir:
+            dir_name = os.path.basename(path)
+            if dir_name in IGNORE_FOLDERS:
+                return True
+            # Also check if any part of the path contains ignored folders
+            for folder in IGNORE_FOLDERS:
+                if folder in path.split(os.sep):
+                    return True
+            return False
+
+        # Check file ignore patterns
+        filename = os.path.basename(path)
+        for pattern in IGNORE_FILE_PATTERNS:
+            if fnmatch.fnmatch(filename, pattern):
+                return True
+
+        # Check if file is in ignored folder
         for folder in IGNORE_FOLDERS:
             if folder in path.split(os.sep):
                 return True
+
         return False
 
-    # Check file ignore patterns
-    filename = os.path.basename(path)
-    for pattern in IGNORE_FILE_PATTERNS:
-        if fnmatch.fnmatch(filename, pattern):
-            return True
+    def get_all_files(self, base_dir):
+        """Get all files in directory tree with relative paths, ignoring specified folders"""
+        all_files = []
 
-    # Check if file is in ignored folder
-    for folder in IGNORE_FOLDERS:
-        if folder in path.split(os.sep):
-            return True
+        for root, dirs, files in os.walk(base_dir, topdown=True):
+            # Remove ignored directories from dirs list so os.walk doesn't traverse them
+            dirs[:] = [d for d in dirs if not self.should_ignore(os.path.join(root, d), is_dir=True)]
 
-    return False
+            for file in files:
+                full_path = os.path.join(root, file)
+                rel_path = os.path.relpath(full_path, base_dir)
 
-def get_all_files(base_dir):
-    """Get all files in directory tree with relative paths, ignoring specified folders"""
-    all_files = []
+                # Skip ignored files
+                if not self.should_ignore(rel_path, is_dir=False):
+                    all_files.append(rel_path)
 
-    for root, dirs, files in os.walk(base_dir, topdown=True):
-        # Remove ignored directories from dirs list so os.walk doesn't traverse them
-        dirs[:] = [d for d in dirs if not should_ignore(os.path.join(root, d), is_dir=True)]
+        return sorted(all_files)
 
-        for file in files:
-            full_path = os.path.join(root, file)
-            rel_path = os.path.relpath(full_path, base_dir)
+    def load_files(self):
+        """Load files from current directory"""
+        self.current_dir = self.dir_var.get()
+        if not os.path.exists(self.current_dir):
+            messagebox.showerror("Error", f"Directory does not exist: {self.current_dir}")
+            return
 
-            # Skip ignored files
-            if not should_ignore(rel_path, is_dir=False):
-                all_files.append(rel_path)
-
-    return sorted(all_files)
-
-def display_files_with_numbers(files):
-    """Display files with index numbers"""
-    print("\n" + "="*70)
-    print("FILES IN CURRENT DIRECTORY AND SUBDIRECTORIES (Ignoring specified folders)")
-    print("="*70)
-
-    if not files:
-        print("No files found (or all files are in ignored folders).")
-        return
-
-    for idx, file in enumerate(files, 1):
-        print(f"{idx:3}. {file}")
-
-    print("="*70)
-    print(f"Total files found: {len(files)}")
-    print("="*70)
-
-def select_files(files):
-    """Let user select files by index numbers"""
-    if not files:
-        print("No files available for selection.")
-        return []
-
-    selected_files = []
-
-    while True:
         try:
-            print("\n" + "-"*50)
-            print("SELECTION OPTIONS:")
-            print("- Enter numbers separated by commas (e.g., '1,3,5')")
-            print("- Enter ranges (e.g., '1-5')")
-            print("- Enter 'all' to select all files")
-            print("- Enter 'q' to quit")
-            print("-"*50)
-
-            selection = input("\nEnter file numbers to print: ").strip()
-
-            if selection.lower() == 'q':
-                return None
-            elif selection.lower() == 'all':
-                return files
-
-            indices = []
-            for part in selection.split(','):
-                part = part.strip()
-                if not part:
-                    continue
-
-                if '-' in part:
-                    # Handle ranges
-                    try:
-                        start_str, end_str = part.split('-', 1)
-                        start = int(start_str.strip())
-                        end = int(end_str.strip())
-                        if start <= end:
-                            indices.extend(range(start, end + 1))
-                        else:
-                            indices.extend(range(start, end - 1, -1))
-                    except ValueError:
-                        print(f"Invalid range format: {part}")
-                        continue
-                else:
-                    # Single number
-                    try:
-                        indices.append(int(part))
-                    except ValueError:
-                        print(f"Invalid number: {part}")
-                        continue
-
-            # Validate indices
-            valid_indices = []
-            invalid_indices = []
-
-            for i in indices:
-                if 1 <= i <= len(files):
-                    valid_indices.append(i)
-                else:
-                    invalid_indices.append(i)
-
-            if invalid_indices:
-                print(f"Warning: Invalid indices ignored: {sorted(set(invalid_indices))}")
-
-            if valid_indices:
-                # Remove duplicates while preserving order
-                seen = set()
-                selected_indices = []
-                for i in valid_indices:
-                    if i not in seen:
-                        seen.add(i)
-                        selected_indices.append(i)
-
-                selected_files = [files[i-1] for i in selected_indices]
-                return selected_files
-            else:
-                print("No valid files selected. Please try again.")
-
-        except KeyboardInterrupt:
-            print("\nOperation cancelled.")
-            return None
+            self.all_files = self.get_all_files(self.current_dir)
+            self.filtered_files = self.all_files.copy()
+            self.update_treeview()
+            self.status_var.set(f"Loaded {len(self.all_files)} files from {self.current_dir}")
         except Exception as e:
-            print(f"Error processing selection: {e}")
+            messagebox.showerror("Error", f"Failed to load files: {str(e)}")
 
-def read_file_content(file_path):
-    """Read content of a file with error handling"""
-    try:
-        with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-            return f.read()
-    except PermissionError:
-        return f"[PERMISSION DENIED: Cannot read {file_path}]"
-    except UnicodeDecodeError:
-        return f"[BINARY FILE or ENCODING ISSUE: Cannot read as text {file_path}]"
-    except Exception as e:
-        return f"[ERROR reading {file_path}: {str(e)}]"
+    def update_treeview(self):
+        """Update the treeview with current files"""
+        # Clear treeview
+        for item in self.tree.get_children():
+            self.tree.delete(item)
 
-def save_files_with_content(selected_files, output_file='files_content.txt'):
-    """Save file paths and their content to a text file"""
-    try:
-        current_dir = os.getcwd()
+        # Clear checkbox variables
+        self.checkbox_vars = {}
+        self.file_paths = {}
 
-        with open(output_file, 'w', encoding='utf-8') as f:
-            f.write("FILES AND THEIR CONTENT\n")
-            f.write("=" * 80 + "\n\n")
+        # Add files to treeview
+        for idx, file_path in enumerate(self.filtered_files):
+            var = tk.BooleanVar(value=False)
+            self.checkbox_vars[file_path] = var
+            self.file_paths[file_path] = file_path
 
-            for idx, rel_path in enumerate(selected_files, 1):
-                full_path = os.path.join(current_dir, rel_path)
+            # Create checkbox
+            cb = ttk.Checkbutton(self.tree, variable=var)
 
-                # Write file path
-                f.write(f"FILE {idx}: {rel_path}\n")
-                f.write("-" * 80 + "\n")
+            # Insert item
+            item_id = self.tree.insert("", "end", values=("", file_path))
 
-                # Read and write file content
-                content = read_file_content(full_path)
-                f.write(content)
+            # Add checkbox to treeview (this is a hack since Treeview doesn't natively support checkboxes)
+            # We'll store the checkbox reference and update manually
+            self.tree.set(item_id, "Select", "□")
 
-                # Add separation between files (unless it's the last file)
-                if idx < len(selected_files):
-                    f.write("\n" + "=" * 80 + "\n\n")
+            # Bind click on the first column to toggle checkbox
+            self.tree.bind('<Button-1>', self.on_tree_click)
 
-        print(f"\n✓ File content saved to: {os.path.abspath(output_file)}")
-        print(f"✓ Total files saved: {len(selected_files)}")
-        return True
-    except Exception as e:
-        print(f"Error saving file content: {e}")
-        return False
+    def on_tree_click(self, event):
+        """Handle clicks on the treeview to toggle checkboxes"""
+        region = self.tree.identify_region(event.x, event.y)
+        if region == "cell":
+            column = self.tree.identify_column(event.x)
+            if column == "#1":  # First column (Select)
+                item = self.tree.identify_row(event.y)
+                if item:
+                    file_path = self.tree.item(item)['values'][1]
+                    if file_path in self.checkbox_vars:
+                        current = self.checkbox_vars[file_path].get()
+                        self.checkbox_vars[file_path].set(not current)
+                        self.update_checkbox_display(item, not current)
 
-def filter_files_by_pattern(files):
-    """Allow user to filter files by pattern"""
-    print("\n" + "-"*50)
-    print("FILTER OPTIONS:")
-    print("Examples: *.txt, *.py, *.md, data*.csv")
-    print("Press Enter to skip filtering")
-    print("-"*50)
+    def update_checkbox_display(self, item, checked):
+        """Update the checkbox display in treeview"""
+        symbol = "✓" if checked else "□"
+        self.tree.set(item, "Select", symbol)
 
-    pattern = input("\nEnter file pattern to filter: ").strip()
+    def filter_files(self, event=None):
+        """Filter files based on search term"""
+        search_term = self.search_var.get().lower()
+        if not search_term:
+            self.filtered_files = self.all_files.copy()
+        else:
+            self.filtered_files = [
+                f for f in self.all_files
+                if search_term in f.lower() or search_term in os.path.basename(f).lower()
+            ]
 
-    if not pattern:
-        return files
+        # Preserve checkbox states for filtered files
+        preserved_states = {}
+        for file_path, var in self.checkbox_vars.items():
+            if file_path in self.filtered_files:
+                preserved_states[file_path] = var.get()
 
-    filtered_files = []
-    for file in files:
-        if fnmatch.fnmatch(file, pattern) or fnmatch.fnmatch(os.path.basename(file), pattern):
-            filtered_files.append(file)
+        self.update_treeview()
 
-    print(f"\n✓ Found {len(filtered_files)} files matching pattern '{pattern}'")
-    return filtered_files
+        # Restore checkbox states
+        for file_path, checked in preserved_states.items():
+            if file_path in self.checkbox_vars:
+                self.checkbox_vars[file_path].set(checked)
+                # Find and update the item in treeview
+                for item in self.tree.get_children():
+                    if self.tree.item(item)['values'][1] == file_path:
+                        self.update_checkbox_display(item, checked)
+                        break
+
+        self.status_var.set(f"Showing {len(self.filtered_files)} of {len(self.all_files)} files")
+
+    def clear_search(self):
+        """Clear search filter"""
+        self.search_var.set("")
+        self.filter_files()
+
+    def browse_directory(self):
+        """Open directory browser dialog"""
+        directory = filedialog.askdirectory(initialdir=self.current_dir)
+        if directory:
+            self.dir_var.set(directory)
+            self.load_files()
+
+    def check_all(self):
+        """Check all visible files"""
+        for item in self.tree.get_children():
+            file_path = self.tree.item(item)['values'][1]
+            if file_path in self.checkbox_vars:
+                self.checkbox_vars[file_path].set(True)
+                self.update_checkbox_display(item, True)
+
+    def uncheck_all(self):
+        """Uncheck all visible files"""
+        for item in self.tree.get_children():
+            file_path = self.tree.item(item)['values'][1]
+            if file_path in self.checkbox_vars:
+                self.checkbox_vars[file_path].set(False)
+                self.update_checkbox_display(item, False)
+
+    def check_pattern(self, pattern):
+        """Check files matching pattern"""
+        for item in self.tree.get_children():
+            file_path = self.tree.item(item)['values'][1]
+            if fnmatch.fnmatch(file_path, pattern) or fnmatch.fnmatch(os.path.basename(file_path), pattern):
+                if file_path in self.checkbox_vars:
+                    self.checkbox_vars[file_path].set(True)
+                    self.update_checkbox_display(item, True)
+
+    def get_selected_files(self):
+        """Get list of selected files"""
+        selected = []
+        for file_path, var in self.checkbox_vars.items():
+            if var.get():
+                selected.append(file_path)
+        return sorted(selected)
+
+    def read_file_content(self, file_path):
+        """Read content of a file with error handling"""
+        full_path = os.path.join(self.current_dir, file_path)
+        try:
+            with open(full_path, 'r', encoding='utf-8', errors='ignore') as f:
+                return f.read()
+        except PermissionError:
+            return f"[PERMISSION DENIED: Cannot read {file_path}]"
+        except UnicodeDecodeError:
+            return f"[BINARY FILE or ENCODING ISSUE: Cannot read as text {file_path}]"
+        except Exception as e:
+            return f"[ERROR reading {file_path}: {str(e)}]"
+
+    def generate_output(self):
+        """Generate output from selected files and display in text widget"""
+        selected_files = self.get_selected_files()
+
+        if not selected_files:
+            messagebox.showwarning("No Selection", "Please select at least one file.")
+            return
+
+        # Clear output text
+        self.output_text.delete(1.0, tk.END)
+
+        # Generate output
+        output = "FILES AND THEIR CONTENT\n"
+        output += "=" * 80 + "\n\n"
+
+        for idx, rel_path in enumerate(selected_files, 1):
+            # Add file header
+            self.output_text.insert(tk.END, f"FILE {idx}: ", "header")
+            self.output_text.insert(tk.END, f"{rel_path}\n", "path")
+            self.output_text.insert(tk.END, "-" * 80 + "\n", "separator")
+
+            # Add file content
+            content = self.read_file_content(rel_path)
+            self.output_text.insert(tk.END, content + "\n")
+
+            # Add separator between files (unless it's the last file)
+            if idx < len(selected_files):
+                self.output_text.insert(tk.END, "=" * 80 + "\n\n", "separator")
+
+        self.status_var.set(f"Generated output for {len(selected_files)} files")
+
+        # Auto-scroll to top
+        self.output_text.see(1.0)
+
+    def preview_selected(self):
+        """Preview selected files in a separate window"""
+        selected_files = self.get_selected_files()
+
+        if not selected_files:
+            messagebox.showwarning("No Selection", "Please select at least one file.")
+            return
+
+        # Create preview window
+        preview_window = tk.Toplevel(self.root)
+        preview_window.title(f"Preview ({len(selected_files)} files)")
+        preview_window.geometry("900x600")
+
+        # Create notebook for tabs
+        notebook = ttk.Notebook(preview_window)
+        notebook.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        # Create a tab for each file
+        for file_path in selected_files:
+            frame = ttk.Frame(notebook)
+            notebook.add(frame, text=os.path.basename(file_path)[:20] + "...")
+
+            # Add text widget with scrollbar
+            text_widget = scrolledtext.ScrolledText(frame, wrap=tk.WORD)
+            text_widget.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+
+            # Load content
+            content = self.read_file_content(file_path)
+            text_widget.insert(1.0, content)
+            text_widget.config(state=tk.DISABLED)  # Make read-only
+
+        # Add close button
+        ttk.Button(preview_window, text="Close", command=preview_window.destroy).pack(pady=10)
+
+    def copy_to_clipboard(self):
+        """Copy output text to clipboard"""
+        content = self.output_text.get(1.0, tk.END)
+        if content.strip():
+            pyperclip.copy(content)
+            self.status_var.set("Content copied to clipboard!")
+            messagebox.showinfo("Success", "Content copied to clipboard!")
+        else:
+            messagebox.showwarning("Empty", "No content to copy. Generate output first.")
+
+    def save_to_file(self):
+        """Save output to file"""
+        content = self.output_text.get(1.0, tk.END)
+        if not content.strip():
+            messagebox.showwarning("Empty", "No content to save. Generate output first.")
+            return
+
+        output_file = self.output_var.get()
+        if not output_file:
+            output_file = "files_content.txt"
+
+        # Ask for save location
+        file_path = filedialog.asksaveasfilename(
+            defaultextension=".txt",
+            initialfile=output_file,
+            filetypes=[("Text files", "*.txt"), ("All files", "*.*")]
+        )
+
+        if file_path:
+            try:
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    f.write(content)
+                self.status_var.set(f"Saved to: {file_path}")
+                messagebox.showinfo("Success", f"File saved successfully:\n{file_path}")
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to save file: {str(e)}")
 
 def main():
-    print("FILE CONTENT VIEWER AND SAVER")
-    print("="*70)
-
-    # Get current working directory
-    current_dir = os.getcwd()
-    print(f"Current Directory: {current_dir}")
-
-    # Get all files (excluding ignored ones)
-    print("\nScanning directory tree (excluding specified folders)...")
-    all_files = get_all_files(current_dir)
-
-    if not all_files:
-        print("\nNo files found (or all files are in ignored folders).")
-        return
-
-    print(f"Found {len(all_files)} files.")
-
-    # Filter files if user wants
-    filter_choice = input("\nDo you want to filter files by pattern? (y/n): ").strip().lower()
-    if filter_choice == 'y':
-        display_files = filter_files_by_pattern(all_files)
-    else:
-        display_files = all_files
-
-    if not display_files:
-        print("No files match your criteria.")
-        return
-
-    # Display files
-    display_files_with_numbers(display_files)
-
-    # Let user select files
-    selected_files = select_files(display_files)
-
-    if not selected_files:
-        print("No files selected. Exiting.")
-        return
-
-    print(f"\n✓ Selected {len(selected_files)} files")
-
-    # Save file content to text file
-    default_name = 'files_content.txt'
-    output_filename = input(f"\nEnter output filename (default: '{default_name}'): ").strip()
-    if not output_filename:
-        output_filename = default_name
-
-    # Append .txt if not present
-    if not output_filename.lower().endswith('.txt'):
-        output_filename += '.txt'
-
-    # Save files with content
-    save_files_with_content(selected_files, output_filename)
-
-    # Ask if user wants to preview any file
-    preview = input("\nDo you want to preview any file content in console? (y/n): ").strip().lower()
-    if preview == 'y':
-        print("\n" + "="*70)
-        for idx, file_path in enumerate(selected_files, 1):
-            print(f"\n{idx}. {file_path}")
-
-        preview_choice = input("\nEnter file number to preview (or 'all' for all, 'q' to skip): ").strip().lower()
-
-        if preview_choice == 'all':
-            for file_path in selected_files:
-                full_path = os.path.join(current_dir, file_path)
-                print(f"\n{'='*70}")
-                print(f"CONTENT OF: {file_path}")
-                print(f"{'='*70}")
-                print(read_file_content(full_path))
-        elif preview_choice != 'q':
-            try:
-                file_num = int(preview_choice)
-                if 1 <= file_num <= len(selected_files):
-                    file_path = selected_files[file_num - 1]
-                    full_path = os.path.join(current_dir, file_path)
-                    print(f"\n{'='*70}")
-                    print(f"CONTENT OF: {file_path}")
-                    print(f"{'='*70}")
-                    print(read_file_content(full_path))
-                else:
-                    print("Invalid file number.")
-            except ValueError:
-                print("Invalid input.")
-
-    print("\n" + "="*70)
-    print(f"PROCESS COMPLETED")
-    print(f"Files processed: {len(selected_files)}")
-    print(f"Output saved to: {output_filename}")
-    print("="*70)
+    root = tk.Tk()
+    app = FileTreeApp(root)
+    root.mainloop()
 
 if __name__ == "__main__":
+    # Install required module: pip install pyperclip
     try:
-        main()
-    except KeyboardInterrupt:
-        print("\n\nProgram interrupted by user. Exiting.")
-    except Exception as e:
-        print(f"\nAn unexpected error occurred: {e}")
+        import pyperclip
+    except ImportError:
+        print("Installing required module: pyperclip")
+        import subprocess
+        import sys
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "pyperclip"])
+        import pyperclip
+
+    main()
