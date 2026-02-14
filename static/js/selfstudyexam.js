@@ -60,7 +60,7 @@ class SelfStudyExamManager {
             // Then fetch and build other maps
             await Promise.all([
                 this.fetchExams(),
-                              this.fetchQuizzes()
+                this.fetchQuizzes()
             ]);
 
             // Build exam and quiz maps
@@ -1677,6 +1677,164 @@ class SelfStudyExamManager {
         }
     }
 
+    // ===== NEW: Import Exam JSON methods =====
+    openImportExamModal() {
+        document.getElementById('import-exam-modal').style.display = 'block';
+        document.body.style.overflow = 'hidden';
+    }
+
+    closeImportExamModal() {
+        const modal = document.getElementById('import-exam-modal');
+        modal.style.display = 'none';
+        document.body.style.overflow = 'auto';
+        // Clear fields
+        document.getElementById('exam-json-file').value = '';
+        document.getElementById('exam-json-text').value = '';
+    }
+
+    handleExamFileUpload(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            document.getElementById('exam-json-text').value = e.target.result;
+        };
+        reader.readAsText(file);
+    }
+
+    validateExamJSON() {
+        const jsonText = document.getElementById('exam-json-text').value.trim();
+        if (!jsonText) {
+            this.showToast('Please paste JSON or upload a file', 'error');
+            return false;
+        }
+        try {
+            const data = JSON.parse(jsonText);
+            // Basic required fields
+            if (!data.external_id || !data.title || !data.course_id || !data.exam_duration) {
+                this.showToast('Missing required fields: external_id, title, course_id, exam_duration', 'error');
+                return false;
+            }
+            if (!Array.isArray(data.questions)) {
+                this.showToast('questions must be an array', 'error');
+                return false;
+            }
+            this.showToast('JSON is valid', 'success');
+            return true;
+        } catch (e) {
+            this.showToast('Invalid JSON: ' + e.message, 'error');
+            return false;
+        }
+    }
+
+    async submitExamJSON() {
+        if (!this.validateExamJSON()) return;
+        const jsonText = document.getElementById('exam-json-text').value.trim();
+        let examData;
+        try {
+            examData = JSON.parse(jsonText);
+        } catch (e) {
+            return; // already validated
+        }
+
+        this.showLoading();
+        try {
+            const response = await this.apiRequest('POST', {
+                action: 'create_exam_full',
+                ...examData
+            });
+            if (response.success) {
+                this.showToast('Exam created successfully!', 'success');
+                this.closeImportExamModal();
+                await this.loadInitialData(); // refresh tables
+            } else {
+                throw new Error(response.error || 'Failed to create exam');
+            }
+        } catch (error) {
+            this.showToast('Error: ' + error.message, 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    // ===== NEW: Import Quiz JSON methods =====
+    openImportQuizModal() {
+        document.getElementById('import-quiz-modal').style.display = 'block';
+        document.body.style.overflow = 'hidden';
+    }
+
+    closeImportQuizModal() {
+        const modal = document.getElementById('import-quiz-modal');
+        modal.style.display = 'none';
+        document.body.style.overflow = 'auto';
+        document.getElementById('quiz-json-file').value = '';
+        document.getElementById('quiz-json-text').value = '';
+    }
+
+    handleQuizFileUpload(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            document.getElementById('quiz-json-text').value = e.target.result;
+        };
+        reader.readAsText(file);
+    }
+
+    validateQuizJSON() {
+        const jsonText = document.getElementById('quiz-json-text').value.trim();
+        if (!jsonText) {
+            this.showToast('Please paste JSON or upload a file', 'error');
+            return false;
+        }
+        try {
+            const data = JSON.parse(jsonText);
+            if (!data.external_id || !data.title || !data.course_id || !data.lesson_id || !data.quiz_duration) {
+                this.showToast('Missing required fields: external_id, title, course_id, lesson_id, quiz_duration', 'error');
+                return false;
+            }
+            if (!Array.isArray(data.questions)) {
+                this.showToast('questions must be an array', 'error');
+                return false;
+            }
+            this.showToast('JSON is valid', 'success');
+            return true;
+        } catch (e) {
+            this.showToast('Invalid JSON: ' + e.message, 'error');
+            return false;
+        }
+    }
+
+    async submitQuizJSON() {
+        if (!this.validateQuizJSON()) return;
+        const jsonText = document.getElementById('quiz-json-text').value.trim();
+        let quizData;
+        try {
+            quizData = JSON.parse(jsonText);
+        } catch (e) {
+            return;
+        }
+
+        this.showLoading();
+        try {
+            const response = await this.apiRequest('POST', {
+                action: 'create_quiz_full',
+                ...quizData
+            });
+            if (response.success) {
+                this.showToast('Quiz created successfully!', 'success');
+                this.closeImportQuizModal();
+                await this.loadInitialData();
+            } else {
+                throw new Error(response.error || 'Failed to create quiz');
+            }
+        } catch (error) {
+            this.showToast('Error: ' + error.message, 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
     // Course and Lesson Handling
     async onCourseSelect(type) {
         const courseSelect = document.getElementById(`${type}-course`);
@@ -1771,6 +1929,8 @@ class SelfStudyExamManager {
         this.closeExamAppointmentModal();
         this.closeExamResultModal();
         this.closeQuizResultModal();
+        this.closeImportExamModal();
+        this.closeImportQuizModal();
     }
 
     closeExamModal() {
@@ -2125,6 +2285,47 @@ function closeExamResultModal() {
 
 function closeQuizResultModal() {
     examManager.closeQuizResultModal();
+}
+
+// ===== NEW: Global functions for import modals =====
+function openImportExamModal() {
+    examManager.openImportExamModal();
+}
+
+function closeImportExamModal() {
+    examManager.closeImportExamModal();
+}
+
+function handleExamFileUpload(event) {
+    examManager.handleExamFileUpload(event);
+}
+
+function validateExamJSON() {
+    examManager.validateExamJSON();
+}
+
+function submitExamJSON() {
+    examManager.submitExamJSON();
+}
+
+function openImportQuizModal() {
+    examManager.openImportQuizModal();
+}
+
+function closeImportQuizModal() {
+    examManager.closeImportQuizModal();
+}
+
+function handleQuizFileUpload(event) {
+    examManager.handleQuizFileUpload(event);
+}
+
+function validateQuizJSON() {
+    examManager.validateQuizJSON();
+}
+
+function submitQuizJSON() {
+    examManager.submitQuizJSON();
 }
 
 function onCourseSelect(type) {

@@ -332,6 +332,12 @@ class SelfStudyExamAPIView(View):
             elif action == 'delete_user_quiz_result':
                 return self.delete_user_quiz_result_complete(data)
 
+            # ===== NEW: Full JSON import actions =====
+            elif action == 'create_exam_full':
+                return self._create_exam_full(data)
+            elif action == 'create_quiz_full':
+                return self._create_quiz_full(data)
+
             else:
                 return JsonResponse({'error': 'Invalid action'}, status=400)
 
@@ -1596,3 +1602,158 @@ class SelfStudyExamAPIView(View):
         except Exception as e:
             logger.error(f"Error deleting user quiz result: {str(e)}")
             return JsonResponse({'error': str(e)}, status=500)
+
+    # ===== NEW: Full JSON import methods =====
+    def _create_exam_full(self, data):
+        """Create exam with nested questions and answers."""
+        AUTH_TOKEN = os.getenv('AUTH_TOKEN')
+        domain = self.get_single_domain()
+        if not domain:
+            return JsonResponse({'error': 'No working domain available'}, status=503)
+
+        # Check if exam already exists
+        exam_ext_id = data.get('external_id')
+        if not exam_ext_id:
+            return JsonResponse({'error': 'external_id is required'}, status=400)
+
+        check_url = f"{domain}/exams/{exam_ext_id}/"
+        headers = {'Authorization': f'Token {AUTH_TOKEN}'}
+        try:
+            resp = requests.get(check_url, headers=headers, timeout=10)
+            if resp.status_code == 200:
+                return JsonResponse({'error': f'Exam with external_id {exam_ext_id} already exists'}, status=400)
+        except requests.RequestException as e:
+            logger.warning(f"Failed to check exam existence: {e}")
+
+        # Prepare exam data (remove nested fields)
+        exam_data = {
+            'external_id': exam_ext_id,
+            'title': data.get('title'),
+            'course_id': data.get('course_id'),
+            'exam_duration': data.get('exam_duration'),
+            'exam_instructions': data.get('exam_instructions', ''),
+            'video_instructions_url': data.get('video_instructions_url', '')
+        }
+
+        # Create exam
+        exam_url = f"{domain}/exams/"
+        try:
+            resp = requests.post(exam_url, json=exam_data, headers=headers, timeout=10)
+            if resp.status_code not in (200, 201):
+                logger.error(f"Failed to create exam: {resp.text}")
+                return JsonResponse({'error': f'Failed to create exam: {resp.text}'}, status=500)
+        except requests.RequestException as e:
+            logger.error(f"Error creating exam: {e}")
+            return JsonResponse({'error': str(e)}, status=500)
+
+        # Create questions and answers
+        questions = data.get('questions', [])
+        for q in questions:
+            q_data = {
+                'external_id': q.get('external_id'),
+                'exam': exam_ext_id,
+                'text': q.get('text'),
+                'score': q.get('score', 1)
+            }
+            q_url = f"{domain}/exam-questions/"
+            try:
+                q_resp = requests.post(q_url, json=q_data, headers=headers, timeout=10)
+                if q_resp.status_code not in (200, 201):
+                    logger.error(f"Failed to create question: {q_resp.text}")
+                    # Optionally rollback? For simplicity, continue but log.
+            except requests.RequestException as e:
+                logger.error(f"Error creating question: {e}")
+                continue
+
+            # Create answers for this question
+            answers = q.get('answers', [])
+            for a in answers:
+                a_data = {
+                    'external_id': a.get('external_id'),
+                    'exam_question': q.get('external_id'),
+                    'text': a.get('text'),
+                    'is_correct': a.get('is_correct', False)
+                }
+                a_url = f"{domain}/exam-answers/"
+                try:
+                    a_resp = requests.post(a_url, json=a_data, headers=headers, timeout=10)
+                    if a_resp.status_code not in (200, 201):
+                        logger.error(f"Failed to create answer: {a_resp.text}")
+                except requests.RequestException as e:
+                    logger.error(f"Error creating answer: {e}")
+
+        return JsonResponse({'success': True, 'message': 'Exam created successfully'})
+
+    def _create_quiz_full(self, data):
+        """Create quiz with nested questions and answers."""
+        AUTH_TOKEN = os.getenv('AUTH_TOKEN')
+        domain = self.get_single_domain()
+        if not domain:
+            return JsonResponse({'error': 'No working domain available'}, status=503)
+
+        quiz_ext_id = data.get('external_id')
+        if not quiz_ext_id:
+            return JsonResponse({'error': 'external_id is required'}, status=400)
+
+        check_url = f"{domain}/quizzes/{quiz_ext_id}/"
+        headers = {'Authorization': f'Token {AUTH_TOKEN}'}
+        try:
+            resp = requests.get(check_url, headers=headers, timeout=10)
+            if resp.status_code == 200:
+                return JsonResponse({'error': f'Quiz with external_id {quiz_ext_id} already exists'}, status=400)
+        except requests.RequestException as e:
+            logger.warning(f"Failed to check quiz existence: {e}")
+
+        quiz_data = {
+            'external_id': quiz_ext_id,
+            'title': data.get('title'),
+            'course_id': data.get('course_id'),
+            'lesson_id': data.get('lesson_id'),
+            'quiz_duration': data.get('quiz_duration'),
+            'description': data.get('description', '')
+        }
+
+        quiz_url = f"{domain}/quizzes/"
+        try:
+            resp = requests.post(quiz_url, json=quiz_data, headers=headers, timeout=10)
+            if resp.status_code not in (200, 201):
+                logger.error(f"Failed to create quiz: {resp.text}")
+                return JsonResponse({'error': f'Failed to create quiz: {resp.text}'}, status=500)
+        except requests.RequestException as e:
+            logger.error(f"Error creating quiz: {e}")
+            return JsonResponse({'error': str(e)}, status=500)
+
+        questions = data.get('questions', [])
+        for q in questions:
+            q_data = {
+                'external_id': q.get('external_id'),
+                'quiz': quiz_ext_id,
+                'text': q.get('text'),
+                'score': q.get('score', 1)
+            }
+            q_url = f"{domain}/quiz-questions/"
+            try:
+                q_resp = requests.post(q_url, json=q_data, headers=headers, timeout=10)
+                if q_resp.status_code not in (200, 201):
+                    logger.error(f"Failed to create question: {q_resp.text}")
+            except requests.RequestException as e:
+                logger.error(f"Error creating question: {e}")
+                continue
+
+            answers = q.get('answers', [])
+            for a in answers:
+                a_data = {
+                    'external_id': a.get('external_id'),
+                    'quiz_question': q.get('external_id'),
+                    'text': a.get('text'),
+                    'is_correct': a.get('is_correct', False)
+                }
+                a_url = f"{domain}/quiz-answers/"
+                try:
+                    a_resp = requests.post(a_url, json=a_data, headers=headers, timeout=10)
+                    if a_resp.status_code not in (200, 201):
+                        logger.error(f"Failed to create answer: {a_resp.text}")
+                except requests.RequestException as e:
+                    logger.error(f"Error creating answer: {e}")
+
+        return JsonResponse({'success': True, 'message': 'Quiz created successfully'})

@@ -1134,3 +1134,42 @@ body {
         transform: none !important;
     }
 }
+function openImportExamModal() {
+    examManager.openImportExamModal();
+}
+
+function closeImportExamModal() {
+    examManager.closeImportExamModal();
+}
+
+function handleExamFileUpload(event) {
+    examManager.handleExamFileUpload(event);
+}
+
+function validateExamJSON() {
+    examManager.validateExamJSON();
+}
+
+function submitExamJSON() {
+    examManager.submitExamJSON();
+}
+
+function openImportQuizModal() {
+    examManager.openImportQuizModal();
+}
+
+function closeImportQuizModal() {
+    examManager.closeImportQuizModal();
+}
+
+function handleQuizFileUpload(event) {
+    examManager.handleQuizFileUpload(event);
+}
+
+function validateQuizJSON() {
+    examManager.validateQuizJSON();
+}
+
+function submitQuizJSON() {
+    examManager.submitQuizJSON();
+}

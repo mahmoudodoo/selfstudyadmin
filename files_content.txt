@@ -1,118 +1,4 @@
-FILES AND THEIR CONTENT
-================================================================================
-
-FILE 1: main/urls.py
---------------------------------------------------------------------------------
-from django.urls import path
-from . import views
-from .views.selfstudydomains import SelfStudyDomainsView, SelfStudyDomainsAPIView
-from .views.selfstudymedia import (
-    SelfStudyMediaView,
-    SelfStudyMediaAPIView,
-    ExternalDataAPIView,
-    ReplicaAPIView
-)
-from .views.selfstudychat import SelfStudyChatView, ChatRoomAPIView
-from .views.selfstudyotp import SelfStudyOTPView
-from .views.selfstudyrunbook import SelfStudyRunbookView
-from .views.selfstudyallauth import (
-    SelfStudyAllAuthView,
-)
-
-urlpatterns = [
-    # Authentication URLs
-    path('login/', views.CustomLoginView.as_view(), name='login'),
-    path('logout/', views.CustomLogoutView.as_view(), name='logout'),
-
-    # Admin Dashboard and User Management URLs
-    path('', views.AdminDashboardView.as_view(), name='admin_dashboard'),
-    path('users/create/', views.UserCreateView.as_view(), name='user_create'),
-    path('users/<int:user_id>/update/', views.UserUpdateView.as_view(), name='user_update'),
-    path('users/<int:user_id>/delete/', views.UserDeleteView.as_view(), name='user_delete'),
-
-    # Self Study URLs
-    path('selfstudyadmin/', views.SelfStudyAdminView.as_view(), name='selfstudyadmin'),
-    path('selfstudyuserprofile/', views.SelfStudyUserProfileView.as_view(), name='selfstudyuserprofile'),
-    path('selfstudyuserlab/', views.SelfStudyUserLabView.as_view(), name='selfstudyuserlab'),
-    path('selfstudycourse/', views.SelfStudyCourseView.as_view(), name='selfstudycourse'),
-    path('selfstudycourse/api/', views.CourseAPIView.as_view(), name='selfstudycourse_api'),
-
-    # Self Study Live Course URLs
-    path('selfstudylivecourse/', views.SelfStudyLiveCourseView.as_view(), name='selfstudylivecourse'),
-    path('selfstudylivecourse/api/data/', views.LiveCourseDataView.as_view(), name='selfstudylivecourse_api_data'),
-
-    # Self Study Exam URLs
-    path('selfstudyexam/', views.SelfStudyExamView.as_view(), name='selfstudyexam'),
-    path('selfstudyexam/api/', views.SelfStudyExamAPIView.as_view(), name='selfstudyexam_api'),
-
-    # Certificate Management URLs
-    path('selfstudycertificate/', views.SelfStudyCertificateView.as_view(), name='selfstudycertificate'),
-    path('selfstudycertificate/api/certificates/<str:certificate_type>/', views.CertificateAPIView.as_view(), name='certificate_api'),
-    path('selfstudycertificate/api/certificates/<str:certificate_type>/<str:certificate_id>/', views.CertificateAPIView.as_view(), name='certificate_api_detail'),
-    path('selfstudycertificate/api/lookup/<str:resource_type>/', views.LookupAPIView.as_view(), name='lookup_api'),
-
-    # Other Self Study URLs
-    path('selfstudynotification/', views.SelfStudyNotificationView.as_view(), name='selfstudynotification'),
-
-    # Notification API endpoints
-    path('selfstudynotification/api/', views.NotificationAPIView.as_view(), name='selfstudynotification_api'),
-    path('selfstudynotification/api/<str:notification_id>/', views.NotificationAPIView.as_view(), name='selfstudynotification_api_detail'),
-
-    # Users API endpoint
-    path('selfstudynotification/api/users/', views.UserAPIView.as_view(), name='selfstudynotification_users_api'),
-
-    # Payment Management URLs
-    path('selfstudypayment/', views.SelfStudyPaymentView.as_view(), name='selfstudypayment'),
-    path('selfstudypayment/api/', views.SelfStudyPaymentView.as_view(), name='selfstudypayment_api'),
-
-    # Subscription Management URLs - UPDATED
-    path('selfstudysubscriptions/', views.SelfStudySubscriptionsView.as_view(), name='selfstudysubscriptions'),
-    path('selfstudysubscriptions/api/', views.SubscriptionAPIView.as_view(), name='selfstudysubscriptions_api'),
-
-    # SelfStudy Media Management URLs - UPDATED
-    path('selfstudymedia/', SelfStudyMediaView.as_view(), name='selfstudymedia'),
-    path('selfstudymedia/api/media/', SelfStudyMediaAPIView.as_view(), name='selfstudymedia_api'),
-    path('selfstudymedia/api/external-data/', ExternalDataAPIView.as_view(), name='selfstudymedia_external_data'),
-    path('selfstudymedia/api/replicas/', ReplicaAPIView.as_view(), name='selfstudymedia_replicas'),
-
-    # SelfStudy Chat Management URLs - UPDATED with correct patterns
-    path('selfstudychat/', SelfStudyChatView.as_view(), name='selfstudychat'),
-    path('selfstudychat/api/rooms/', ChatRoomAPIView.as_view(), name='selfstudychat_api_rooms'),
-    path('selfstudychat/api/rooms/<int:room_id>/messages/', ChatRoomAPIView.as_view(), {'action': 'messages'}, name='selfstudychat_api_room_messages'),
-    path('selfstudychat/api/block-ip/', ChatRoomAPIView.as_view(), {'action': 'block-ip'}, name='selfstudychat_api_block_ip'),
-    path('selfstudychat/api/unblock-ip/', ChatRoomAPIView.as_view(), {'action': 'unblock-ip'}, name='selfstudychat_api_unblock_ip'),
-    path('selfstudychat/api/delete-room/', ChatRoomAPIView.as_view(), {'action': 'delete-room'}, name='selfstudychat_api_delete_room'),
-    path('selfstudychat/api/send-message/', ChatRoomAPIView.as_view(), {'action': 'send-message'}, name='selfstudychat_api_send_message'),
-    path('selfstudychat/api/mark-seen/', ChatRoomAPIView.as_view(), {'action': 'mark-seen'}, name='selfstudychat_api_mark_seen'),
-
-    # OTP Management URLs - NEW
-    path('selfstudyotp/', SelfStudyOTPView.as_view(), name='selfstudyotp'),
-
-    # Other Self Study Service URLs
-    path('selfstudydomains/', SelfStudyDomainsView.as_view(), name='selfstudydomains'),
-    path('selfstudydomains/api/', SelfStudyDomainsAPIView.as_view(), name='selfstudydomains_api'),
-
-    # SelfStudy Proctor URLs - UPDATED
-    path('selfstudyproctor/', views.SelfStudyProctorView.as_view(), name='selfstudyproctor'),
-    path('selfstudyproctor/api/', views.SelfStudyProctorAPIView.as_view(), name='selfstudyproctor_api'),
-    path('selfstudyproctor/api/<str:proctor_id>/', views.SelfStudyProctorAPIView.as_view(), name='selfstudyproctor_api_detail'),
-    path('selfstudyproctor/api/availability/', views.SelfStudyProctorAPIView.as_view(), {'action': 'update_availability'}, name='selfstudyproctor_api_availability'),
-
-    # SelfStudy Runbook URLs - NEW with proper import
-    path('selfstudyrunbook/', SelfStudyRunbookView.as_view(), name='selfstudyrunbook'),
-    
-    # Main management page
-    path('selfstudyallauth/', SelfStudyAllAuthView.as_view(), name='selfstudyallauth'),
-    
-    # API endpoints for AJAX requests
-    path('selfstudyallauth/api/', views.SelfStudyAllAuthAPIView.as_view(), name='selfstudyallauth_api'),
-    # User Lab URLs
-    path('selfstudyuserlab/', views.SelfStudyUserLabView.as_view(), name='selfstudyuserlab'),
-    path('selfstudyuserlab/api/', views.SelfStudyUserLabAPIView.as_view(), name='selfstudyuserlab_api'),
-]
-================================================================================
-
-FILE 2: main/views/selfstudyexam.py
+FILE 1: main/views/selfstudyexam.py
 --------------------------------------------------------------------------------
 import os
 import logging
@@ -139,11 +25,14 @@ class SelfStudyExamView(View):
             domains = self.get_dynamic_domains()
             courses = self.fetch_courses()
             profiles = self.fetch_user_profiles()
+            # Fetch proctors for the appointments tab
+            proctors = self.fetch_proctors()
 
             context = {
                 'domains': domains,
                 'courses': courses,
                 'profiles': profiles,
+                'proctors': proctors,  # Add proctors to context
             }
             return render(request, 'selfstudyexam.html', context)
         except Exception as e:
@@ -153,11 +42,12 @@ class SelfStudyExamView(View):
     def get_dynamic_domains(self):
         """Fetch dynamic domains from SelfStudy Domains registry"""
         try:
-            # SelfStudy Domains registry instances
+            # Select random registry instance
             SFS_DOMAINS = [
                 'https://sfsdomains1.pythonanywhere.com',
                 'https://sfsdomains2.pythonanywhere.com'
             ]
+            random.shuffle(SFS_DOMAINS)
 
             # App ID for SelfStudy Exam service
             SELFSTUDY_EXAM_APP_ID = 20
@@ -248,6 +138,37 @@ class SelfStudyExamView(View):
             logger.error(f"Error fetching profiles: {str(e)}")
             return []
 
+    def fetch_proctors(self):
+        """Fetch proctors from selfstudyproctor app"""
+        try:
+            AUTH_TOKEN = os.getenv('AUTH_TOKEN')
+            domains = self.get_proctor_domains()
+
+            if not domains:
+                logger.warning("No proctor domains available")
+                return []
+
+            # Select first working domain for performance
+            selected_domain = self.get_working_domain(domains)
+            if not selected_domain:
+                return []
+
+            url = f"{selected_domain}/proctors/"
+            headers = {'Authorization': f'Token {AUTH_TOKEN}'}
+
+            response = requests.get(url, headers=headers, timeout=10)
+            if response.status_code == 200:
+                proctors = response.json()
+                logger.info(f"Successfully fetched {len(proctors)} proctors")
+                return proctors
+            else:
+                logger.error(f"Failed to fetch proctors: {response.status_code}")
+                return []
+
+        except Exception as e:
+            logger.error(f"Error fetching proctors: {str(e)}")
+            return []
+
     def get_course_domains(self):
         """Get domains for selfstudycourse app (ID: 19)"""
         return self._fetch_app_domains(19)
@@ -256,13 +177,20 @@ class SelfStudyExamView(View):
         """Get domains for selfstudyuserprofile app (ID: 13)"""
         return self._fetch_app_domains(13)
 
+    def get_proctor_domains(self):
+        """Get domains for selfstudyproctor app (ID: 21)"""
+        return self._fetch_app_domains(21)
+
     def _fetch_app_domains(self, app_id):
         """Generic method to fetch domains for any app"""
         try:
+            # Select random registry instance
             SFS_DOMAINS = [
                 'https://sfsdomains1.pythonanywhere.com',
                 'https://sfsdomains2.pythonanywhere.com'
             ]
+            random.shuffle(SFS_DOMAINS)
+
             AUTH_TOKEN = os.getenv('AUTH_TOKEN')
 
             for domain in SFS_DOMAINS:
@@ -331,6 +259,8 @@ class SelfStudyExamAPIView(View):
                 return self.fetch_user_exam_results()
             elif action == 'fetch_user_quiz_results':
                 return self.fetch_user_quiz_results()
+            elif action == 'fetch_proctors':
+                return self.fetch_proctors()
             else:
                 return JsonResponse({'error': 'Invalid action'}, status=400)
 
@@ -386,13 +316,24 @@ class SelfStudyExamAPIView(View):
             elif action == 'delete_quiz_answer':
                 return self.delete_quiz_answer_fixed(data)
 
-            # FIXED: Sync update operations - USE REGULAR ENDPOINTS WITH SYNC
+            # Appointment operations
             elif action == 'update_exam_appointment':
                 return self.update_exam_appointment_complete(data)
+            elif action == 'delete_exam_appointment':
+                return self.delete_exam_appointment_complete(data)
+
+            # Exam result operations
             elif action == 'update_user_exam_result':
                 return self.update_user_exam_result_complete(data)
+            elif action == 'delete_user_exam_result':
+                return self.delete_user_exam_result_complete(data)
+
+            # Quiz result operations
             elif action == 'update_user_quiz_result':
                 return self.update_user_quiz_result_complete(data)
+            elif action == 'delete_user_quiz_result':
+                return self.delete_user_quiz_result_complete(data)
+
             else:
                 return JsonResponse({'error': 'Invalid action'}, status=400)
 
@@ -404,6 +345,13 @@ class SelfStudyExamAPIView(View):
     def get_single_domain(self):
         """Get a single working domain for better performance"""
         domains = SelfStudyExamView().get_dynamic_domains()
+        if not domains:
+            return None
+        return SelfStudyExamView().get_working_domain(domains)
+
+    def get_proctor_domain(self):
+        """Get a single working domain for proctor service"""
+        domains = SelfStudyExamView().get_proctor_domains()
         if not domains:
             return None
         return SelfStudyExamView().get_working_domain(domains)
@@ -454,6 +402,30 @@ class SelfStudyExamAPIView(View):
 
         except Exception as e:
             logger.error(f"Error fetching quizzes: {str(e)}")
+            return JsonResponse({'error': str(e)}, status=500)
+
+    def fetch_proctors(self):
+        """Fetch proctors from proctor service"""
+        try:
+            AUTH_TOKEN = os.getenv('AUTH_TOKEN')
+            domain = self.get_proctor_domain()
+
+            if not domain:
+                return JsonResponse({'error': 'No proctor domains available'}, status=503)
+
+            url = f"{domain}/proctors/"
+            headers = {'Authorization': f'Token {AUTH_TOKEN}'}
+
+            response = requests.get(url, headers=headers, timeout=10)
+            if response.status_code == 200:
+                proctors = response.json()
+                return JsonResponse({'success': True, 'proctors': proctors})
+            else:
+                logger.error(f"Failed to fetch proctors: {response.status_code}")
+                return JsonResponse({'error': f'Failed to fetch proctors: {response.status_code}'}, status=response.status_code)
+
+        except Exception as e:
+            logger.error(f"Error fetching proctors: {str(e)}")
             return JsonResponse({'error': str(e)}, status=500)
 
     def fetch_exam_appointments(self):
@@ -1427,6 +1399,40 @@ class SelfStudyExamAPIView(View):
             logger.error(f"Error updating exam appointment: {str(e)}")
             return JsonResponse({'error': str(e)}, status=500)
 
+    def delete_exam_appointment_complete(self, data):
+        """Delete an exam appointment"""
+        try:
+            AUTH_TOKEN = os.getenv('AUTH_TOKEN')
+            domain = self.get_single_domain()
+            external_id = data.get('external_id')
+
+            if not domain or not external_id:
+                return JsonResponse({'error': 'Missing domain or external_id'}, status=400)
+
+            url = f"{domain}/exam-appointments/{external_id}/"
+            headers = {'Authorization': f'Token {AUTH_TOKEN}'}
+
+            logger.info(f"Deleting exam appointment with external_id: {external_id}")
+            response = requests.delete(url, headers=headers, timeout=10)
+
+            if response.status_code in [200, 204]:
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Exam appointment deleted successfully',
+                    'results': [{'domain': domain, 'status': response.status_code, 'success': True}]
+                })
+            else:
+                logger.error(f"Failed to delete exam appointment: {response.status_code} - {response.text}")
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Failed to delete exam appointment: {response.status_code} - {response.text}',
+                    'results': [{'domain': domain, 'status': response.status_code, 'success': False}]
+                }, status=500)
+
+        except Exception as e:
+            logger.error(f"Error deleting exam appointment: {str(e)}")
+            return JsonResponse({'error': str(e)}, status=500)
+
     def update_user_exam_result_complete(self, data):
         """Update a user exam result - USE REGULAR ENDPOINT FOR SYNC"""
         try:
@@ -1474,6 +1480,40 @@ class SelfStudyExamAPIView(View):
 
         except Exception as e:
             logger.error(f"Error updating user exam result: {str(e)}")
+            return JsonResponse({'error': str(e)}, status=500)
+
+    def delete_user_exam_result_complete(self, data):
+        """Delete a user exam result"""
+        try:
+            AUTH_TOKEN = os.getenv('AUTH_TOKEN')
+            domain = self.get_single_domain()
+            external_id = data.get('external_id')
+
+            if not domain or not external_id:
+                return JsonResponse({'error': 'Missing domain or external_id'}, status=400)
+
+            url = f"{domain}/user-exam-results/{external_id}/"
+            headers = {'Authorization': f'Token {AUTH_TOKEN}'}
+
+            logger.info(f"Deleting user exam result with external_id: {external_id}")
+            response = requests.delete(url, headers=headers, timeout=10)
+
+            if response.status_code in [200, 204]:
+                return JsonResponse({
+                    'success': True,
+                    'message': 'User exam result deleted successfully',
+                    'results': [{'domain': domain, 'status': response.status_code, 'success': True}]
+                })
+            else:
+                logger.error(f"Failed to delete user exam result: {response.status_code} - {response.text}")
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Failed to delete user exam result: {response.status_code} - {response.text}',
+                    'results': [{'domain': domain, 'status': response.status_code, 'success': False}]
+                }, status=500)
+
+        except Exception as e:
+            logger.error(f"Error deleting user exam result: {str(e)}")
             return JsonResponse({'error': str(e)}, status=500)
 
     def update_user_quiz_result_complete(self, data):
@@ -1525,818 +1565,43 @@ class SelfStudyExamAPIView(View):
             logger.error(f"Error updating user quiz result: {str(e)}")
             return JsonResponse({'error': str(e)}, status=500)
 
-================================================================================
-
-FILE 3: templates/selfstudyexam.html
---------------------------------------------------------------------------------
-{% extends 'base.html' %}
-{% load static %}
-{% block title %}Exams Management{% endblock %}
-{% block page_title %}Exams & Quizzes Management{% endblock %}
-
-{% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/selfstudyexam.css' %}">
-{% endblock %}
-
-{% block content %}
-<div class="page-content">
-    <!-- Header Section -->
-    <div class="header-section">
-        <h1>📚 Exams & Quizzes Management</h1>
-        <p>Manage exams, quizzes, questions, answers, appointments, and results across all domains</p>
-        <div class="header-badge">E-Learning Admin Dashboard</div>
-    </div>
-
-    <!-- Stats Cards -->
-    <div class="stats-grid">
-        <div class="stat-card">
-            <div class="stat-icon">📊</div>
-            <div class="stat-info">
-                <h3 id="exams-count">0</h3>
-                <p>Total Exams</p>
-            </div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-icon">📝</div>
-            <div class="stat-info">
-                <h3 id="quizzes-count">0</h3>
-                <p>Total Quizzes</p>
-            </div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-icon">📅</div>
-            <div class="stat-info">
-                <h3 id="appointments-count">0</h3>
-                <p>Exam Appointments</p>
-            </div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-icon">🎯</div>
-            <div class="stat-info">
-                <h3 id="results-count">0</h3>
-                <p>User Results</p>
-            </div>
-        </div>
-    </div>
-
-    <!-- Action Buttons -->
-    <div class="action-buttons">
-        <button class="btn btn-primary" onclick="openCreateExamModal()">
-            <span class="btn-icon">➕</span> Create Exam
-        </button>
-        <button class="btn btn-secondary" onclick="openCreateQuizModal()">
-            <span class="btn-icon">📝</span> Create Quiz
-        </button>
-        <button class="btn btn-outline" onclick="refreshData()">
-            <span class="btn-icon">🔄</span> Refresh Data
-        </button>
-    </div>
-
-    <!-- Tabs -->
-    <div class="tabs-container">
-        <div class="tabs">
-            <button class="tab-btn active" data-tab="exams" onclick="switchTab('exams')">
-                <span class="tab-icon">📊</span> Exams
-            </button>
-            <button class="tab-btn" data-tab="quizzes" onclick="switchTab('quizzes')">
-                <span class="tab-icon">📝</span> Quizzes
-            </button>
-            <button class="tab-btn" data-tab="appointments" onclick="switchTab('appointments')">
-                <span class="tab-icon">📅</span> Exam Appointments
-            </button>
-            <button class="tab-btn" data-tab="exam-results" onclick="switchTab('exam-results')">
-                <span class="tab-icon">🎯</span> Exam Results
-            </button>
-            <button class="tab-btn" data-tab="quiz-results" onclick="switchTab('quiz-results')">
-                <span class="tab-icon">📋</span> Quiz Results
-            </button>
-        </div>
-    </div>
-
-    <!-- Exams Table -->
-    <div id="exams-tab" class="tab-content active">
-        <div class="table-container">
-            <div class="table-header">
-                <h3><span class="tab-icon">📊</span> Exams List</h3>
-                <button class="btn btn-primary" onclick="openCreateExamModal()">
-                    <span class="btn-icon">➕</span> Add Exam
-                </button>
-            </div>
-            <table id="exams-table" class="data-table">
-                <thead>
-                    <tr>
-                        <th>Title</th>
-                        <th>Course</th>
-                        <th>Duration</th>
-                        <th>Questions</th>
-                        <th>Date Added</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="exams-tbody">
-                    <!-- Data will be loaded via JavaScript -->
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <!-- Quizzes Table -->
-    <div id="quizzes-tab" class="tab-content">
-        <div class="table-container">
-            <div class="table-header">
-                <h3><span class="tab-icon">📝</span> Quizzes List</h3>
-                <button class="btn btn-primary" onclick="openCreateQuizModal()">
-                    <span class="btn-icon">➕</span> Add Quiz
-                </button>
-            </div>
-            <table id="quizzes-table" class="data-table">
-                <thead>
-                    <tr>
-                        <th>Title</th>
-                        <th>Course</th>
-                        <th>Lesson</th>
-                        <th>Duration</th>
-                        <th>Questions</th>
-                        <th>Date Added</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="quizzes-tbody">
-                    <!-- Data will be loaded via JavaScript -->
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <!-- Exam Appointments Table -->
-    <div id="appointments-tab" class="tab-content">
-        <div class="table-container">
-            <div class="table-header">
-                <h3><span class="tab-icon">📅</span> Exam Appointments</h3>
-            </div>
-            <table id="appointments-table" class="data-table">
-                <thead>
-                    <tr>
-                        <th>User</th>
-                        <th>Exam</th>
-                        <th>Appointment Date</th>
-                        <th>Status</th>
-                        <th>Proctor</th>
-                        <th>Can Start</th>
-                        <th>Is Entered</th>
-                        <th>Exam Time</th>
-                        <th>Entered At</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="appointments-tbody">
-                    <!-- Data will be loaded via JavaScript -->
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <!-- Exam Results Table -->
-    <div id="exam-results-tab" class="tab-content">
-        <div class="table-container">
-            <div class="table-header">
-                <h3><span class="tab-icon">🎯</span> Exam Results</h3>
-            </div>
-            <table id="exam-results-table" class="data-table">
-                <thead>
-                    <tr>
-                        <th>User</th>
-                        <th>Exam</th>
-                        <th>Score</th>
-                        <th>Status</th>
-                        <th>Date Taken</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="exam-results-tbody">
-                    <!-- Data will be loaded via JavaScript -->
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <!-- Quiz Results Table -->
-    <div id="quiz-results-tab" class="tab-content">
-        <div class="table-container">
-            <div class="table-header">
-                <h3><span class="tab-icon">📋</span> Quiz Results</h3>
-            </div>
-            <table id="quiz-results-table" class="data-table">
-                <thead>
-                    <tr>
-                        <th>User</th>
-                        <th>Quiz</th>
-                        <th>Score</th>
-                        <th>Status</th>
-                        <th>Date Taken</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="quiz-results-tbody">
-                    <!-- Data will be loaded via JavaScript -->
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
-
-<!-- Create/Edit Exam Modal -->
-<div id="exam-modal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2 id="exam-modal-title"><span class="tab-icon">📊</span> Create New Exam</h2>
-            <span class="close" onclick="closeExamModal()">&times;</span>
-        </div>
-        <div class="modal-body">
-            <form id="exam-form" class="modal-form">
-                <input type="hidden" id="exam-external-id">
-
-                <div class="form-group">
-                    <label for="exam-title" class="required">Exam Title</label>
-                    <input type="text" id="exam-title" required placeholder="Enter exam title...">
-                </div>
-
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label for="exam-course" class="required">Course</label>
-                        <select id="exam-course" required onchange="onCourseSelect('exam')">
-                            <option value="">Select a course</option>
-                            {% for course in courses %}
-                            <option value="{{ course.external_course_id }}" data-title="{{ course.title }}">
-                                {{ course.title }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="exam-duration" class="required">Duration (minutes)</label>
-                        <input type="number" id="exam-duration" min="1" required placeholder="60">
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label for="exam-course-id" class="required">Course ID</label>
-                    <input type="text" id="exam-course-id" readonly required>
-                </div>
-
-                <div class="form-group">
-                    <label for="exam-instructions">Exam Instructions</label>
-                    <textarea id="exam-instructions" rows="4" placeholder="Enter exam instructions..."></textarea>
-                </div>
-
-                <div class="form-group">
-                    <label for="exam-video-url">Video Instructions URL</label>
-                    <input type="url" id="exam-video-url" placeholder="https://example.com/video-instructions">
-                </div>
-
-                <div class="form-actions">
-                    <button type="button" class="btn btn-outline" onclick="closeExamModal()">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Save Exam</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- Create/Edit Quiz Modal -->
-<div id="quiz-modal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2 id="quiz-modal-title"><span class="tab-icon">📝</span> Create New Quiz</h2>
-            <span class="close" onclick="closeQuizModal()">&times;</span>
-        </div>
-        <div class="modal-body">
-            <form id="quiz-form" class="modal-form">
-                <input type="hidden" id="quiz-external-id">
-
-                <div class="form-group">
-                    <label for="quiz-title" class="required">Quiz Title</label>
-                    <input type="text" id="quiz-title" required placeholder="Enter quiz title...">
-                </div>
-
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label for="quiz-course" class="required">Course</label>
-                        <select id="quiz-course" required onchange="onCourseSelect('quiz')">
-                            <option value="">Select a course</option>
-                            {% for course in courses %}
-                            <option value="{{ course.external_course_id }}" data-title="{{ course.title }}">
-                                {{ course.title }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="quiz-duration" class="required">Duration (minutes)</label>
-                        <input type="number" id="quiz-duration" min="1" required placeholder="30">
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label for="quiz-course-id" class="required">Course ID</label>
-                    <input type="text" id="quiz-course-id" readonly required>
-                </div>
-
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label for="quiz-lesson" class="required">Lesson</label>
-                        <select id="quiz-lesson" required onchange="onLessonSelect()">
-                            <option value="">Select a lesson</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="quiz-lesson-id" class="required">Lesson ID</label>
-                        <input type="text" id="quiz-lesson-id" readonly required>
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label for="quiz-description">Description</label>
-                    <textarea id="quiz-description" rows="4" placeholder="Enter quiz description..."></textarea>
-                </div>
-
-                <div class="form-actions">
-                    <button type="button" class="btn btn-outline" onclick="closeQuizModal()">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Save Quiz</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- Exam Questions Management Modal -->
-<div id="exam-questions-modal" class="modal">
-    <div class="modal-content xl-modal">
-        <div class="modal-header">
-            <h2 id="exam-questions-title"><span class="tab-icon">❓</span> Manage Exam Questions</h2>
-            <span class="close" onclick="closeExamQuestionsModal()">&times;</span>
-        </div>
-        <div class="modal-body">
-            <div class="action-buttons">
-                <button class="btn btn-primary" onclick="openCreateExamQuestionModal()">
-                    <span class="btn-icon">➕</span> Add Question
-                </button>
-                <button class="btn btn-outline" onclick="closeExamQuestionsModal()">
-                    <span class="btn-icon">←</span> Back to Exams
-                </button>
-            </div>
-            <div class="table-container">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>Question Text</th>
-                            <th>Score</th>
-                            <th>Answers</th>
-                            <th>Correct Answer</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="exam-questions-tbody">
-                        <!-- Questions will be loaded via JavaScript -->
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Quiz Questions Management Modal -->
-<div id="quiz-questions-modal" class="modal">
-    <div class="modal-content xl-modal">
-        <div class="modal-header">
-            <h2 id="quiz-questions-title"><span class="tab-icon">❓</span> Manage Quiz Questions</h2>
-            <span class="close" onclick="closeQuizQuestionsModal()">&times;</span>
-        </div>
-        <div class="modal-body">
-            <div class="action-buttons">
-                <button class="btn btn-primary" onclick="openCreateQuizQuestionModal()">
-                    <span class="btn-icon">➕</span> Add Question
-                </button>
-                <button class="btn btn-outline" onclick="closeQuizQuestionsModal()">
-                    <span class="btn-icon">←</span> Back to Quizzes
-                </button>
-            </div>
-            <div class="table-container">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>Question Text</th>
-                            <th>Score</th>
-                            <th>Answers</th>
-                            <th>Correct Answer</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="quiz-questions-tbody">
-                        <!-- Questions will be loaded via JavaScript -->
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Create/Edit Exam Question Modal -->
-<div id="exam-question-modal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2 id="exam-question-modal-title"><span class="tab-icon">❓</span> Create New Exam Question</h2>
-            <span class="close" onclick="closeExamQuestionModal()">&times;</span>
-        </div>
-        <div class="modal-body">
-            <form id="exam-question-form" class="modal-form">
-                <input type="hidden" id="exam-question-external-id">
-                <input type="hidden" id="exam-question-exam-id">
-
-                <div class="form-group">
-                    <label for="exam-question-text" class="required">Question Text</label>
-                    <textarea id="exam-question-text" rows="4" required placeholder="Enter the question text..."></textarea>
-                </div>
-
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label for="exam-question-score" class="required">Score</label>
-                        <input type="number" id="exam-question-score" min="1" value="1" required>
-                    </div>
-                </div>
-
-                <div class="form-actions">
-                    <button type="button" class="btn btn-outline" onclick="closeExamQuestionModal()">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Save Question</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- Create/Edit Quiz Question Modal -->
-<div id="quiz-question-modal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2 id="quiz-question-modal-title"><span class="tab-icon">❓</span> Create New Quiz Question</h2>
-            <span class="close" onclick="closeQuizQuestionModal()">&times;</span>
-        </div>
-        <div class="modal-body">
-            <form id="quiz-question-form" class="modal-form">
-                <input type="hidden" id="quiz-question-external-id">
-                <input type="hidden" id="quiz-question-quiz-id">
-
-                <div class="form-group">
-                    <label for="quiz-question-text" class="required">Question Text</label>
-                    <textarea id="quiz-question-text" rows="4" required placeholder="Enter the question text..."></textarea>
-                </div>
-
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label for="quiz-question-score" class="required">Score</label>
-                        <input type="number" id="quiz-question-score" min="1" value="1" required>
-                    </div>
-                </div>
-
-                <div class="form-actions">
-                    <button type="button" class="btn btn-outline" onclick="closeQuizQuestionModal()">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Save Question</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- Exam Answers Management Modal -->
-<div id="exam-answers-modal" class="modal">
-    <div class="modal-content xl-modal">
-        <div class="modal-header">
-            <h2 id="exam-answers-title"><span class="tab-icon">📝</span> Manage Exam Answers</h2>
-            <span class="close" onclick="closeExamAnswersModal()">&times;</span>
-        </div>
-        <div class="modal-body">
-            <div class="action-buttons">
-                <button class="btn btn-primary" onclick="openCreateExamAnswerModal()">
-                    <span class="btn-icon">➕</span> Add Answer
-                </button>
-                <button class="btn btn-outline" onclick="closeExamAnswersModal()">
-                    <span class="btn-icon">←</span> Back to Questions
-                </button>
-            </div>
-            <div class="table-container">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>Answer Text</th>
-                            <th>Status</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="exam-answers-tbody">
-                        <!-- Answers will be loaded via JavaScript -->
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Quiz Answers Management Modal -->
-<div id="quiz-answers-modal" class="modal">
-    <div class="modal-content xl-modal">
-        <div class="modal-header">
-            <h2 id="quiz-answers-title"><span class="tab-icon">📝</span> Manage Quiz Answers</h2>
-            <span class="close" onclick="closeQuizAnswersModal()">&times;</span>
-        </div>
-        <div class="modal-body">
-            <div class="action-buttons">
-                <button class="btn btn-primary" onclick="openCreateQuizAnswerModal()">
-                    <span class="btn-icon">➕</span> Add Answer
-                </button>
-                <button class="btn btn-outline" onclick="closeQuizAnswersModal()">
-                    <span class="btn-icon">←</span> Back to Questions
-                </button>
-            </div>
-            <div class="table-container">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>Answer Text</th>
-                            <th>Status</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="quiz-answers-tbody">
-                        <!-- Answers will be loaded via JavaScript -->
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Create/Edit Exam Answer Modal -->
-<div id="exam-answer-modal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2 id="exam-answer-modal-title"><span class="tab-icon">📝</span> Create New Exam Answer</h2>
-            <span class="close" onclick="closeExamAnswerModal()">&times;</span>
-        </div>
-        <div class="modal-body">
-            <form id="exam-answer-form" class="modal-form">
-                <input type="hidden" id="exam-answer-external-id">
-                <input type="hidden" id="exam-answer-question-id">
-
-                <div class="form-group">
-                    <label for="exam-answer-text" class="required">Answer Text</label>
-                    <textarea id="exam-answer-text" rows="4" required placeholder="Enter the answer text..."></textarea>
-                </div>
-
-                <div class="form-group">
-                    <label class="checkbox-label">
-                        <input type="checkbox" id="exam-answer-is-correct">
-                        <span class="checkmark"></span>
-                        This is the correct answer
-                    </label>
-                </div>
-
-                <div class="form-actions">
-                    <button type="button" class="btn btn-outline" onclick="closeExamAnswerModal()">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Save Answer</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- Create/Edit Quiz Answer Modal -->
-<div id="quiz-answer-modal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2 id="quiz-answer-modal-title"><span class="tab-icon">📝</span> Create New Quiz Answer</h2>
-            <span class="close" onclick="closeQuizAnswerModal()">&times;</span>
-        </div>
-        <div class="modal-body">
-            <form id="quiz-answer-form" class="modal-form">
-                <input type="hidden" id="quiz-answer-external-id">
-                <input type="hidden" id="quiz-answer-question-id">
-
-                <div class="form-group">
-                    <label for="quiz-answer-text" class="required">Answer Text</label>
-                    <textarea id="quiz-answer-text" rows="4" required placeholder="Enter the answer text..."></textarea>
-                </div>
-
-                <div class="form-group">
-                    <label class="checkbox-label">
-                        <input type="checkbox" id="quiz-answer-is-correct">
-                        <span class="checkmark"></span>
-                        This is the correct answer
-                    </label>
-                </div>
-
-                <div class="form-actions">
-                    <button type="button" class="btn btn-outline" onclick="closeQuizAnswerModal()">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Save Answer</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- ENHANCED: Edit Exam Appointment Modal with ALL fields -->
-<div id="exam-appointment-modal" class="modal">
-    <div class="modal-content large-modal">
-        <div class="modal-header">
-            <h2 id="exam-appointment-modal-title"><span class="tab-icon">📅</span> Edit Exam Appointment</h2>
-            <span class="close" onclick="closeExamAppointmentModal()">&times;</span>
-        </div>
-        <div class="modal-body">
-            <form id="exam-appointment-form" class="modal-form">
-                <input type="hidden" id="exam-appointment-external-id">
-
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label for="exam-appointment-status" class="required">Appointment Status</label>
-                        <select id="exam-appointment-status" required>
-                            <option value="No Reservation Yet">No Reservation Yet</option>
-                            <option value="Scheduled">Scheduled</option>
-                            <option value="In Progress">In Progress</option>
-                            <option value="Completed">Completed</option>
-                            <option value="Taken but Failed">Taken but Failed</option>
-                            <option value="Cancelled">Cancelled</option>
-                            <option value="Expired">Expired</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="exam-appointment-date" class="required">Appointment Date & Time</label>
-                        <input type="datetime-local" id="exam-appointment-date" required>
-                    </div>
-                </div>
-
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label for="exam-appointment-proctor">Proctor ID</label>
-                        <input type="text" id="exam-appointment-proctor" placeholder="Enter proctor ID...">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="exam-appointment-time">Exam Time (minutes)</label>
-                        <input type="number" id="exam-appointment-time" min="0" placeholder="Actual time taken">
-                    </div>
-                </div>
-
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label for="exam-appointment-room1">Room URL 1</label>
-                        <input type="url" id="exam-appointment-room1" placeholder="https://example.com/room1">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="exam-appointment-room2">Room URL 2</label>
-                        <input type="url" id="exam-appointment-room2" placeholder="https://example.com/room2">
-                    </div>
-                </div>
-
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label for="exam-appointment-entered-datetime">Entered Date & Time</label>
-                        <input type="datetime-local" id="exam-appointment-entered-datetime">
-                    </div>
-                </div>
-
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label class="checkbox-label">
-                            <input type="checkbox" id="exam-appointment-can-start">
-                            <span class="checkmark"></span>
-                            Can Start Exam
-                        </label>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="checkbox-label">
-                            <input type="checkbox" id="exam-appointment-is-entered">
-                            <span class="checkmark"></span>
-                            User Has Entered
-                        </label>
-                    </div>
-                </div>
-
-                <div class="form-actions">
-                    <button type="button" class="btn btn-outline" onclick="closeExamAppointmentModal()">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Update Appointment</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- Edit Exam Result Modal -->
-<div id="exam-result-modal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2 id="exam-result-modal-title"><span class="tab-icon">🎯</span> Edit Exam Result</h2>
-            <span class="close" onclick="closeExamResultModal()">&times;</span>
-        </div>
-        <div class="modal-body">
-            <form id="exam-result-form" class="modal-form">
-                <input type="hidden" id="exam-result-external-id">
-
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label for="exam-result-score" class="required">Score</label>
-                        <input type="number" id="exam-result-score" step="0.01" min="0" required placeholder="0.00">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="exam-result-status" class="required">Result Status</label>
-                        <select id="exam-result-status" required>
-                            <option value="PASSED">PASSED</option>
-                            <option value="FAILED">FAILED</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label for="exam-result-message">Result Message</label>
-                    <textarea id="exam-result-message" rows="3" placeholder="Enter result message..."></textarea>
-                </div>
-
-                <div class="form-actions">
-                    <button type="button" class="btn btn-outline" onclick="closeExamResultModal()">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Update Result</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- Edit Quiz Result Modal -->
-<div id="quiz-result-modal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2 id="quiz-result-modal-title"><span class="tab-icon">📋</span> Edit Quiz Result</h2>
-            <span class="close" onclick="closeQuizResultModal()">&times;</span>
-        </div>
-        <div class="modal-body">
-            <form id="quiz-result-form" class="modal-form">
-                <input type="hidden" id="quiz-result-external-id">
-
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label for="quiz-result-score" class="required">Score</label>
-                        <input type="number" id="quiz-result-score" step="0.01" min="0" required placeholder="0.00">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="quiz-result-status" class="required">Result Status</label>
-                        <select id="quiz-result-status" required>
-                            <option value="PASSED">PASSED</option>
-                            <option value="FAILED">FAILED</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label for="quiz-result-message">Result Message</label>
-                    <textarea id="quiz-result-message" rows="3" placeholder="Enter result message..."></textarea>
-                </div>
-
-                <div class="form-actions">
-                    <button type="button" class="btn btn-outline" onclick="closeQuizResultModal()">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Update Result</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- Loading Overlay -->
-<div id="loading-overlay" class="loading-overlay">
-    <div class="loading-spinner"></div>
-    <p>Loading data...</p>
-</div>
-
-<!-- Toast Notifications -->
-<div id="toast-container" class="toast-container"></div>
-
-{% endblock %}
-
-{% block extra_js %}
-<script src="{% static 'js/selfstudyexam.js' %}"></script>
-{% endblock %}
+    def delete_user_quiz_result_complete(self, data):
+        """Delete a user quiz result"""
+        try:
+            AUTH_TOKEN = os.getenv('AUTH_TOKEN')
+            domain = self.get_single_domain()
+            external_id = data.get('external_id')
+
+            if not domain or not external_id:
+                return JsonResponse({'error': 'Missing domain or external_id'}, status=400)
+
+            url = f"{domain}/user-quiz-results/{external_id}/"
+            headers = {'Authorization': f'Token {AUTH_TOKEN}'}
+
+            logger.info(f"Deleting user quiz result with external_id: {external_id}")
+            response = requests.delete(url, headers=headers, timeout=10)
+
+            if response.status_code in [200, 204]:
+                return JsonResponse({
+                    'success': True,
+                    'message': 'User quiz result deleted successfully',
+                    'results': [{'domain': domain, 'status': response.status_code, 'success': True}]
+                })
+            else:
+                logger.error(f"Failed to delete user quiz result: {response.status_code} - {response.text}")
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Failed to delete user quiz result: {response.status_code} - {response.text}',
+                    'results': [{'domain': domain, 'status': response.status_code, 'success': False}]
+                }, status=500)
+
+        except Exception as e:
+            logger.error(f"Error deleting user quiz result: {str(e)}")
+            return JsonResponse({'error': str(e)}, status=500)
 
 ================================================================================
 
-FILE 4: static/css/selfstudyexam.css
+FILE 2: static/css/selfstudyexam.css
 --------------------------------------------------------------------------------
 /* Enhanced SelfStudy Exam Management Styles - Modern E-Learning Admin Interface */
 :root {
@@ -3477,7 +2742,7 @@ body {
 
 ================================================================================
 
-FILE 5: static/js/selfstudyexam.js
+FILE 3: static/js/selfstudyexam.js
 --------------------------------------------------------------------------------
 // SelfStudy Exam Management JavaScript - ENHANCED VERSION
 class SelfStudyExamManager {
@@ -3489,6 +2754,13 @@ class SelfStudyExamManager {
         this.examResults = [];
         this.quizResults = [];
         this.courses = [];
+        this.proctors = []; // Added proctors array
+        this.courseMap = {}; // Map course_id to course name
+        this.lessonMap = {}; // Map lesson_id to lesson name
+        this.examMap = {}; // Map exam_id to exam name
+        this.quizMap = {}; // Map quiz_id to quiz name
+        this.proctorMap = {}; // Map proctor_id to proctor name
+        this.userMap = {}; // Map user_id to username
         this.lessons = {};
         this.examQuestions = {};
         this.quizQuestions = {};
@@ -3526,10 +2798,20 @@ class SelfStudyExamManager {
         this.showLoading();
 
         try {
+            // First, build the course map from template data
+            this.buildCourseMap();
+            // Build proctor map from template data
+            this.buildProctorMap();
+
+            // Then fetch and build other maps
             await Promise.all([
                 this.fetchExams(),
                               this.fetchQuizzes()
             ]);
+
+            // Build exam and quiz maps
+            this.buildExamMap();
+            this.buildQuizMap();
 
             this.updateTables();
             this.updateStats();
@@ -3552,9 +2834,11 @@ class SelfStudyExamManager {
                     break;
                 case 'exam-results':
                     await this.fetchUserExamResults();
+                    await this.buildUserMap(); // Build user map for results
                     break;
                 case 'quiz-results':
                     await this.fetchUserQuizResults();
+                    await this.buildUserMap(); // Build user map for results
                     break;
             }
             this.updateTables();
@@ -3565,6 +2849,109 @@ class SelfStudyExamManager {
         } finally {
             this.hideLoading();
         }
+    }
+
+    // Build course map from template data
+    buildCourseMap() {
+        // Course data is already loaded from template
+        this.courses = window.courses || [];
+        this.courseMap = {};
+        this.courses.forEach(course => {
+            this.courseMap[course.external_course_id] = course.title;
+        });
+    }
+
+    // Build proctor map from template data
+    buildProctorMap() {
+        // Proctor data is loaded from template
+        this.proctors = window.proctors || [];
+        this.proctorMap = {};
+        this.proctors.forEach(proctor => {
+            // Map proctor's external_id to proctor's username
+            this.proctorMap[proctor.external_id] = proctor.username;
+        });
+        console.log('Proctor map built:', this.proctorMap);
+    }
+
+    // Fetch proctors from API if needed
+    async fetchProctors() {
+        try {
+            const response = await this.apiRequest('GET', { action: 'fetch_proctors' });
+            if (response.success) {
+                this.proctors = response.proctors || [];
+                this.proctorMap = {};
+                this.proctors.forEach(proctor => {
+                    this.proctorMap[proctor.external_id] = proctor.username;
+                });
+                console.log('Proctors fetched from API:', this.proctors);
+                console.log('Proctor map updated:', this.proctorMap);
+            } else {
+                throw new Error(response.error || 'Failed to fetch proctors');
+            }
+        } catch (error) {
+            console.error('Error fetching proctors:', error);
+            this.proctors = [];
+            throw error;
+        }
+    }
+
+    // Build exam map from exams data
+    buildExamMap() {
+        this.examMap = {};
+        this.exams.forEach(exam => {
+            this.examMap[exam.external_id] = exam.title;
+        });
+    }
+
+    // Build quiz map from quizzes data
+    buildQuizMap() {
+        this.quizMap = {};
+        this.quizzes.forEach(quiz => {
+            this.quizMap[quiz.external_id] = quiz.title;
+        });
+    }
+
+    // Build lesson map (will be populated when lessons are fetched)
+    async buildLessonMap() {
+        this.lessonMap = {};
+        // Fetch lessons for all courses to build map
+        const courseIds = [...new Set(this.quizzes.map(q => q.course_id))];
+
+        for (const courseId of courseIds) {
+            if (courseId) {
+                try {
+                    const lessons = await this.fetchLessons(courseId);
+                    lessons.forEach(lesson => {
+                        this.lessonMap[lesson.external_lesson_id] = lesson.title;
+                    });
+                } catch (error) {
+                    console.error(`Error fetching lessons for course ${courseId}:`, error);
+                }
+            }
+        }
+    }
+
+    // Build user map (simplified - in real app, you'd fetch user data)
+    async buildUserMap() {
+        this.userMap = {};
+        // Build from exam results
+        this.examResults.forEach(result => {
+            if (result.username) {
+                this.userMap[result.user] = result.username;
+            }
+        });
+        // Build from quiz results
+        this.quizResults.forEach(result => {
+            if (result.username) {
+                this.userMap[result.user] = result.username;
+            }
+        });
+        // Build from appointments
+        this.appointments.forEach(appointment => {
+            if (appointment.username) {
+                this.userMap[appointment.user] = appointment.username;
+            }
+        });
     }
 
     async fetchExams() {
@@ -3587,6 +2974,8 @@ class SelfStudyExamManager {
             const response = await this.apiRequest('GET', { action: 'fetch_quizzes' });
             if (response.success) {
                 this.quizzes = response.quizzes || [];
+                // Build lesson map after fetching quizzes
+                await this.buildLessonMap();
             } else {
                 throw new Error(response.error || 'Failed to fetch quizzes');
             }
@@ -3602,6 +2991,11 @@ class SelfStudyExamManager {
             const response = await this.apiRequest('GET', { action: 'fetch_exam_appointments' });
             if (response.success) {
                 this.appointments = response.appointments || [];
+                console.log('Appointments fetched:', this.appointments);
+                // Log proctor IDs for debugging
+                this.appointments.forEach(app => {
+                    console.log(`Appointment ${app.external_id}: proctor_id=${app.proctor_id}, proctor=${app.proctor}`);
+                });
             } else {
                 throw new Error(response.error || 'Failed to fetch exam appointments');
             }
@@ -3805,7 +3199,7 @@ class SelfStudyExamManager {
         tbody.innerHTML = this.exams.map(exam => `
         <tr>
         <td>${this.escapeHtml(exam.title)}</td>
-        <td>${this.escapeHtml(exam.course_id)}</td>
+        <td>${this.escapeHtml(this.courseMap[exam.course_id] || exam.course_id)}</td>
         <td>${exam.exam_duration} min</td>
         <td>${exam.questions ? exam.questions.length : 0}</td>
         <td>${this.formatDate(exam.date_added)}</td>
@@ -3842,8 +3236,8 @@ class SelfStudyExamManager {
         tbody.innerHTML = this.quizzes.map(quiz => `
         <tr>
         <td>${this.escapeHtml(quiz.title)}</td>
-        <td>${this.escapeHtml(quiz.course_id)}</td>
-        <td>${this.escapeHtml(quiz.lesson_id)}</td>
+        <td>${this.escapeHtml(this.courseMap[quiz.course_id] || quiz.course_id)}</td>
+        <td>${this.escapeHtml(this.lessonMap[quiz.lesson_id] || quiz.lesson_id)}</td>
         <td>${quiz.quiz_duration} min</td>
         <td>${quiz.questions ? quiz.questions.length : 0}</td>
         <td>${this.formatDate(quiz.date_added)}</td>
@@ -3877,24 +3271,33 @@ class SelfStudyExamManager {
             return;
         }
 
-        tbody.innerHTML = this.appointments.map(appointment => `
-        <tr>
-        <td>${this.escapeHtml(appointment.username)}</td>
-        <td>${this.escapeHtml(appointment.exam_title || appointment.exam)}</td>
-        <td>${this.formatDateTime(appointment.appointment_date)}</td>
-        <td><span class="status-badge status-${appointment.appointment_status.toLowerCase().replace(/ /g, '-')}">${appointment.appointment_status}</span></td>
-        <td>${appointment.proctor_id || '-'}</td>
-        <td>${appointment.can_start ? '<span class="status-badge status-scheduled">Yes</span>' : '<span class="status-badge status-cancelled">No</span>'}</td>
-        <td>${appointment.is_entered ? '<span class="status-badge status-completed">Yes</span>' : '<span class="status-badge status-cancelled">No</span>'}</td>
-        <td>${appointment.exam_time ? appointment.exam_time + ' min' : '-'}</td>
-        <td>${this.formatDateTime(appointment.entered_datetime)}</td>
-        <td class="table-actions">
-        <button class="btn btn-edit" onclick="examManager.editExamAppointment('${appointment.external_id}')">
-        <span class="btn-icon">✏️</span> Edit
-        </button>
-        </td>
-        </tr>
-        `).join('');
+        tbody.innerHTML = this.appointments.map(appointment => {
+            // Get proctor username from proctorMap
+            const proctorId = appointment.proctor_id || appointment.proctor;
+            const proctorUsername = proctorId ? this.proctorMap[proctorId] : null;
+
+            return `
+            <tr>
+            <td>${this.escapeHtml(appointment.username || appointment.user || 'N/A')}</td>
+            <td>${this.escapeHtml(this.examMap[appointment.exam] || appointment.exam)}</td>
+            <td>${this.formatDateTime(appointment.appointment_date)}</td>
+            <td><span class="status-badge status-${appointment.appointment_status.toLowerCase().replace(/ /g, '-')}">${appointment.appointment_status}</span></td>
+            <td>${proctorUsername ? this.escapeHtml(proctorUsername) : (proctorId ? this.escapeHtml(proctorId) : '-')}</td>
+            <td>${appointment.can_start ? '<span class="status-badge status-scheduled">Yes</span>' : '<span class="status-badge status-cancelled">No</span>'}</td>
+            <td>${appointment.is_entered ? '<span class="status-badge status-completed">Yes</span>' : '<span class="status-badge status-cancelled">No</span>'}</td>
+            <td>${appointment.exam_time ? appointment.exam_time + ' min' : '-'}</td>
+            <td>${this.formatDateTime(appointment.entered_datetime)}</td>
+            <td class="table-actions">
+            <button class="btn btn-edit" onclick="examManager.editExamAppointment('${appointment.external_id}')">
+            <span class="btn-icon">✏️</span> Edit
+            </button>
+            <button class="btn btn-danger" onclick="examManager.deleteExamAppointment('${appointment.external_id}')">
+            <span class="btn-icon">🗑️</span> Delete
+            </button>
+            </td>
+            </tr>
+            `;
+        }).join('');
     }
 
     updateExamResultsTable() {
@@ -3903,7 +3306,7 @@ class SelfStudyExamManager {
         if (this.examResults.length === 0) {
             tbody.innerHTML = `
             <tr>
-            <td colspan="6" class="empty-state">
+            <td colspan="7" class="empty-state">
             <div class="empty-icon">🎯</div>
             <p>No exam results found</p>
             </td>
@@ -3914,14 +3317,17 @@ class SelfStudyExamManager {
 
         tbody.innerHTML = this.examResults.map(result => `
         <tr>
-        <td>${this.escapeHtml(result.username)}</td>
-        <td>${this.escapeHtml(result.exam_title || result.exam)}</td>
+        <td>${this.escapeHtml(result.username || result.user || 'N/A')}</td>
+        <td>${this.escapeHtml(this.examMap[result.exam] || result.exam)}</td>
         <td><strong>${result.score}</strong></td>
         <td><span class="status-badge status-${result.result_status.toLowerCase()}">${result.result_status}</span></td>
         <td>${this.formatDateTime(result.date_taken)}</td>
         <td class="table-actions">
         <button class="btn btn-edit" onclick="examManager.editExamResult('${result.external_id}')">
         <span class="btn-icon">✏️</span> Edit
+        </button>
+        <button class="btn btn-danger" onclick="examManager.deleteExamResult('${result.external_id}')">
+        <span class="btn-icon">🗑️</span> Delete
         </button>
         </td>
         </tr>
@@ -3934,7 +3340,7 @@ class SelfStudyExamManager {
         if (this.quizResults.length === 0) {
             tbody.innerHTML = `
             <tr>
-            <td colspan="6" class="empty-state">
+            <td colspan="7" class="empty-state">
             <div class="empty-icon">🎯</div>
             <p>No quiz results found</p>
             </td>
@@ -3945,14 +3351,17 @@ class SelfStudyExamManager {
 
         tbody.innerHTML = this.quizResults.map(result => `
         <tr>
-        <td>${this.escapeHtml(result.username)}</td>
-        <td>${this.escapeHtml(result.quiz_title || result.quiz)}</td>
+        <td>${this.escapeHtml(result.username || result.user || 'N/A')}</td>
+        <td>${this.escapeHtml(this.quizMap[result.quiz] || result.quiz)}</td>
         <td><strong>${result.score}</strong></td>
         <td><span class="status-badge status-${result.result_status.toLowerCase()}">${result.result_status}</span></td>
         <td>${this.formatDateTime(result.date_taken)}</td>
         <td class="table-actions">
         <button class="btn btn-edit" onclick="examManager.editQuizResult('${result.external_id}')">
         <span class="btn-icon">✏️</span> Edit
+        </button>
+        <button class="btn btn-danger" onclick="examManager.deleteQuizResult('${result.external_id}')">
+        <span class="btn-icon">🗑️</span> Delete
         </button>
         </td>
         </tr>
@@ -4566,6 +3975,85 @@ class SelfStudyExamManager {
         document.getElementById('quiz-result-message').value = result.result_message || '';
 
         this.showModal('quiz-result-modal');
+    }
+
+    // NEW: Delete methods for appointments and results
+    async deleteExamAppointment(externalId) {
+        if (!confirm('Are you sure you want to delete this exam appointment? This action cannot be undone.')) {
+            return;
+        }
+
+        this.showLoading();
+
+        try {
+            const response = await this.apiRequest('POST', {
+                action: 'delete_exam_appointment',
+                external_id: externalId
+            });
+
+            if (response.success) {
+                this.showToast('Exam appointment deleted successfully!', 'success');
+                await this.loadTabData('appointments');
+            } else {
+                throw new Error(response.error || 'Failed to delete exam appointment');
+            }
+        } catch (error) {
+            this.showToast('Error deleting exam appointment: ' + error.message, 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    async deleteExamResult(externalId) {
+        if (!confirm('Are you sure you want to delete this exam result? This action cannot be undone.')) {
+            return;
+        }
+
+        this.showLoading();
+
+        try {
+            const response = await this.apiRequest('POST', {
+                action: 'delete_user_exam_result',
+                external_id: externalId
+            });
+
+            if (response.success) {
+                this.showToast('Exam result deleted successfully!', 'success');
+                await this.loadTabData('exam-results');
+            } else {
+                throw new Error(response.error || 'Failed to delete exam result');
+            }
+        } catch (error) {
+            this.showToast('Error deleting exam result: ' + error.message, 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    async deleteQuizResult(externalId) {
+        if (!confirm('Are you sure you want to delete this quiz result? This action cannot be undone.')) {
+            return;
+        }
+
+        this.showLoading();
+
+        try {
+            const response = await this.apiRequest('POST', {
+                action: 'delete_user_quiz_result',
+                external_id: externalId
+            });
+
+            if (response.success) {
+                this.showToast('Quiz result deleted successfully!', 'success');
+                await this.loadTabData('quiz-results');
+            } else {
+                throw new Error(response.error || 'Failed to delete quiz result');
+            }
+        } catch (error) {
+            this.showToast('Error deleting quiz result: ' + error.message, 'error');
+        } finally {
+            this.hideLoading();
+        }
     }
 
     // ENHANCED: Handle Exam Appointment Submit with ALL fields
@@ -5402,3 +4890,956 @@ let examManager;
 document.addEventListener('DOMContentLoaded', function() {
     examManager = new SelfStudyExamManager();
 });
+
+================================================================================
+
+FILE 4: templates/selfstudyexam.html
+--------------------------------------------------------------------------------
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Exams Management{% endblock %}
+{% block page_title %}Exams & Quizzes Management{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/selfstudyexam.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="page-content">
+    <!-- Header Section -->
+    <div class="header-section">
+        <h1>📚 Exams & Quizzes Management</h1>
+        <p>Manage exams, quizzes, questions, answers, appointments, and results across all domains</p>
+        <div class="header-badge">E-Learning Admin Dashboard</div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon">📊</div>
+            <div class="stat-info">
+                <h3 id="exams-count">0</h3>
+                <p>Total Exams</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">📝</div>
+            <div class="stat-info">
+                <h3 id="quizzes-count">0</h3>
+                <p>Total Quizzes</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">📅</div>
+            <div class="stat-info">
+                <h3 id="appointments-count">0</h3>
+                <p>Exam Appointments</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">🎯</div>
+            <div class="stat-info">
+                <h3 id="results-count">0</h3>
+                <p>User Results</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="action-buttons">
+        <button class="btn btn-primary" onclick="openCreateExamModal()">
+            <span class="btn-icon">➕</span> Create Exam
+        </button>
+        <button class="btn btn-secondary" onclick="openCreateQuizModal()">
+            <span class="btn-icon">📝</span> Create Quiz
+        </button>
+        <button class="btn btn-outline" onclick="refreshData()">
+            <span class="btn-icon">🔄</span> Refresh Data
+        </button>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs-container">
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="exams" onclick="switchTab('exams')">
+                <span class="tab-icon">📊</span> Exams
+            </button>
+            <button class="tab-btn" data-tab="quizzes" onclick="switchTab('quizzes')">
+                <span class="tab-icon">📝</span> Quizzes
+            </button>
+            <button class="tab-btn" data-tab="appointments" onclick="switchTab('appointments')">
+                <span class="tab-icon">📅</span> Exam Appointments
+            </button>
+            <button class="tab-btn" data-tab="exam-results" onclick="switchTab('exam-results')">
+                <span class="tab-icon">🎯</span> Exam Results
+            </button>
+            <button class="tab-btn" data-tab="quiz-results" onclick="switchTab('quiz-results')">
+                <span class="tab-icon">📋</span> Quiz Results
+            </button>
+        </div>
+    </div>
+
+    <!-- Exams Table -->
+    <div id="exams-tab" class="tab-content active">
+        <div class="table-container">
+            <div class="table-header">
+                <h3><span class="tab-icon">📊</span> Exams List</h3>
+                <button class="btn btn-primary" onclick="openCreateExamModal()">
+                    <span class="btn-icon">➕</span> Add Exam
+                </button>
+            </div>
+            <table id="exams-table" class="data-table">
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Course</th>
+                        <th>Duration</th>
+                        <th>Questions</th>
+                        <th>Date Added</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="exams-tbody">
+                    <!-- Data will be loaded via JavaScript -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Quizzes Table -->
+    <div id="quizzes-tab" class="tab-content">
+        <div class="table-container">
+            <div class="table-header">
+                <h3><span class="tab-icon">📝</span> Quizzes List</h3>
+                <button class="btn btn-primary" onclick="openCreateQuizModal()">
+                    <span class="btn-icon">➕</span> Add Quiz
+                </button>
+            </div>
+            <table id="quizzes-table" class="data-table">
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Course</th>
+                        <th>Lesson</th>
+                        <th>Duration</th>
+                        <th>Questions</th>
+                        <th>Date Added</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="quizzes-tbody">
+                    <!-- Data will be loaded via JavaScript -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Exam Appointments Table -->
+    <div id="appointments-tab" class="tab-content">
+        <div class="table-container">
+            <div class="table-header">
+                <h3><span class="tab-icon">📅</span> Exam Appointments</h3>
+            </div>
+            <table id="appointments-table" class="data-table">
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Exam</th>
+                        <th>Appointment Date</th>
+                        <th>Status</th>
+                        <th>Proctor</th>
+                        <th>Can Start</th>
+                        <th>Is Entered</th>
+                        <th>Exam Time</th>
+                        <th>Entered At</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="appointments-tbody">
+                    <!-- Data will be loaded via JavaScript -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Exam Results Table -->
+    <div id="exam-results-tab" class="tab-content">
+        <div class="table-container">
+            <div class="table-header">
+                <h3><span class="tab-icon">🎯</span> Exam Results</h3>
+            </div>
+            <table id="exam-results-table" class="data-table">
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Exam</th>
+                        <th>Score</th>
+                        <th>Status</th>
+                        <th>Date Taken</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="exam-results-tbody">
+                    <!-- Data will be loaded via JavaScript -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Quiz Results Table -->
+    <div id="quiz-results-tab" class="tab-content">
+        <div class="table-container">
+            <div class="table-header">
+                <h3><span class="tab-icon">📋</span> Quiz Results</h3>
+            </div>
+            <table id="quiz-results-table" class="data-table">
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Quiz</th>
+                        <th>Score</th>
+                        <th>Status</th>
+                        <th>Date Taken</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="quiz-results-tbody">
+                    <!-- Data will be loaded via JavaScript -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Create/Edit Exam Modal -->
+<div id="exam-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="exam-modal-title"><span class="tab-icon">📊</span> Create New Exam</h2>
+            <span class="close" onclick="closeExamModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form id="exam-form" class="modal-form">
+                <input type="hidden" id="exam-external-id">
+
+                <div class="form-group">
+                    <label for="exam-title" class="required">Exam Title</label>
+                    <input type="text" id="exam-title" required placeholder="Enter exam title...">
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="exam-course" class="required">Course</label>
+                        <select id="exam-course" required onchange="onCourseSelect('exam')">
+                            <option value="">Select a course</option>
+                            {% for course in courses %}
+                            <option value="{{ course.external_course_id }}" data-title="{{ course.title }}">
+                                {{ course.title }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="exam-duration" class="required">Duration (minutes)</label>
+                        <input type="number" id="exam-duration" min="1" required placeholder="60">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="exam-course-id" class="required">Course ID</label>
+                    <input type="text" id="exam-course-id" readonly required>
+                </div>
+
+                <div class="form-group">
+                    <label for="exam-instructions">Exam Instructions</label>
+                    <textarea id="exam-instructions" rows="4" placeholder="Enter exam instructions..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="exam-video-url">Video Instructions URL</label>
+                    <input type="url" id="exam-video-url" placeholder="https://example.com/video-instructions">
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-outline" onclick="closeExamModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Exam</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Create/Edit Quiz Modal -->
+<div id="quiz-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="quiz-modal-title"><span class="tab-icon">📝</span> Create New Quiz</h2>
+            <span class="close" onclick="closeQuizModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form id="quiz-form" class="modal-form">
+                <input type="hidden" id="quiz-external-id">
+
+                <div class="form-group">
+                    <label for="quiz-title" class="required">Quiz Title</label>
+                    <input type="text" id="quiz-title" required placeholder="Enter quiz title...">
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="quiz-course" class="required">Course</label>
+                        <select id="quiz-course" required onchange="onCourseSelect('quiz')">
+                            <option value="">Select a course</option>
+                            {% for course in courses %}
+                            <option value="{{ course.external_course_id }}" data-title="{{ course.title }}">
+                                {{ course.title }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quiz-duration" class="required">Duration (minutes)</label>
+                        <input type="number" id="quiz-duration" min="1" required placeholder="30">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="quiz-course-id" class="required">Course ID</label>
+                    <input type="text" id="quiz-course-id" readonly required>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="quiz-lesson" class="required">Lesson</label>
+                        <select id="quiz-lesson" required onchange="onLessonSelect()">
+                            <option value="">Select a lesson</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quiz-lesson-id" class="required">Lesson ID</label>
+                        <input type="text" id="quiz-lesson-id" readonly required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="quiz-description">Description</label>
+                    <textarea id="quiz-description" rows="4" placeholder="Enter quiz description..."></textarea>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-outline" onclick="closeQuizModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Quiz</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Exam Questions Management Modal -->
+<div id="exam-questions-modal" class="modal">
+    <div class="modal-content xl-modal">
+        <div class="modal-header">
+            <h2 id="exam-questions-title"><span class="tab-icon">❓</span> Manage Exam Questions</h2>
+            <span class="close" onclick="closeExamQuestionsModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div class="action-buttons">
+                <button class="btn btn-primary" onclick="openCreateExamQuestionModal()">
+                    <span class="btn-icon">➕</span> Add Question
+                </button>
+                <button class="btn btn-outline" onclick="closeExamQuestionsModal()">
+                    <span class="btn-icon">←</span> Back to Exams
+                </button>
+            </div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Question Text</th>
+                            <th>Score</th>
+                            <th>Answers</th>
+                            <th>Correct Answer</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="exam-questions-tbody">
+                        <!-- Questions will be loaded via JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quiz Questions Management Modal -->
+<div id="quiz-questions-modal" class="modal">
+    <div class="modal-content xl-modal">
+        <div class="modal-header">
+            <h2 id="quiz-questions-title"><span class="tab-icon">❓</span> Manage Quiz Questions</h2>
+            <span class="close" onclick="closeQuizQuestionsModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div class="action-buttons">
+                <button class="btn btn-primary" onclick="openCreateQuizQuestionModal()">
+                    <span class="btn-icon">➕</span> Add Question
+                </button>
+                <button class="btn btn-outline" onclick="closeQuizQuestionsModal()">
+                    <span class="btn-icon">←</span> Back to Quizzes
+                </button>
+            </div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Question Text</th>
+                            <th>Score</th>
+                            <th>Answers</th>
+                            <th>Correct Answer</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="quiz-questions-tbody">
+                        <!-- Questions will be loaded via JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create/Edit Exam Question Modal -->
+<div id="exam-question-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="exam-question-modal-title"><span class="tab-icon">❓</span> Create New Exam Question</h2>
+            <span class="close" onclick="closeExamQuestionModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form id="exam-question-form" class="modal-form">
+                <input type="hidden" id="exam-question-external-id">
+                <input type="hidden" id="exam-question-exam-id">
+
+                <div class="form-group">
+                    <label for="exam-question-text" class="required">Question Text</label>
+                    <textarea id="exam-question-text" rows="4" required placeholder="Enter the question text..."></textarea>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="exam-question-score" class="required">Score</label>
+                        <input type="number" id="exam-question-score" min="1" value="1" required>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-outline" onclick="closeExamQuestionModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Question</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Create/Edit Quiz Question Modal -->
+<div id="quiz-question-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="quiz-question-modal-title"><span class="tab-icon">❓</span> Create New Quiz Question</h2>
+            <span class="close" onclick="closeQuizQuestionModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form id="quiz-question-form" class="modal-form">
+                <input type="hidden" id="quiz-question-external-id">
+                <input type="hidden" id="quiz-question-quiz-id">
+
+                <div class="form-group">
+                    <label for="quiz-question-text" class="required">Question Text</label>
+                    <textarea id="quiz-question-text" rows="4" required placeholder="Enter the question text..."></textarea>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="quiz-question-score" class="required">Score</label>
+                        <input type="number" id="quiz-question-score" min="1" value="1" required>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-outline" onclick="closeQuizQuestionModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Question</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Exam Answers Management Modal -->
+<div id="exam-answers-modal" class="modal">
+    <div class="modal-content xl-modal">
+        <div class="modal-header">
+            <h2 id="exam-answers-title"><span class="tab-icon">📝</span> Manage Exam Answers</h2>
+            <span class="close" onclick="closeExamAnswersModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div class="action-buttons">
+                <button class="btn btn-primary" onclick="openCreateExamAnswerModal()">
+                    <span class="btn-icon">➕</span> Add Answer
+                </button>
+                <button class="btn btn-outline" onclick="closeExamAnswersModal()">
+                    <span class="btn-icon">←</span> Back to Questions
+                </button>
+            </div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Answer Text</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="exam-answers-tbody">
+                        <!-- Answers will be loaded via JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quiz Answers Management Modal -->
+<div id="quiz-answers-modal" class="modal">
+    <div class="modal-content xl-modal">
+        <div class="modal-header">
+            <h2 id="quiz-answers-title"><span class="tab-icon">📝</span> Manage Quiz Answers</h2>
+            <span class="close" onclick="closeQuizAnswersModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div class="action-buttons">
+                <button class="btn btn-primary" onclick="openCreateQuizAnswerModal()">
+                    <span class="btn-icon">➕</span> Add Answer
+                </button>
+                <button class="btn btn-outline" onclick="closeQuizAnswersModal()">
+                    <span class="btn-icon">←</span> Back to Questions
+                </button>
+            </div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Answer Text</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="quiz-answers-tbody">
+                        <!-- Answers will be loaded via JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create/Edit Exam Answer Modal -->
+<div id="exam-answer-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="exam-answer-modal-title"><span class="tab-icon">📝</span> Create New Exam Answer</h2>
+            <span class="close" onclick="closeExamAnswerModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form id="exam-answer-form" class="modal-form">
+                <input type="hidden" id="exam-answer-external-id">
+                <input type="hidden" id="exam-answer-question-id">
+
+                <div class="form-group">
+                    <label for="exam-answer-text" class="required">Answer Text</label>
+                    <textarea id="exam-answer-text" rows="4" required placeholder="Enter the answer text..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="exam-answer-is-correct">
+                        <span class="checkmark"></span>
+                        This is the correct answer
+                    </label>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-outline" onclick="closeExamAnswerModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Answer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Create/Edit Quiz Answer Modal -->
+<div id="quiz-answer-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="quiz-answer-modal-title"><span class="tab-icon">📝</span> Create New Quiz Answer</h2>
+            <span class="close" onclick="closeQuizAnswerModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form id="quiz-answer-form" class="modal-form">
+                <input type="hidden" id="quiz-answer-external-id">
+                <input type="hidden" id="quiz-answer-question-id">
+
+                <div class="form-group">
+                    <label for="quiz-answer-text" class="required">Answer Text</label>
+                    <textarea id="quiz-answer-text" rows="4" required placeholder="Enter the answer text..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="quiz-answer-is-correct">
+                        <span class="checkmark"></span>
+                        This is the correct answer
+                    </label>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-outline" onclick="closeQuizAnswerModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Answer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ENHANCED: Edit Exam Appointment Modal with ALL fields -->
+<div id="exam-appointment-modal" class="modal">
+    <div class="modal-content large-modal">
+        <div class="modal-header">
+            <h2 id="exam-appointment-modal-title"><span class="tab-icon">📅</span> Edit Exam Appointment</h2>
+            <span class="close" onclick="closeExamAppointmentModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form id="exam-appointment-form" class="modal-form">
+                <input type="hidden" id="exam-appointment-external-id">
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="exam-appointment-status" class="required">Appointment Status</label>
+                        <select id="exam-appointment-status" required>
+                            <option value="No Reservation Yet">No Reservation Yet</option>
+                            <option value="Scheduled">Scheduled</option>
+                            <option value="In Progress">In Progress</option>
+                            <option value="Completed">Completed</option>
+                            <option value="Taken but Failed">Taken but Failed</option>
+                            <option value="Cancelled">Cancelled</option>
+                            <option value="Expired">Expired</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="exam-appointment-date" class="required">Appointment Date & Time</label>
+                        <input type="datetime-local" id="exam-appointment-date" required>
+                    </div>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="exam-appointment-proctor">Proctor</label>
+                        <select id="exam-appointment-proctor">
+                            <option value="">Select a proctor</option>
+                            {% for proctor in proctors %}
+                            <option value="{{ proctor.external_id }}">{{ proctor.username }} ({{ proctor.email }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="exam-appointment-time">Exam Time (minutes)</label>
+                        <input type="number" id="exam-appointment-time" min="0" placeholder="Actual time taken">
+                    </div>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="exam-appointment-room1">Room URL 1</label>
+                        <input type="url" id="exam-appointment-room1" placeholder="https://example.com/room1">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="exam-appointment-room2">Room URL 2</label>
+                        <input type="url" id="exam-appointment-room2" placeholder="https://example.com/room2">
+                    </div>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="exam-appointment-entered-datetime">Entered Date & Time</label>
+                        <input type="datetime-local" id="exam-appointment-entered-datetime">
+                    </div>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="exam-appointment-can-start">
+                            <span class="checkmark"></span>
+                            Can Start Exam
+                        </label>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="exam-appointment-is-entered">
+                            <span class="checkmark"></span>
+                            User Has Entered
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-outline" onclick="closeExamAppointmentModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Appointment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Exam Result Modal -->
+<div id="exam-result-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="exam-result-modal-title"><span class="tab-icon">🎯</span> Edit Exam Result</h2>
+            <span class="close" onclick="closeExamResultModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form id="exam-result-form" class="modal-form">
+                <input type="hidden" id="exam-result-external-id">
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="exam-result-score" class="required">Score</label>
+                        <input type="number" id="exam-result-score" step="0.01" min="0" required placeholder="0.00">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="exam-result-status" class="required">Result Status</label>
+                        <select id="exam-result-status" required>
+                            <option value="PASSED">PASSED</option>
+                            <option value="FAILED">FAILED</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="exam-result-message">Result Message</label>
+                    <textarea id="exam-result-message" rows="3" placeholder="Enter result message..."></textarea>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-outline" onclick="closeExamResultModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Result</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Quiz Result Modal -->
+<div id="quiz-result-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="quiz-result-modal-title"><span class="tab-icon">📋</span> Edit Quiz Result</h2>
+            <span class="close" onclick="closeQuizResultModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form id="quiz-result-form" class="modal-form">
+                <input type="hidden" id="quiz-result-external-id">
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="quiz-result-score" class="required">Score</label>
+                        <input type="number" id="quiz-result-score" step="0.01" min="0" required placeholder="0.00">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quiz-result-status" class="required">Result Status</label>
+                        <select id="quiz-result-status" required>
+                            <option value="PASSED">PASSED</option>
+                            <option value="FAILED">FAILED</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="quiz-result-message">Result Message</label>
+                    <textarea id="quiz-result-message" rows="3" placeholder="Enter result message..."></textarea>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-outline" onclick="closeQuizResultModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Result</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Overlay -->
+<div id="loading-overlay" class="loading-overlay">
+    <div class="loading-spinner"></div>
+    <p>Loading data...</p>
+</div>
+
+<!-- Toast Notifications -->
+<div id="toast-container" class="toast-container"></div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Pass course data from Django template to JavaScript
+    window.courses = [
+        {% for course in courses %}
+        {
+            external_course_id: "{{ course.external_course_id|escapejs }}",
+            title: "{{ course.title|escapejs }}"
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+
+    // Pass proctor data from Django template to JavaScript
+    window.proctors = [
+        {% for proctor in proctors %}
+        {
+            external_id: "{{ proctor.external_id|escapejs }}",
+            username: "{{ proctor.username|escapejs }}",
+            email: "{{ proctor.email|escapejs }}"
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+</script>
+<script src="{% static 'js/selfstudyexam.js' %}"></script>
+{% endblock %}
+
+FILE 1: main/urls.py
+--------------------------------------------------------------------------------
+from django.urls import path
+from . import views
+from .views.selfstudydomains import SelfStudyDomainsView, SelfStudyDomainsAPIView
+from .views.selfstudymedia import (
+    SelfStudyMediaView,
+    SelfStudyMediaAPIView,
+    ExternalDataAPIView,
+    ReplicaAPIView
+)
+from .views.selfstudychat import SelfStudyChatView, ChatRoomAPIView
+from .views.selfstudyotp import SelfStudyOTPView
+from .views.selfstudyrunbook import SelfStudyRunbookView
+from .views.selfstudyallauth import (
+    SelfStudyAllAuthView,
+)
+
+urlpatterns = [
+    # Authentication URLs
+    path('login/', views.CustomLoginView.as_view(), name='login'),
+    path('logout/', views.CustomLogoutView.as_view(), name='logout'),
+
+    # Admin Dashboard and User Management URLs
+    path('', views.AdminDashboardView.as_view(), name='admin_dashboard'),
+    path('users/create/', views.UserCreateView.as_view(), name='user_create'),
+    path('users/<int:user_id>/update/', views.UserUpdateView.as_view(), name='user_update'),
+    path('users/<int:user_id>/delete/', views.UserDeleteView.as_view(), name='user_delete'),
+
+    # Self Study URLs
+    path('selfstudyadmin/', views.SelfStudyAdminView.as_view(), name='selfstudyadmin'),
+    path('selfstudyuserprofile/', views.SelfStudyUserProfileView.as_view(), name='selfstudyuserprofile'),
+    path('selfstudyuserlab/', views.SelfStudyUserLabView.as_view(), name='selfstudyuserlab'),
+    path('selfstudycourse/', views.SelfStudyCourseView.as_view(), name='selfstudycourse'),
+    path('selfstudycourse/api/', views.CourseAPIView.as_view(), name='selfstudycourse_api'),
+
+    # Self Study Live Course URLs
+    path('selfstudylivecourse/', views.SelfStudyLiveCourseView.as_view(), name='selfstudylivecourse'),
+    path('selfstudylivecourse/api/data/', views.LiveCourseDataView.as_view(), name='selfstudylivecourse_api_data'),
+
+    # Self Study Exam URLs
+    path('selfstudyexam/', views.SelfStudyExamView.as_view(), name='selfstudyexam'),
+    path('selfstudyexam/api/', views.SelfStudyExamAPIView.as_view(), name='selfstudyexam_api'),
+
+    # Certificate Management URLs
+    path('selfstudycertificate/', views.SelfStudyCertificateView.as_view(), name='selfstudycertificate'),
+    path('selfstudycertificate/api/certificates/<str:certificate_type>/', views.CertificateAPIView.as_view(), name='certificate_api'),
+    path('selfstudycertificate/api/certificates/<str:certificate_type>/<str:certificate_id>/', views.CertificateAPIView.as_view(), name='certificate_api_detail'),
+    path('selfstudycertificate/api/lookup/<str:resource_type>/', views.LookupAPIView.as_view(), name='lookup_api'),
+
+    # Other Self Study URLs
+    path('selfstudynotification/', views.SelfStudyNotificationView.as_view(), name='selfstudynotification'),
+
+    # Notification API endpoints
+    path('selfstudynotification/api/', views.NotificationAPIView.as_view(), name='selfstudynotification_api'),
+    path('selfstudynotification/api/<str:notification_id>/', views.NotificationAPIView.as_view(), name='selfstudynotification_api_detail'),
+
+    # Users API endpoint
+    path('selfstudynotification/api/users/', views.UserAPIView.as_view(), name='selfstudynotification_users_api'),
+
+    # Payment Management URLs
+    path('selfstudypayment/', views.SelfStudyPaymentView.as_view(), name='selfstudypayment'),
+    path('selfstudypayment/api/', views.SelfStudyPaymentView.as_view(), name='selfstudypayment_api'),
+
+    # Subscription Management URLs
+    path('selfstudysubscriptions/', views.SelfStudySubscriptionsView.as_view(), name='selfstudysubscriptions'),
+    path('selfstudysubscriptions/api/', views.SubscriptionAPIView.as_view(), name='selfstudysubscriptions_api'),
+
+    # SelfStudy Media Management URLs
+    path('selfstudymedia/', SelfStudyMediaView.as_view(), name='selfstudymedia'),
+    path('selfstudymedia/api/media/', SelfStudyMediaAPIView.as_view(), name='selfstudymedia_api'),
+    path('selfstudymedia/api/external-data/', ExternalDataAPIView.as_view(), name='selfstudymedia_external_data'),
+    path('selfstudymedia/api/replicas/', ReplicaAPIView.as_view(), name='selfstudymedia_replicas'),
+
+    # SelfStudy Chat Management URLs
+    path('selfstudychat/', SelfStudyChatView.as_view(), name='selfstudychat'),
+    path('selfstudychat/api/rooms/', ChatRoomAPIView.as_view(), name='selfstudychat_api_rooms'),
+    path('selfstudychat/api/rooms/<int:room_id>/messages/', ChatRoomAPIView.as_view(), {'action': 'messages'}, name='selfstudychat_api_room_messages'),
+    path('selfstudychat/api/block-ip/', ChatRoomAPIView.as_view(), {'action': 'block-ip'}, name='selfstudychat_api_block_ip'),
+    path('selfstudychat/api/unblock-ip/', ChatRoomAPIView.as_view(), {'action': 'unblock-ip'}, name='selfstudychat_api_unblock_ip'),
+    path('selfstudychat/api/delete-room/', ChatRoomAPIView.as_view(), {'action': 'delete-room'}, name='selfstudychat_api_delete_room'),
+    path('selfstudychat/api/send-message/', ChatRoomAPIView.as_view(), {'action': 'send-message'}, name='selfstudychat_api_send_message'),
+    path('selfstudychat/api/mark-seen/', ChatRoomAPIView.as_view(), {'action': 'mark-seen'}, name='selfstudychat_api_mark_seen'),
+
+    # OTP Management URLs
+    path('selfstudyotp/', SelfStudyOTPView.as_view(), name='selfstudyotp'),
+
+    # Other Self Study Service URLs
+    path('selfstudydomains/', SelfStudyDomainsView.as_view(), name='selfstudydomains'),
+    path('selfstudydomains/api/', SelfStudyDomainsAPIView.as_view(), name='selfstudydomains_api'),
+
+    # SelfStudy Proctor URLs
+    path('selfstudyproctor/', views.SelfStudyProctorView.as_view(), name='selfstudyproctor'),
+    path('selfstudyproctor/api/', views.SelfStudyProctorAPIView.as_view(), name='selfstudyproctor_api'),
+    path('selfstudyproctor/api/<str:proctor_id>/', views.SelfStudyProctorAPIView.as_view(), name='selfstudyproctor_api_detail'),
+    path('selfstudyproctor/api/availability/', views.SelfStudyProctorAPIView.as_view(), {'action': 'update_availability'}, name='selfstudyproctor_api_availability'),
+
+    # SelfStudy Runbook URLs
+    path('selfstudyrunbook/', SelfStudyRunbookView.as_view(), name='selfstudyrunbook'),
+
+    # Main management page
+    path('selfstudyallauth/', SelfStudyAllAuthView.as_view(), name='selfstudyallauth'),
+
+    # API endpoints for AJAX requests
+    path('selfstudyallauth/api/', views.SelfStudyAllAuthAPIView.as_view(), name='selfstudyallauth_api'),
+
+    # User Lab URLs
+    path('selfstudyuserlab/', views.SelfStudyUserLabView.as_view(), name='selfstudyuserlab'),
+    path('selfstudyuserlab/api/', views.SelfStudyUserLabAPIView.as_view(), name='selfstudyuserlab_api'),
+
+    # ========= NEW DASHBOARD API ENDPOINTS =========
+    path('api/dashboard/apps/', views.DashboardAppsAPIView.as_view(), name='dashboard_apps'),
+    path('api/dashboard/metrics/', views.ReplicaMetricsAPIView.as_view(), name='dashboard_metrics'),
+]
+
+
