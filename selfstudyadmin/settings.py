@@ -106,7 +106,6 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly'
     ]
 }
-
 # CORS Headers Configuration
 CORS_ORIGIN_ALLOW_ALL = True
 
