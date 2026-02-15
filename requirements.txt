@@ -10,3 +10,4 @@ pandas
 django-import-export
 python-decouple
 python-dotenv
+psycopg2-binary
