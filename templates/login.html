@@ -21,6 +21,9 @@
     </style>
 </head>
 <body>
+    <!-- 3D Canvas Background Container -->
+    <div id="bg-canvas-container"></div>
+
     <div class="login-container">
         <div class="login-card">
             <!-- Your existing HTML content here - keep it exactly the same -->
@@ -113,18 +116,21 @@
         </div>
     </div>
 
-<script>
-    // Only keep the essential message removal
-    document.addEventListener('DOMContentLoaded', function() {
-        const messages = document.querySelectorAll('.alert');
-        messages.forEach(message => {
-            setTimeout(() => {
-                message.style.opacity = '0';
-                message.style.transform = 'translateY(-10px)';
-                setTimeout(() => message.remove(), 300);
-            }, 5000);
+    <!-- JavaScript -->
+    <script src="{% static 'js/three.min.js' %}"></script>
+    <script src="{% static 'js/galaxy_walk.js' %}"></script>
+    <script>
+        // Only keep the essential message removal
+        document.addEventListener('DOMContentLoaded', function() {
+            const messages = document.querySelectorAll('.alert');
+            messages.forEach(message => {
+                setTimeout(() => {
+                    message.style.opacity = '0';
+                    message.style.transform = 'translateY(-10px)';
+                    setTimeout(() => message.remove(), 300);
+                }, 5000);
+            });
         });
-    });
-</script>
+    </script>
 </body>
 </html>

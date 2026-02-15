@@ -10,7 +10,6 @@ let appsData = [];
 let replicasData = [];
 let currentRegistry = null;
 let currentTab = 'apps-tab';
-let chartInstance = null;
 
 // CSRF token for Django
 function getCookie(name) {
@@ -74,12 +73,10 @@ async function makeRequest(action, data = {}) {
     const formData = new FormData();
     formData.append('action', action);
     
-    // Add CSRF token
     if (csrftoken) {
         formData.append('csrfmiddlewaretoken', csrftoken);
     }
     
-    // Add data to form
     Object.keys(data).forEach(key => {
         formData.append(key, data[key]);
     });
@@ -113,7 +110,7 @@ document.addEventListener('DOMContentLoaded', function() {
     updateLastUpdated();
 });
 
-// Tab management
+// Tab management (now only two tabs)
 function initializeTabs() {
     const tabBtns = document.querySelectorAll('.tab-btn');
     const tabContents = document.querySelectorAll('.tab-content');
@@ -122,11 +119,9 @@ function initializeTabs() {
         btn.addEventListener('click', function() {
             const tabId = this.getAttribute('data-tab');
             
-            // Update active tab button
             tabBtns.forEach(b => b.classList.remove('active'));
             this.classList.add('active');
             
-            // Show selected tab content
             tabContents.forEach(content => {
                 content.classList.remove('active');
                 if (content.id === tabId) {
@@ -134,9 +129,7 @@ function initializeTabs() {
                     currentTab = tabId;
                     
                     // Load specific data for tab
-                    if (tabId === 'health-tab') {
-                        loadHealthDashboard();
-                    } else if (tabId === 'replicas-tab') {
+                    if (tabId === 'replicas-tab') {
                         loadReplicas();
                     }
                 }
@@ -147,7 +140,6 @@ function initializeTabs() {
 
 // Setup event listeners
 function setupEventListeners() {
-    // Global search
     const searchInput = document.getElementById('globalSearch');
     if (searchInput) {
         let searchTimeout;
@@ -159,7 +151,6 @@ function setupEventListeners() {
         });
     }
     
-    // Refresh button
     const refreshBtn = document.querySelector('[onclick="refreshData()"]');
     if (refreshBtn) {
         refreshBtn.addEventListener('click', refreshData);
@@ -172,7 +163,6 @@ async function loadData() {
         showLoading('apps');
         showLoading('replicas');
         
-        // Load apps
         const appsResponse = await makeRequest('get_apps');
         if (appsResponse.success) {
             appsData = Array.isArray(appsResponse.apps) ? appsResponse.apps : [];
@@ -184,7 +174,6 @@ async function loadData() {
             Toast.show(appsResponse.error || 'Failed to load apps', 'error');
         }
         
-        // Load replicas
         const replicasResponse = await makeRequest('get_replicas');
         if (replicasResponse.success) {
             replicasData = Array.isArray(replicasResponse.replicas) ? replicasResponse.replicas : [];
@@ -192,7 +181,6 @@ async function loadData() {
             updateStatusBar();
         }
         
-        // Load registry status
         loadRegistryStatus();
         
     } catch (error) {
@@ -301,7 +289,7 @@ function renderReplicasTable(replicas = replicasData) {
     replicas.forEach(replica => {
         const app = appsData.find(a => a.id === replica.app) || {};
         const createdDate = new Date(replica.created_at).toLocaleDateString();
-        const url = replica.replica_url.replace(/\/$/, ''); // Remove trailing slash
+        const url = replica.replica_url.replace(/\/$/, '');
         
         html += `
             <tr data-replica-id="${replica.id}">
@@ -375,7 +363,6 @@ function filterData(searchTerm) {
     
     const term = searchTerm.toLowerCase();
     
-    // Filter apps
     const filteredApps = appsData.filter(app => 
         app.app_name.toLowerCase().includes(term) ||
         (app.description && app.description.toLowerCase().includes(term)) ||
@@ -383,7 +370,6 @@ function filterData(searchTerm) {
     );
     renderAppsTable(filteredApps);
     
-    // Filter replicas
     const filteredReplicas = replicasData.filter(replica => {
         const app = appsData.find(a => a.id === replica.app);
         return (
@@ -410,18 +396,15 @@ function filterReplicasByApp() {
 
 // Update status bar
 function updateStatusBar() {
-    // Update registry status
     const registryStatus = document.getElementById('registryStatus');
     if (registryStatus && currentRegistry) {
         registryStatus.textContent = new URL(currentRegistry).hostname;
         registryStatus.style.color = 'var(--success-color)';
     }
     
-    // Update counts
     document.getElementById('appsCount').textContent = appsData.length;
     document.getElementById('replicasCount').textContent = replicasData.length;
     
-    // Update last updated time
     updateLastUpdated();
 }
 
@@ -506,7 +489,6 @@ async function submitAppForm() {
     const description = document.getElementById('appDescription').value.trim();
     const githubLink = document.getElementById('appGithub').value.trim();
     
-    // Validate
     clearFormErrors('appForm');
     let valid = true;
     
@@ -550,7 +532,6 @@ async function showCreateReplicaModal(appId = null) {
     document.getElementById('replicaForm').reset();
     document.getElementById('replicaId').value = '';
     
-    // Populate app dropdown
     const appSelect = document.getElementById('replicaAppId');
     let html = '<option value="">Select Application</option>';
     appsData.forEach(app => {
@@ -575,7 +556,6 @@ function showCreateReplicaModalForApp() {
 // Show edit replica modal
 async function editReplica(replicaId) {
     try {
-        // Find replica in current data
         const replica = replicasData.find(r => r.id == replicaId);
         if (!replica) {
             Toast.show('Replica not found in current data', 'error');
@@ -585,7 +565,6 @@ async function editReplica(replicaId) {
         document.getElementById('replicaModalTitle').innerHTML = '<i class="fas fa-edit"></i> Edit Replica';
         document.getElementById('replicaId').value = replica.id;
         
-        // Populate app dropdown
         const appSelect = document.getElementById('replicaAppId');
         let html = '<option value="">Select Application</option>';
         appsData.forEach(app => {
@@ -595,7 +574,6 @@ async function editReplica(replicaId) {
         });
         appSelect.innerHTML = html;
         
-        // Fill other fields
         document.getElementById('replicaUrl').value = replica.replica_url;
         document.getElementById('replicaUsername').value = replica.replica_username;
         document.getElementById('replicaPassword').value = replica.replica_password;
@@ -629,7 +607,6 @@ async function submitReplicaForm() {
     const dbUsername = document.getElementById('dbUsername').value.trim();
     const dbPassword = document.getElementById('dbPassword').value.trim();
     
-    // Validate
     clearFormErrors('replicaForm');
     let valid = true;
     
@@ -705,7 +682,6 @@ async function viewAppReplicas(appId) {
                 githubLink.textContent = 'N/A';
             }
             
-            // Display replicas
             const replicasList = document.getElementById('appReplicasList');
             const replicas = app.replicas || [];
             
@@ -793,7 +769,6 @@ async function confirmDelete() {
     
     try {
         if (currentAppId) {
-            // Delete app
             const response = await makeRequest('delete_app', { app_id: currentAppId });
             if (response.success) {
                 Toast.show(response.message, 'success');
@@ -803,7 +778,6 @@ async function confirmDelete() {
             }
             currentAppId = null;
         } else if (currentReplicaId) {
-            // Delete replica
             const response = await makeRequest('delete_replica', { replica_id: currentReplicaId });
             if (response.success) {
                 Toast.show(response.message, 'success');
@@ -826,25 +800,7 @@ async function loadRegistryStatus() {
     try {
         const response = await makeRequest('get_registry_status');
         if (response.success) {
-            const container = document.getElementById('registryHealth');
-            if (container) {
-                let html = '<div class="registry-status">';
-                
-                response.registries.forEach(registry => {
-                    const isOnline = registry.status === 'online';
-                    html += `
-                        <div class="registry-item ${registry.status}">
-                            <div class="registry-domain">${registry.domain}</div>
-                            <div class="registry-status-badge ${registry.status}">
-                                ${isOnline ? 'Online' : 'Offline'}
-                            </div>
-                        </div>
-                    `;
-                });
-                
-                html += '</div>';
-                container.innerHTML = html;
-            }
+            // Not needed for display anymore but keep for registry modal
         }
     } catch (error) {
         console.error('Error loading registry status:', error);
@@ -891,46 +847,6 @@ async function showRegistryStatus() {
     }
 }
 
-// Select random replica for load balancing
-async function selectRandomReplica() {
-    const appSelect = document.getElementById('lbAppSelect');
-    const appId = appSelect.value;
-    
-    if (!appId) {
-        Toast.show('Please select an application first', 'warning');
-        return;
-    }
-    
-    try {
-        const response = await makeRequest('select_replica', { app_id: appId });
-        if (response.success) {
-            const replica = response.selected_replica;
-            const url = replica.replica_url.replace(/\/$/, '');
-            
-            const container = document.getElementById('selectedReplica');
-            container.innerHTML = `
-                <div class="selected-replica-info">
-                    <h5><i class="fas fa-random"></i> Selected Replica</h5>
-                    <p><strong>URL:</strong> <a href="${escapeHtml(url)}" target="_blank">${escapeHtml(url)}</a></p>
-                    <p><strong>Database:</strong> ${escapeHtml(replica.db_host)}/${escapeHtml(replica.db_name)}</p>
-                    <p><strong>Credentials:</strong> ${escapeHtml(replica.replica_username)} / ${escapeHtml(replica.admin_username)}</p>
-                    <p><small class="text-muted">Selected from ${response.replica_count} available replicas</small></p>
-                    <button class="btn btn-sm btn-primary" onclick="window.open('${escapeHtml(url)}', '_blank')">
-                        <i class="fas fa-external-link-alt"></i> Open Replica
-                    </button>
-                </div>
-            `;
-            
-            Toast.show(`Selected replica from ${response.replica_count} available options`, 'success');
-        } else {
-            Toast.show(response.error || 'Failed to select replica', 'error');
-        }
-    } catch (error) {
-        console.error('Error selecting replica:', error);
-        Toast.show('Failed to select replica', 'error');
-    }
-}
-
 // Test replica connection
 async function testReplica(replicaId) {
     const replica = replicasData.find(r => r.id == replicaId);
@@ -940,9 +856,9 @@ async function testReplica(replicaId) {
     
     try {
         const url = replica.replica_url.replace(/\/$/, '') + '/health/';
-        const response = await fetch(url, { 
+        await fetch(url, { 
             method: 'GET',
-            mode: 'no-cors' // Simple test without CORS
+            mode: 'no-cors'
         });
         
         Toast.show(`Connection to ${replica.replica_url} appears to be working`, 'success');
@@ -951,128 +867,14 @@ async function testReplica(replicaId) {
     }
 }
 
-// Load health dashboard
-async function loadHealthDashboard() {
-    // Update load balancer app select
-    const lbSelect = document.getElementById('lbAppSelect');
-    if (lbSelect) {
-        let html = '<option value="">Select Application</option>';
-        appsData.forEach(app => {
-            const replicaCount = app.replicas ? app.replicas.length : 0;
-            if (replicaCount > 0) {
-                html += `<option value="${app.id}">${escapeHtml(app.app_name)} (${replicaCount} replicas)</option>`;
-            }
-        });
-        lbSelect.innerHTML = html;
-    }
-    
-    // Update stats
-    document.getElementById('totalApps').textContent = appsData.length;
-    document.getElementById('totalReplicas').textContent = replicasData.length;
-    
-    const avgReplicas = appsData.length > 0 ? (replicasData.length / appsData.length).toFixed(1) : '0.0';
-    document.getElementById('avgReplicas').textContent = avgReplicas;
-    
-    // Find latest app
-    if (appsData.length > 0) {
-        const latestApp = appsData.reduce((latest, app) => {
-            const appDate = new Date(app.created_at);
-            const latestDate = new Date(latest.created_at);
-            return appDate > latestDate ? app : latest;
-        });
-        document.getElementById('latestApp').textContent = latestApp.app_name;
-    }
-    
-    // Create chart
-    createReplicaChart();
-}
-
-// Create replica distribution chart
-function createReplicaChart() {
-    const ctx = document.getElementById('replicaChart');
-    if (!ctx) return;
-    
-    // Destroy existing chart
-    if (chartInstance) {
-        chartInstance.destroy();
-    }
-    
-    // Prepare data
-    const appNames = [];
-    const replicaCounts = [];
-    const colors = [];
-    
-    appsData.forEach((app, index) => {
-        const count = app.replicas ? app.replicas.length : 0;
-        if (count > 0) {
-            appNames.push(app.app_name.length > 20 ? app.app_name.substring(0, 20) + '...' : app.app_name);
-            replicaCounts.push(count);
-            
-            // Generate color based on index
-            const hue = (index * 137.5) % 360; // Golden angle distribution
-            colors.push(`hsl(${hue}, 70%, 60%)`);
-        }
-    });
-    
-    if (appNames.length === 0) {
-        ctx.parentElement.innerHTML = '<div class="no-data"><p>No replica data available</p></div>';
-        return;
-    }
-    
-    chartInstance = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: appNames,
-            datasets: [{
-                label: 'Number of Replicas',
-                data: replicaCounts,
-                backgroundColor: colors,
-                borderColor: colors.map(c => c.replace('60%)', '40%)')),
-                borderWidth: 1
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    display: false
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            return `Replicas: ${context.parsed.y}`;
-                        }
-                    }
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    title: {
-                        display: true,
-                        text: 'Number of Replicas'
-                    },
-                    ticks: {
-                        stepSize: 1
-                    }
-                },
-                x: {
-                    ticks: {
-                        maxRotation: 45
-                    }
-                }
-            }
-        }
-    });
-}
-
-// Modal functions
+// Modal functions (using reliable display block, like selfstudycourse)
 function showModal(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) {
-        modal.style.display = 'flex';
+        modal.style.display = 'block';
         document.body.style.overflow = 'hidden';
+    } else {
+        console.error('Modal not found:', modalId);
     }
 }
 
@@ -1153,9 +955,4 @@ async function loadReplicas() {
     } catch (error) {
         console.error('Error loading replicas:', error);
     }
-}
-
-// Initialize health dashboard
-async function initializeHealthDashboard() {
-    await loadHealthDashboard();
 }

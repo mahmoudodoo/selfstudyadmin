@@ -11,20 +11,13 @@
 
 {% block content %}
 <div class="page-content">
-    <!-- Header Section -->
+    <!-- Header Section (without right buttons) -->
     <div class="header-section">
         <div class="header-left">
             <h1><i class="fas fa-globe"></i> SelfStudy Domains Management</h1>
             <p class="subtitle">Manage applications and their replicas across multiple domains</p>
         </div>
-        <div class="header-right">
-            <button class="btn btn-primary" onclick="showRegistryStatus()">
-                <i class="fas fa-heartbeat"></i> Registry Status
-            </button>
-            <button class="btn btn-success" onclick="showCreateAppModal()">
-                <i class="fas fa-plus"></i> New App
-            </button>
-        </div>
+        <!-- Removed header-right buttons as requested -->
     </div>
 
     <!-- Status Bar -->
@@ -51,7 +44,7 @@
         </div>
     </div>
 
-    <!-- Main Content Tabs -->
+    <!-- Main Content Tabs (only Apps and Replicas) -->
     <div class="tabs-container">
         <div class="tabs">
             <button class="tab-btn active" data-tab="apps-tab">
@@ -59,9 +52,6 @@
             </button>
             <button class="tab-btn" data-tab="replicas-tab">
                 <i class="fas fa-copy"></i> All Replicas
-            </button>
-            <button class="tab-btn" data-tab="health-tab">
-                <i class="fas fa-chart-line"></i> Health Dashboard
             </button>
         </div>
     </div>
@@ -186,87 +176,6 @@
                     </div>
                     <div class="table-pagination" id="replicasPagination">
                         <!-- Pagination will be added here -->
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Health Dashboard Tab -->
-    <div class="tab-content" id="health-tab">
-        <div class="health-dashboard">
-            <div class="health-grid">
-                <!-- Registry Health -->
-                <div class="health-card">
-                    <div class="health-card-header">
-                        <h4><i class="fas fa-heartbeat"></i> Registry Health</h4>
-                    </div>
-                    <div class="health-card-body" id="registryHealth">
-                        <div class="loading-spinner">
-                            <i class="fas fa-spinner fa-spin"></i> Checking registry status...
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Load Balancer -->
-                <div class="health-card">
-                    <div class="health-card-header">
-                        <h4><i class="fas fa-random"></i> Load Balancer</h4>
-                    </div>
-                    <div class="health-card-body">
-                        <div class="form-group">
-                            <label for="lbAppSelect">Select Application:</label>
-                            <select id="lbAppSelect" class="form-control">
-                                <option value="">Loading apps...</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <button class="btn btn-primary btn-block" onclick="selectRandomReplica()">
-                                <i class="fas fa-random"></i> Select Random Replica
-                            </button>
-                        </div>
-                        <div id="selectedReplica" class="selected-replica">
-                            <!-- Selected replica will appear here -->
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Quick Stats -->
-                <div class="health-card">
-                    <div class="health-card-header">
-                        <h4><i class="fas fa-chart-bar"></i> Quick Stats</h4>
-                    </div>
-                    <div class="health-card-body">
-                        <div class="stats-grid">
-                            <div class="stat-item">
-                                <div class="stat-value" id="totalApps">0</div>
-                                <div class="stat-label">Total Apps</div>
-                            </div>
-                            <div class="stat-item">
-                                <div class="stat-value" id="totalReplicas">0</div>
-                                <div class="stat-label">Total Replicas</div>
-                            </div>
-                            <div class="stat-item">
-                                <div class="stat-value" id="avgReplicas">0.0</div>
-                                <div class="stat-label">Avg Replicas/App</div>
-                            </div>
-                            <div class="stat-item">
-                                <div class="stat-value" id="latestApp">-</div>
-                                <div class="stat-label">Latest App</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- App Distribution Chart -->
-            <div class="health-card full-width">
-                <div class="health-card-header">
-                    <h4><i class="fas fa-chart-pie"></i> Replica Distribution</h4>
-                </div>
-                <div class="health-card-body">
-                    <div class="chart-container">
-                        <canvas id="replicaChart"></canvas>
                     </div>
                 </div>
             </div>
@@ -484,6 +393,6 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- Chart.js removed as requested -->
 <script src="{% static 'js/selfstudydomains.js' %}"></script>
 {% endblock %}

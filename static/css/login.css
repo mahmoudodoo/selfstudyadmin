@@ -6,7 +6,7 @@
     --warning-color: #f39c12;
     --error-color: #e74c3c;
     --text-color: #333;
-    --light-bg: #f8f9fa;
+    --light-bg: rgba(248, 249, 250, 0.8);
     --border-color: #ddd;
     --shadow: 0 10px 30px rgba(0,0,0,0.1);
 }
@@ -19,12 +19,23 @@
 }
 
 body {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: transparent; /* Remove gradient, background now provided by canvas */
     min-height: 100vh;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 20px;
+}
+
+/* Canvas background container */
+#bg-canvas-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    background: #0a0f1e; /* fallback dark color */
 }
 
 .login-container {
@@ -36,12 +47,12 @@ body {
 }
 
 .login-card {
-    background: white;
+    background: rgba(255, 255, 255, 0.85); /* semi-transparent white */
+    backdrop-filter: blur(10px);
     padding: 40px;
     border-radius: 20px;
     box-shadow: var(--shadow);
     width: 100%;
-    backdrop-filter: blur(10px);
     border: 1px solid rgba(255,255,255,0.2);
 }
 
@@ -87,28 +98,25 @@ body {
     gap: 10px;
     font-size: 0.9rem;
     transition: all 0.3s ease;
+    background: rgba(255, 255, 255, 0.9);
 }
 
 .alert-success {
-    background-color: rgba(39, 174, 96, 0.1);
     border: 1px solid var(--success-color);
     color: var(--success-color);
 }
 
 .alert-error {
-    background-color: rgba(231, 76, 60, 0.1);
     border: 1px solid var(--error-color);
     color: var(--error-color);
 }
 
 .alert-warning {
-    background-color: rgba(243, 156, 18, 0.1);
     border: 1px solid var(--warning-color);
     color: var(--warning-color);
 }
 
 .alert-info {
-    background-color: rgba(52, 152, 219, 0.1);
     border: 1px solid var(--primary-color);
     color: var(--primary-color);
 }
@@ -144,7 +152,7 @@ body {
     border-radius: 10px;
     font-size: 1rem;
     transition: all 0.3s ease;
-    background-color: var(--light-bg);
+    background-color: rgba(255, 255, 255, 0.9);
 }
 
 .form-control:focus {
@@ -206,6 +214,7 @@ body {
     align-items: center;
     justify-content: center;
     transition: all 0.3s ease;
+    background-color: white;
 }
 
 .remember-me input:checked + .checkmark {
@@ -266,49 +275,6 @@ body {
 .login-footer p {
     color: #666;
     font-size: 0.85rem;
-}
-
-.login-background {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 0;
-    overflow: hidden;
-}
-
-.background-shapes {
-    position: relative;
-    width: 100%;
-    height: 100%;
-}
-
-.shape {
-    position: absolute;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.1);
-}
-
-.shape-1 {
-    width: 300px;
-    height: 300px;
-    top: -150px;
-    right: -150px;
-}
-
-.shape-2 {
-    width: 200px;
-    height: 200px;
-    bottom: -100px;
-    left: -100px;
-}
-
-.shape-3 {
-    width: 150px;
-    height: 150px;
-    top: 50%;
-    right: 20%;
 }
 
 /* Responsive Design */

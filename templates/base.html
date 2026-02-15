@@ -11,9 +11,11 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
     <link rel="stylesheet" href="{% static 'css/base.css' %}">
     {% block extra_css %}{% endblock %}
-
 </head>
 <body>
+    <!-- 3D Canvas Background Container -->
+    <div id="bg-canvas-container"></div>
+
     <!-- Sidebar -->
     <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
@@ -151,8 +153,10 @@
     </div>
 
     <!-- JavaScript -->
+    <script src="{% static 'js/three.min.js' %}"></script>
+    <script src="{% static 'js/galaxy_walk.js' %}"></script>
     <script>
-        // Mobile menu toggle
+        // Mobile menu toggle (existing)
         const menuToggle = document.getElementById('menuToggle');
         const sidebar = document.getElementById('sidebar');
         const mobileOverlay = document.getElementById('mobileOverlay');
