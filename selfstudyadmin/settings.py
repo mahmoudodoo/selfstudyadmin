@@ -141,6 +141,10 @@ DATABASES = {
     }
 }
 
+# Add SSL option only for PostgreSQL
+if DATABASES['default']['ENGINE'] in ('django.db.backends.postgresql', 'django.db.backends.postgresql_psycopg2'):
+    DATABASES['default']['OPTIONS'] = {'sslmode': 'require'}
+
 # Email configuration
 EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
 EMAIL_HOST = os.getenv('EMAIL_HOST', '')
