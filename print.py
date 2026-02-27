@@ -39,8 +39,7 @@ class FileTreeApp:
         self.current_dir = os.getcwd()
         self.all_files = []
         self.filtered_files = []
-        self.checkbox_vars = {}
-        self.file_paths = {}  # Map display text to actual file path
+        self.checkbox_vars = {}  # Persistent: file path -> BooleanVar
 
         # Configure styles
         self.setup_styles()
@@ -214,6 +213,8 @@ class FileTreeApp:
 
         try:
             self.all_files = self.get_all_files(self.current_dir)
+            # Create persistent BooleanVar for each file (all unchecked initially)
+            self.checkbox_vars = {file: tk.BooleanVar(value=False) for file in self.all_files}
             self.filtered_files = self.all_files.copy()
             self.update_treeview()
             self.status_var.set(f"Loaded {len(self.all_files)} files from {self.current_dir}")
@@ -221,33 +222,19 @@ class FileTreeApp:
             messagebox.showerror("Error", f"Failed to load files: {str(e)}")
 
     def update_treeview(self):
-        """Update the treeview with current files"""
+        """Update the treeview with current filtered files, preserving checkbox states"""
         # Clear treeview
         for item in self.tree.get_children():
             self.tree.delete(item)
 
-        # Clear checkbox variables
-        self.checkbox_vars = {}
-        self.file_paths = {}
+        # Add files from filtered_files using existing BooleanVars
+        for file_path in self.filtered_files:
+            var = self.checkbox_vars[file_path]  # should always exist
+            display_symbol = "✓" if var.get() else "□"
+            self.tree.insert("", "end", values=(display_symbol, file_path))
 
-        # Add files to treeview
-        for idx, file_path in enumerate(self.filtered_files):
-            var = tk.BooleanVar(value=False)
-            self.checkbox_vars[file_path] = var
-            self.file_paths[file_path] = file_path
-
-            # Create checkbox
-            cb = ttk.Checkbutton(self.tree, variable=var)
-
-            # Insert item
-            item_id = self.tree.insert("", "end", values=("", file_path))
-
-            # Add checkbox to treeview (this is a hack since Treeview doesn't natively support checkboxes)
-            # We'll store the checkbox reference and update manually
-            self.tree.set(item_id, "Select", "□")
-
-            # Bind click on the first column to toggle checkbox
-            self.tree.bind('<Button-1>', self.on_tree_click)
+        # Bind click event (rebind each time to ensure it's active)
+        self.tree.bind('<Button-1>', self.on_tree_click)
 
     def on_tree_click(self, event):
         """Handle clicks on the treeview to toggle checkboxes"""
@@ -264,12 +251,12 @@ class FileTreeApp:
                         self.update_checkbox_display(item, not current)
 
     def update_checkbox_display(self, item, checked):
-        """Update the checkbox display in treeview"""
+        """Update the checkbox display in treeview for a given item"""
         symbol = "✓" if checked else "□"
         self.tree.set(item, "Select", symbol)
 
     def filter_files(self, event=None):
-        """Filter files based on search term"""
+        """Filter files based on search term, preserving checkbox states"""
         search_term = self.search_var.get().lower()
         if not search_term:
             self.filtered_files = self.all_files.copy()
@@ -279,24 +266,7 @@ class FileTreeApp:
                 if search_term in f.lower() or search_term in os.path.basename(f).lower()
             ]
 
-        # Preserve checkbox states for filtered files
-        preserved_states = {}
-        for file_path, var in self.checkbox_vars.items():
-            if file_path in self.filtered_files:
-                preserved_states[file_path] = var.get()
-
         self.update_treeview()
-
-        # Restore checkbox states
-        for file_path, checked in preserved_states.items():
-            if file_path in self.checkbox_vars:
-                self.checkbox_vars[file_path].set(checked)
-                # Find and update the item in treeview
-                for item in self.tree.get_children():
-                    if self.tree.item(item)['values'][1] == file_path:
-                        self.update_checkbox_display(item, checked)
-                        break
-
         self.status_var.set(f"Showing {len(self.filtered_files)} of {len(self.all_files)} files")
 
     def clear_search(self):
@@ -328,7 +298,7 @@ class FileTreeApp:
                 self.update_checkbox_display(item, False)
 
     def check_pattern(self, pattern):
-        """Check files matching pattern"""
+        """Check files matching pattern among visible files"""
         for item in self.tree.get_children():
             file_path = self.tree.item(item)['values'][1]
             if fnmatch.fnmatch(file_path, pattern) or fnmatch.fnmatch(os.path.basename(file_path), pattern):
@@ -337,7 +307,7 @@ class FileTreeApp:
                     self.update_checkbox_display(item, True)
 
     def get_selected_files(self):
-        """Get list of selected files"""
+        """Get list of selected files (checked)"""
         selected = []
         for file_path, var in self.checkbox_vars.items():
             if var.get():

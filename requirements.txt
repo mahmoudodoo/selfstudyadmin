@@ -1,12 +1,8 @@
 django
-django-simpleui
 Pillow
-djangorestframework
-django-filter
 requests
 whitenoise
 django-cors-headers
-pandas
 django-import-export
 python-decouple
 python-dotenv

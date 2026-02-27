@@ -39,14 +39,15 @@ FALLBACK_USER_DOMAINS = [
 @method_decorator(login_required, name='dispatch')
 class SelfStudyNotificationView(View):
     def _get_auth_headers(self):
-        """Get authentication headers"""
+        """Get authentication headers with admin flag"""
         auth_token = os.getenv('AUTH_TOKEN')
         if not auth_token:
             logger.error("AUTH_TOKEN environment variable is not set")
             return {}
         return {
             'Content-Type': 'application/json',
-            'Authorization': f'Token {auth_token}'
+            'Authorization': f'Token {auth_token}',
+            'X-Admin-Request': 'true',          # Identify as admin
         }
 
     def _get_dynamic_sync_domains(self, app_id):
@@ -304,14 +305,15 @@ class SelfStudyNotificationView(View):
 @method_decorator(login_required, name='dispatch')
 class NotificationAPIView(View):
     def _get_auth_headers(self):
-        """Get authentication headers"""
+        """Get authentication headers with admin flag"""
         auth_token = os.getenv('AUTH_TOKEN')
         if not auth_token:
             logger.error("AUTH_TOKEN environment variable is not set")
             return {}
         return {
             'Content-Type': 'application/json',
-            'Authorization': f'Token {auth_token}'
+            'Authorization': f'Token {auth_token}',
+            'X-Admin-Request': 'true',          # Identify as admin
         }
 
     def _get_random_working_domain(self, app_id):
@@ -602,14 +604,15 @@ class NotificationAPIView(View):
 @method_decorator(login_required, name='dispatch')
 class UserAPIView(View):
     def _get_auth_headers(self):
-        """Get authentication headers"""
+        """Get authentication headers with admin flag"""
         auth_token = os.getenv('AUTH_TOKEN')
         if not auth_token:
             logger.error("AUTH_TOKEN environment variable is not set")
             return {}
         return {
             'Content-Type': 'application/json',
-            'Authorization': f'Token {auth_token}'
+            'Authorization': f'Token {auth_token}',
+            'X-Admin-Request': 'true',          # Identify as admin
         }
 
     def _get_random_working_domain(self, app_id):
