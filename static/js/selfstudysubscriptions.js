@@ -13,6 +13,10 @@ let currentDomains = [];
 let currentServiceDomain = '';
 let currentTable = null;
 
+// Pagination for domains
+let domainsCurrentPage = 1;
+const domainsPageSize = 9;
+
 // CSRF Token setup for AJAX requests
 function getCookie(name) {
     let cookieValue = null;
@@ -43,18 +47,19 @@ const tableConfigs = {
                 render: function(data, type, row) {
                     return `
                     <div class="action-buttons">
-                    <button class="btn btn-sm btn-primary" onclick="editFeature('${row.external_id}')">
-                    <i class="fas fa-edit"></i> Edit
-                    </button>
-                    <button class="btn btn-sm btn-danger" onclick="deleteResource('feature', '${row.external_id}')">
-                    <i class="fas fa-trash"></i> Delete
-                    </button>
+                        <button class="btn btn-sm btn-primary" onclick="editFeature('${row.external_id}')">
+                            <i class="fas fa-edit"></i> Edit
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteResource('feature', '${row.external_id}')">
+                            <i class="fas fa-trash"></i> Delete
+                        </button>
                     </div>
                     `;
                 }
             }
         ],
-        order: [[1, 'asc']] // Order by name
+        order: [[1, 'asc']], // Order by name
+        pageLength: 9
     },
     subscription_types: {
         columns: [
@@ -79,18 +84,19 @@ const tableConfigs = {
                 render: function(data, type, row) {
                     return `
                     <div class="action-buttons">
-                    <button class="btn btn-sm btn-primary" onclick="editSubscriptionType('${row.external_id}')">
-                    <i class="fas fa-edit"></i> Edit
-                    </button>
-                    <button class="btn btn-sm btn-danger" onclick="deleteResource('subscription_type', '${row.external_id}')">
-                    <i class="fas fa-trash"></i> Delete
-                    </button>
+                        <button class="btn btn-sm btn-primary" onclick="editSubscriptionType('${row.external_id}')">
+                            <i class="fas fa-edit"></i> Edit
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteResource('subscription_type', '${row.external_id}')">
+                            <i class="fas fa-trash"></i> Delete
+                        </button>
                     </div>
                     `;
                 }
             }
         ],
-        order: [[1, 'asc']] // Order by title
+        order: [[1, 'asc']], // Order by title
+        pageLength: 9
     },
     subscriptions: {
         columns: [
@@ -107,8 +113,8 @@ const tableConfigs = {
                 data: 'is_active',
                 render: function(data) {
                     return data ?
-                    '<span class="status-badge status-active">Active</span>' :
-                    '<span class="status-badge status-inactive">Inactive</span>';
+                        '<span class="status-badge status-active">Active</span>' :
+                        '<span class="status-badge status-inactive">Inactive</span>';
                 }
             },
             {
@@ -128,18 +134,19 @@ const tableConfigs = {
                 render: function(data, type, row) {
                     return `
                     <div class="action-buttons">
-                    <button class="btn btn-sm btn-primary" onclick="editSubscription('${row.external_id}')">
-                    <i class="fas fa-edit"></i> Edit
-                    </button>
-                    <button class="btn btn-sm btn-danger" onclick="deleteResource('subscription', '${row.external_id}')">
-                    <i class="fas fa-trash"></i> Delete
-                    </button>
+                        <button class="btn btn-sm btn-primary" onclick="editSubscription('${row.external_id}')">
+                            <i class="fas fa-edit"></i> Edit
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteResource('subscription', '${row.external_id}')">
+                            <i class="fas fa-trash"></i> Delete
+                        </button>
                     </div>
                     `;
                 }
             }
         ],
-        order: [[6, 'desc']] // Order by expire_date
+        order: [[6, 'desc']], // Order by expire_date
+        pageLength: 9
     }
 };
 
@@ -179,8 +186,8 @@ function loadInitialData() {
         // Load data for all tabs
         Promise.all([
             loadFeatures(),
-                    loadSubscriptionTypes(),
-                    loadSubscriptions()
+            loadSubscriptionTypes(),
+            loadSubscriptions()
         ]).finally(() => {
             hideLoading();
         });
@@ -242,34 +249,83 @@ async function loadDomains() {
 
 function updateDomainsDisplay() {
     const domainsGrid = $('#domains-grid');
+    const totalDomains = currentDomains.length;
+    const totalPages = Math.ceil(totalDomains / domainsPageSize);
+    const start = (domainsCurrentPage - 1) * domainsPageSize;
+    const end = start + domainsPageSize;
+    const pageDomains = currentDomains.slice(start, end);
+
     domainsGrid.empty();
 
-    if (currentDomains.length === 0) {
+    if (pageDomains.length === 0) {
         domainsGrid.html(`
-        <div class="no-data">
-        <i class="fas fa-exclamation-triangle fa-3x"></i>
-        <h3>No service domains available</h3>
-        <p>Please check your connection and try again.</p>
-        </div>
+            <div class="no-data">
+                <i class="fas fa-exclamation-triangle fa-3x"></i>
+                <h3>No service domains available</h3>
+                <p>Please check your connection and try again.</p>
+            </div>
         `);
+        renderDomainsPagination(totalPages);
         return;
     }
 
-    currentDomains.forEach((domain, index) => {
+    pageDomains.forEach((domain, index) => {
         const isCurrent = domain === currentServiceDomain;
         domainsGrid.append(`
-        <div class="domain-card ${isCurrent ? 'active' : ''}">
-        <div class="domain-header">
-        <h4>Instance ${index + 1}</h4>
-        <span class="domain-status-badge status-active">Active</span>
-        </div>
-        <div class="domain-url">${domain}</div>
-        <div class="domain-health">
-        <i class="fas fa-check-circle"></i> Service is responsive
-        </div>
-        ${isCurrent ? '<div class="current-indicator">Currently in use</div>' : ''}
-        </div>
+            <div class="domain-card ${isCurrent ? 'active' : ''}">
+                <div class="domain-header">
+                    <h4>Instance ${(start + index) + 1}</h4>
+                    <span class="domain-status-badge status-active">Active</span>
+                </div>
+                <div class="domain-url">${domain}</div>
+                <div class="domain-health">
+                    <i class="fas fa-check-circle"></i> Service is responsive
+                </div>
+                ${isCurrent ? '<div class="current-indicator">Currently in use</div>' : ''}
+            </div>
         `);
+    });
+
+    renderDomainsPagination(totalPages);
+}
+
+function renderDomainsPagination(totalPages) {
+    const paginationContainer = $('#domains-pagination');
+    paginationContainer.empty();
+
+    if (totalPages <= 1) return;
+
+    let html = '<div class="pagination-controls">';
+    html += `<button class="pagination-btn" data-page="prev" ${domainsCurrentPage === 1 ? 'disabled' : ''}>« Prev</button>`;
+
+    let start = Math.max(1, domainsCurrentPage - 2);
+    let end = Math.min(totalPages, domainsCurrentPage + 2);
+    if (start > 1) {
+        html += `<button class="pagination-btn" data-page="1">1</button>`;
+        if (start > 2) html += '<span class="pagination-ellipsis">...</span>';
+    }
+    for (let i = start; i <= end; i++) {
+        html += `<button class="pagination-btn ${i === domainsCurrentPage ? 'active' : ''}" data-page="${i}">${i}</button>`;
+    }
+    if (end < totalPages) {
+        if (end < totalPages - 1) html += '<span class="pagination-ellipsis">...</span>';
+        html += `<button class="pagination-btn" data-page="${totalPages}">${totalPages}</button>`;
+    }
+    html += `<button class="pagination-btn" data-page="next" ${domainsCurrentPage === totalPages ? 'disabled' : ''}>Next »</button>`;
+    html += '</div>';
+
+    paginationContainer.html(html);
+
+    paginationContainer.find('.pagination-btn').on('click', function() {
+        const page = $(this).data('page');
+        if (page === 'prev') {
+            domainsCurrentPage--;
+        } else if (page === 'next') {
+            domainsCurrentPage++;
+        } else {
+            domainsCurrentPage = parseInt(page, 10);
+        }
+        updateDomainsDisplay();
     });
 }
 
@@ -287,12 +343,16 @@ function updateServiceStatus(isActive) {
 }
 
 function setupDataTables() {
-    // Initialize all tables
+    // Initialize all tables with pageLength 9
     for (const [key, config] of Object.entries(tableConfigs)) {
-        $(`#${key.replace('_', '-')}-table`).DataTable({
+        const tableId = `#${key.replace('_', '-')}-table`;
+        if ($.fn.DataTable.isDataTable(tableId)) {
+            $(tableId).DataTable().destroy();
+        }
+        $(tableId).DataTable({
             responsive: true,
             paging: true,
-            pageLength: 10,
+            pageLength: config.pageLength || 9,
             searching: true,
             ordering: true,
             info: true,
@@ -304,11 +364,11 @@ function setupDataTables() {
                 info: "Showing _START_ to _END_ of _TOTAL_ entries",
                 infoEmpty: "Showing 0 to 0 of 0 entries",
                 infoFiltered: "(filtered from _MAX_ total entries)",
-                                                       lengthMenu: "Show _MENU_ entries",
-                                                       loadingRecords: "Loading...",
-                                                       processing: "Processing...",
-                                                       search: "Search:",
-                                                       zeroRecords: "No matching records found"
+                lengthMenu: "Show _MENU_ entries",
+                loadingRecords: "Loading...",
+                processing: "Processing...",
+                search: "Search:",
+                zeroRecords: "No matching records found"
             }
         });
     }
@@ -424,6 +484,11 @@ function switchTab(tabId) {
     if ($.fn.DataTable.isDataTable(`#${tableId}`)) {
         $(`#${tableId}`).DataTable().columns.adjust().responsive.recalc();
     }
+
+    // For domains tab, ensure pagination is visible
+    if (tabId === 'domains') {
+        updateDomainsDisplay();
+    }
 }
 
 // Modal Functions
@@ -462,78 +527,78 @@ function getFormFields(resourceType) {
     switch(resourceType) {
         case 'feature':
             return `
-            <div class="form-group">
-            <label for="name">Feature Name *</label>
-            <input type="text" id="name" class="form-control" required>
-            </div>
-            <div class="form-group">
-            <label for="description">Description</label>
-            <textarea id="description" class="form-control" rows="3"></textarea>
-            </div>
+                <div class="form-group">
+                    <label for="name">Feature Name *</label>
+                    <input type="text" id="name" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="description">Description</label>
+                    <textarea id="description" class="form-control" rows="3"></textarea>
+                </div>
             `;
 
         case 'subscription_type':
             return `
-            <div class="form-group">
-            <label for="title">Plan Title *</label>
-            <input type="text" id="title" class="form-control" required>
-            </div>
-            <div class="form-group">
-            <label for="description">Description *</label>
-            <textarea id="description" class="form-control" rows="3" required></textarea>
-            </div>
-            <div class="form-group">
-            <label for="price">Price ($) *</label>
-            <input type="number" id="price" class="form-control" step="0.01" min="0" required>
-            </div>
-            <div class="form-group">
-            <label for="features">Features</label>
-            <select id="features" class="form-control" multiple style="height: 150px;">
-            <!-- Features will be loaded dynamically -->
-            </select>
-            <small class="form-text text-muted">Hold Ctrl/Cmd to select multiple features</small>
-            </div>
+                <div class="form-group">
+                    <label for="title">Plan Title *</label>
+                    <input type="text" id="title" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="description">Description *</label>
+                    <textarea id="description" class="form-control" rows="3" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="price">Price ($) *</label>
+                    <input type="number" id="price" class="form-control" step="0.01" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label for="features">Features</label>
+                    <select id="features" class="form-control" multiple style="height: 150px;">
+                        <!-- Features will be loaded dynamically -->
+                    </select>
+                    <small class="form-text text-muted">Hold Ctrl/Cmd to select multiple features</small>
+                </div>
             `;
 
         case 'subscription':
             return `
-            <div class="form-group">
-            <label for="external_id">External ID *</label>
-            <input type="text" id="external_id" class="form-control" required>
-            <small class="form-text text-muted">Unique identifier for the subscription</small>
-            </div>
-            <div class="form-group">
-            <label for="title">Title *</label>
-            <input type="text" id="title" class="form-control" required>
-            </div>
-            <div class="form-group">
-            <label for="user_id">User *</label>
-            <div class="user-select-container">
-            <input type="text" id="user_id" class="form-control" value="${selectedUserId}" readonly>
-            <button type="button" class="btn btn-sm btn-primary" onclick="showUserModal()">
-            <i class="fas fa-user"></i> Select User
-            </button>
-            </div>
-            <small id="user-email" class="form-text text-muted">${selectedUserEmail || 'No user selected'}</small>
-            </div>
-            <div class="form-group">
-            <label for="subscription_type">Subscription Plan *</label>
-            <select id="subscription_type" class="form-control" required>
-            <option value="">Select a plan</option>
-            <!-- Plans will be loaded dynamically -->
-            </select>
-            </div>
-            <div class="form-group">
-            <label for="is_active">Status</label>
-            <select id="is_active" class="form-control">
-            <option value="true">Active</option>
-            <option value="false">Inactive</option>
-            </select>
-            </div>
-            <div class="form-group">
-            <label for="expire_date">Expiration Date *</label>
-            <input type="date" id="expire_date" class="form-control" required>
-            </div>
+                <div class="form-group">
+                    <label for="external_id">External ID *</label>
+                    <input type="text" id="external_id" class="form-control" required>
+                    <small class="form-text text-muted">Unique identifier for the subscription</small>
+                </div>
+                <div class="form-group">
+                    <label for="title">Title *</label>
+                    <input type="text" id="title" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="user_id">User *</label>
+                    <div class="user-select-container">
+                        <input type="text" id="user_id" class="form-control" value="${selectedUserId}" readonly>
+                        <button type="button" class="btn btn-sm btn-primary" onclick="showUserModal()">
+                            <i class="fas fa-user"></i> Select User
+                        </button>
+                    </div>
+                    <small id="user-email" class="form-text text-muted">${selectedUserEmail || 'No user selected'}</small>
+                </div>
+                <div class="form-group">
+                    <label for="subscription_type">Subscription Plan *</label>
+                    <select id="subscription_type" class="form-control" required>
+                        <option value="">Select a plan</option>
+                        <!-- Plans will be loaded dynamically -->
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="is_active">Status</label>
+                    <select id="is_active" class="form-control">
+                        <option value="true">Active</option>
+                        <option value="false">Inactive</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="expire_date">Expiration Date *</label>
+                    <input type="date" id="expire_date" class="form-control" required>
+                </div>
             `;
 
         default:
@@ -593,9 +658,9 @@ async function loadFeaturesForSelect(selectedFeatures = []) {
         response.forEach(feature => {
             const isSelected = selectedFeatures.some(f => f.external_id === feature.external_id);
             select.append(`
-            <option value="${feature.external_id}" ${isSelected ? 'selected' : ''}>
-            ${feature.name}
-            </option>
+                <option value="${feature.external_id}" ${isSelected ? 'selected' : ''}>
+                    ${feature.name}
+                </option>
             `);
         });
 
@@ -618,9 +683,9 @@ async function loadSubscriptionTypesForSelect(selectedType = null) {
         response.forEach(type => {
             // Use external_id as the value
             select.append(`
-            <option value="${type.external_id}" ${selectedType === type.external_id ? 'selected' : ''}>
-            ${type.title} ($${type.price})
-            </option>
+                <option value="${type.external_id}" ${selectedType === type.external_id ? 'selected' : ''}>
+                    ${type.title} ($${type.price})
+                </option>
             `);
         });
 
@@ -745,11 +810,11 @@ function submitForm() {
         type: method,
         contentType: 'application/json',
         data: JSON.stringify(apiData),
-           beforeSend: function(xhr, settings) {
-               if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {
-                   xhr.setRequestHeader("X-CSRFToken", csrftoken);
-               }
-           }
+        beforeSend: function(xhr, settings) {
+            if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {
+                xhr.setRequestHeader("X-CSRFToken", csrftoken);
+            }
+        }
     }).done(function(response) {
         showNotification(
             currentResourceId ? 'Updated successfully!' : 'Created successfully!',
@@ -916,17 +981,17 @@ async function loadUsers() {
             const username = user.username || userId;
 
             userList.append(`
-            <div class="user-item" data-user-id="${userId}" data-email="${safeEmail}">
-            <div class="user-info">
-            <div class="user-details">
-            <div class="user-id">${username}</div>
-            <div class="user-email">${userEmail}</div>
-            </div>
-            <button class="btn btn-sm btn-primary user-select-btn" onclick="selectUser('${userId}', '${safeEmail}')">
-            Select
-            </button>
-            </div>
-            </div>
+                <div class="user-item" data-user-id="${userId}" data-email="${safeEmail}">
+                    <div class="user-info">
+                        <div class="user-details">
+                            <div class="user-id">${username}</div>
+                            <div class="user-email">${userEmail}</div>
+                        </div>
+                        <button class="btn btn-sm btn-primary user-select-btn" onclick="selectUser('${userId}', '${safeEmail}')">
+                            Select
+                        </button>
+                    </div>
+                </div>
             `);
         });
 
@@ -1003,11 +1068,11 @@ function performDelete() {
         type: 'DELETE',
         contentType: 'application/json',
         data: JSON.stringify(deleteData),
-           beforeSend: function(xhr, settings) {
-               if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {
-                   xhr.setRequestHeader("X-CSRFToken", csrftoken);
-               }
-           }
+        beforeSend: function(xhr, settings) {
+            if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {
+                xhr.setRequestHeader("X-CSRFToken", csrftoken);
+            }
+        }
     }).done(function(response) {
         showNotification('Deleted successfully!', 'success');
         closeConfirmModal();
@@ -1037,10 +1102,10 @@ function showNotification(message, type = 'info') {
     $('.notification').remove();
 
     const notification = $(`
-    <div class="notification notification-${type}">
-    <span>${message}</span>
-    <button class="notification-close">&times;</button>
-    </div>
+        <div class="notification notification-${type}">
+            <span>${message}</span>
+            <button class="notification-close">&times;</button>
+        </div>
     `);
 
     $('body').append(notification);
@@ -1075,53 +1140,91 @@ function showNotification(message, type = 'info') {
 // Add notification styles dynamically
 $(document).ready(function() {
     $('head').append(`
-    <style>
-    .notification {
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        padding: 15px 20px;
-        border-radius: 8px;
-        color: white;
-        min-width: 300px;
-        max-width: 400px;
-        z-index: 10000;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
+        <style>
+            .notification {
+                position: fixed;
+                bottom: 20px;
+                right: 20px;
+                padding: 15px 20px;
+                border-radius: 8px;
+                color: white;
+                min-width: 300px;
+                max-width: 400px;
+                z-index: 10000;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
 
-    .notification-success {
-        background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
-    }
+            .notification-success {
+                background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+            }
 
-    .notification-error {
-        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-    }
+            .notification-error {
+                background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            }
 
-    .notification-warning {
-        background: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
-    }
+            .notification-warning {
+                background: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
+            }
 
-    .notification-info {
-        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-    }
+            .notification-info {
+                background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            }
 
-    .notification-close {
-        background: none;
-        border: none;
-        color: white;
-        font-size: 20px;
-        cursor: pointer;
-        margin-left: 15px;
-        opacity: 0.8;
-        transition: opacity 0.3s;
-    }
+            .notification-close {
+                background: none;
+                border: none;
+                color: white;
+                font-size: 20px;
+                cursor: pointer;
+                margin-left: 15px;
+                opacity: 0.8;
+                transition: opacity 0.3s;
+            }
 
-    .notification-close:hover {
-        opacity: 1;
-    }
-    </style>
+            .notification-close:hover {
+                opacity: 1;
+            }
+
+            /* Pagination styles for domains */
+            .domains-pagination {
+                margin-top: 20px;
+                display: flex;
+                justify-content: center;
+            }
+            .pagination-controls {
+                display: flex;
+                gap: 8px;
+                flex-wrap: wrap;
+                align-items: center;
+            }
+            .pagination-btn {
+                padding: 6px 12px;
+                border: 1px solid #ddd;
+                background: white;
+                cursor: pointer;
+                border-radius: 4px;
+                transition: all 0.2s;
+            }
+            .pagination-btn:hover:not(:disabled) {
+                background-color: #f0f0f0;
+                border-color: #aaa;
+            }
+            .pagination-btn.active {
+                background-color: #007bff;
+                color: white;
+                border-color: #007bff;
+            }
+            .pagination-btn:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+            }
+            .pagination-ellipsis {
+                padding: 6px 12px;
+                color: #666;
+            }
+        </style>
     `);
 });

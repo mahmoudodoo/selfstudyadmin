@@ -2,6 +2,7 @@
    SPACE COMMAND CENTER THEME – AUTH MANAGEMENT (allauth)
    Dark, transparent, glass‑morphic UI with cosmic glows.
    Supports token tables, modals, replica info, and forms.
+   Enhanced with granular 50px‑increment responsive breakpoints.
    ============================================================ */
 
 /* ----------------------------------------
@@ -940,7 +941,7 @@ h1, h2, h3, h4, p, label, span, a, button, input, select, textarea,
 }
 
 /* ----------------------------------------
-   RESPONSIVE DESIGN
+   RESPONSIVE DESIGN (existing layout breakpoints)
    ---------------------------------------- */
 @media (max-width: 768px) {
   .dashboard-container {
@@ -1071,4 +1072,314 @@ h1, h2, h3, h4, p, label, span, a, button, input, select, textarea,
 
 i.fas, i.far, i.fab {
   filter: drop-shadow(0 0 5px currentColor);
+}
+
+/* ============================================================
+   GRANULAR RESPONSIVE BREAKPOINTS (50px increment system)
+   Scales font-size, spacing, and container padding.
+   Ordered from smallest to largest.
+   ============================================================ */
+
+/* ===== Breakpoint: 200px – 250px | Micro Screens ===== */
+@media only screen and (min-width: 200px) and (max-width: 250px) {
+  html {
+    font-size: 8px;
+  }
+  .dashboard-container {
+    padding: 0.6rem;
+  }
+  .stat-card {
+    padding: 0.8rem;
+  }
+  .controls-section {
+    padding: 0.8rem;
+  }
+  .modal-body {
+    padding: 1rem;
+  }
+  .btn, .btn-search, .filter-controls select {
+    min-height: 32px;
+  }
+  .pagination button {
+    padding: 0.3rem 0.6rem;
+    min-width: 32px;
+  }
+}
+
+/* ===== Breakpoint: 250px – 300px | Tiny Screens ===== */
+@media only screen and (min-width: 250px) and (max-width: 300px) {
+  html {
+    font-size: 9px;
+  }
+  .dashboard-container {
+    padding: 0.8rem;
+  }
+  .stat-card {
+    padding: 0.9rem;
+  }
+  .controls-section {
+    padding: 0.9rem;
+  }
+  .modal-body {
+    padding: 1.2rem;
+  }
+  .btn, .btn-search, .filter-controls select {
+    min-height: 36px;
+  }
+  .pagination button {
+    padding: 0.4rem 0.7rem;
+  }
+}
+
+/* ===== Breakpoint: 300px – 350px | X-Small ===== */
+@media only screen and (min-width: 300px) and (max-width: 350px) {
+  html {
+    font-size: 10px;
+  }
+  .dashboard-container {
+    padding: 1rem;
+  }
+  .stat-card {
+    padding: 1rem;
+  }
+  .controls-section {
+    padding: 1rem;
+  }
+  .modal-body {
+    padding: 1.4rem;
+  }
+  .btn, .btn-search, .filter-controls select {
+    min-height: 40px;
+  }
+}
+
+/* ===== Breakpoint: 350px – 400px | Small- ===== */
+@media only screen and (min-width: 350px) and (max-width: 400px) {
+  html {
+    font-size: 11px;
+  }
+  .dashboard-container {
+    padding: 1.1rem;
+  }
+  .stat-card {
+    padding: 1.1rem;
+  }
+  .controls-section {
+    padding: 1.1rem;
+  }
+  .btn, .btn-search, .filter-controls select {
+    min-height: 42px;
+  }
+}
+
+/* ===== Breakpoint: 400px – 450px | Small ===== */
+@media only screen and (min-width: 400px) and (max-width: 450px) {
+  html {
+    font-size: 12px;
+  }
+  .dashboard-container {
+    padding: 1.2rem;
+  }
+  .stat-card {
+    padding: 1.2rem;
+  }
+  .btn, .btn-search, .filter-controls select {
+    min-height: 44px;
+  }
+}
+
+/* ===== Breakpoint: 450px – 500px | Small+ ===== */
+@media only screen and (min-width: 450px) and (max-width: 500px) {
+  html {
+    font-size: 13px;
+  }
+  .dashboard-container {
+    padding: 1.3rem;
+  }
+  .stat-card {
+    padding: 1.3rem;
+  }
+}
+
+/* ===== Breakpoint: 500px – 550px | Medium- ===== */
+@media only screen and (min-width: 500px) and (max-width: 550px) {
+  html {
+    font-size: 13.5px;
+  }
+  .dashboard-container {
+    padding: 1.4rem;
+  }
+}
+
+/* ===== Breakpoint: 550px – 600px | Medium ===== */
+@media only screen and (min-width: 550px) and (max-width: 600px) {
+  html {
+    font-size: 14px;
+  }
+  .dashboard-container {
+    padding: 1.5rem;
+  }
+}
+
+/* ===== Breakpoint: 600px – 650px | Medium+ ===== */
+@media only screen and (min-width: 600px) and (max-width: 650px) {
+  html {
+    font-size: 14.5px;
+  }
+  .dashboard-container {
+    padding: 1.6rem;
+  }
+}
+
+/* ===== Breakpoint: 650px – 700px | Large- ===== */
+@media only screen and (min-width: 650px) and (max-width: 700px) {
+  html {
+    font-size: 15px;
+  }
+  .dashboard-container {
+    padding: 1.7rem;
+  }
+}
+
+/* ===== Breakpoint: 700px – 750px | Large ===== */
+@media only screen and (min-width: 700px) and (max-width: 750px) {
+  html {
+    font-size: 15.5px;
+  }
+  .dashboard-container {
+    padding: 1.8rem;
+  }
+}
+
+/* ===== Breakpoint: 750px – 800px | Large+ ===== */
+@media only screen and (min-width: 750px) and (max-width: 800px) {
+  html {
+    font-size: 16px;
+  }
+  .dashboard-container {
+    padding: 1.9rem;
+  }
+}
+
+/* ===== Breakpoint: 800px – 850px | XL- ===== */
+@media only screen and (min-width: 800px) and (max-width: 850px) {
+  html {
+    font-size: 16.5px;
+  }
+  .dashboard-container {
+    padding: 2rem;
+  }
+}
+
+/* ===== Breakpoint: 850px – 900px | XL ===== */
+@media only screen and (min-width: 850px) and (max-width: 900px) {
+  html {
+    font-size: 17px;
+  }
+  .dashboard-container {
+    padding: 2.1rem;
+  }
+}
+
+/* ===== Breakpoint: 900px – 950px | XL+ ===== */
+@media only screen and (min-width: 900px) and (max-width: 950px) {
+  html {
+    font-size: 17.2px;
+  }
+  .dashboard-container {
+    padding: 2.2rem;
+  }
+}
+
+/* ===== Breakpoint: 950px – 1000px | 2XL- ===== */
+@media only screen and (min-width: 950px) and (max-width: 1000px) {
+  html {
+    font-size: 17.5px;
+  }
+  .dashboard-container {
+    padding: 2.3rem;
+  }
+}
+
+/* ===== Breakpoint: 1000px – 1050px | 2XL ===== */
+@media only screen and (min-width: 1000px) and (max-width: 1050px) {
+  html {
+    font-size: 17.8px;
+  }
+  .dashboard-container {
+    padding: 2.4rem;
+  }
+}
+
+/* ===== Breakpoint: 1050px – 1100px | 2XL+ ===== */
+@media only screen and (min-width: 1050px) and (max-width: 1100px) {
+  html {
+    font-size: 18px;
+  }
+  .dashboard-container {
+    padding: 2.5rem;
+  }
+}
+
+/* ===== Breakpoint: 1100px – 1150px | 3XL- ===== */
+@media only screen and (min-width: 1100px) and (max-width: 1150px) {
+  html {
+    font-size: 18.3px;
+  }
+  .dashboard-container {
+    padding: 2.6rem;
+  }
+}
+
+/* ===== Breakpoint: 1150px – 1200px | 3XL ===== */
+@media only screen and (min-width: 1150px) and (max-width: 1200px) {
+  html {
+    font-size: 18.5px;
+  }
+  .dashboard-container {
+    padding: 2.8rem;
+  }
+}
+
+/* ===== Breakpoint: 1200px+ | 4XL / Full-width Desktops ===== */
+@media only screen and (min-width: 1200px) {
+  html {
+    font-size: 19px;
+  }
+  .dashboard-container {
+    max-width: 1600px;
+    padding: 3rem;
+  }
+  .stat-card {
+    padding: 2rem;
+  }
+  .modal-content {
+    max-width: 600px;
+  }
+  .modal-wide {
+    max-width: 1000px;
+  }
+}
+
+/* ===== TV / 4K (1920px+) – extra scaling ===== */
+@media only screen and (min-width: 1920px) {
+  html {
+    font-size: 22px;
+  }
+  .dashboard-container {
+    max-width: 85%;
+    padding: 4rem;
+  }
+  .stat-info h3 {
+    font-size: calc(var(--fs-xl) * 1.2);
+  }
+  .stat-icon {
+    width: 80px;
+    height: 80px;
+    font-size: 2.2rem;
+  }
+  .btn, .btn-search, .filter-controls select {
+    font-size: 1rem;
+    padding: 0.8rem 1.8rem;
+  }
 }

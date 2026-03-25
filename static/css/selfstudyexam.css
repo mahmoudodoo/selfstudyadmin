@@ -40,6 +40,11 @@
     /* Typography */
     --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
     --text-shadow-default: 0 0 10px rgba(0, 0, 0, 0.8), 0 2px 4px rgba(0, 0, 0, 0.5);
+    
+    /* Responsive scaling variables (will be overridden in breakpoints) */
+    --font-base: 16px;
+    --spacing-unit: 1rem;
+    --container-max: 1400px;
 }
 
 /* Base Styles */
@@ -62,7 +67,7 @@ body {
 /* Page Layout - Transparent to let galaxy shine through */
 .page-content {
     padding: clamp(1rem, 4vw, 2rem);
-    max-width: 1600px;
+    max-width: var(--container-max);
     margin: 0 auto;
     background: transparent; /* Let background show */
     position: relative;
@@ -965,96 +970,612 @@ body {
     background: rgba(78, 205, 196, 0.6);
 }
 
-/* Responsive Design - Mobile First */
+/* =============================================
+   GRANULAR RESPONSIVE BREAKPOINTS (50px increments)
+   Ordered smallest to largest. Each breakpoint scales
+   base font, spacing, container width, and touch targets.
+   ============================================= */
 
-/* Small devices (phones, < 640px) */
-@media (max-width: 639px) {
-    .action-buttons {
-        flex-direction: column;
+/* Ultra small devices (0-199px) – fallback */
+@media only screen and (max-width: 199px) {
+    html {
+        font-size: 7px;
     }
-    
-    .btn {
-        width: 100%;
-        justify-content: center;
+    :root {
+        --font-base: 7px;
+        --spacing-unit: 0.5rem;
+        --container-max: 100%;
     }
-    
-    .tabs {
-        flex-wrap: nowrap;
+    .page-content {
+        padding: 2px;
     }
-    
-    .modal-content {
-        width: 98%;
-        margin: 1% auto;
-    }
-    
-    .table-actions {
-        flex-direction: column;
-        align-items: stretch;
-    }
-    
-    .form-actions {
-        flex-direction: column;
-    }
-    
-    .form-actions .btn {
-        width: 100%;
-    }
-    
-    .toast {
-        min-width: auto;
-        width: calc(100vw - 40px);
+    .btn, .form-group input, .form-group select, .form-group textarea, .tab-btn {
+        min-height: 32px;
     }
 }
 
-/* Medium devices (tablets, 640px - 1024px) */
-@media (min-width: 640px) and (max-width: 1024px) {
+/* ===== Breakpoint: 200px – 250px | Micro Screens ===== */
+@media only screen and (min-width: 200px) and (max-width: 250px) {
+    html {
+        font-size: 8px;
+    }
+    :root {
+        --font-base: 8px;
+        --spacing-unit: 0.6rem;
+        --container-max: 100%;
+    }
+    .page-content {
+        padding: 4px;
+    }
+    .btn, .form-group input, .form-group select, .form-group textarea, .tab-btn {
+        min-height: 36px;
+        padding: 6px 10px;
+    }
+    .stats-grid {
+        grid-template-columns: 1fr;
+        gap: 0.8rem;
+    }
+    .stat-card {
+        padding: 0.8rem;
+        gap: 0.6rem;
+    }
+    .stat-icon {
+        width: 40px;
+        height: 40px;
+        font-size: 1.2rem;
+    }
+    .action-buttons {
+        flex-direction: column;
+    }
+    .tabs {
+        flex-direction: column;
+        overflow-x: visible;
+    }
+    .tab-btn {
+        width: 100%;
+        justify-content: center;
+    }
+    .modal-content {
+        width: 95%;
+        margin: 5% auto;
+    }
+    .form-actions {
+        flex-direction: column;
+    }
+    .form-actions .btn {
+        width: 100%;
+    }
+    .toast {
+        min-width: auto;
+        width: calc(100% - 20px);
+    }
+}
+
+/* ===== Breakpoint: 250px – 300px | Tiny Screens ===== */
+@media only screen and (min-width: 250px) and (max-width: 300px) {
+    html {
+        font-size: 9px;
+    }
+    :root {
+        --font-base: 9px;
+        --spacing-unit: 0.7rem;
+        --container-max: 100%;
+    }
+    .page-content {
+        padding: 6px;
+    }
+    .btn, .form-group input, .form-group select, .form-group textarea, .tab-btn {
+        min-height: 38px;
+        padding: 7px 12px;
+    }
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+    .action-buttons {
+        flex-direction: column;
+    }
+    .tabs {
+        flex-direction: column;
+    }
+    .tab-btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* ===== Breakpoint: 300px – 350px | X-Small Screens ===== */
+@media only screen and (min-width: 300px) and (max-width: 350px) {
+    html {
+        font-size: 10px;
+    }
+    :root {
+        --font-base: 10px;
+        --spacing-unit: 0.8rem;
+        --container-max: 100%;
+    }
+    .page-content {
+        padding: 8px;
+    }
+    .btn, .form-group input, .form-group select, .form-group textarea, .tab-btn {
+        min-height: 40px;
+        padding: 8px 14px;
+    }
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+    .action-buttons {
+        flex-direction: column;
+    }
+}
+
+/* ===== Breakpoint: 350px – 400px | Small- Screens ===== */
+@media only screen and (min-width: 350px) and (max-width: 400px) {
+    html {
+        font-size: 11px;
+    }
+    :root {
+        --font-base: 11px;
+        --spacing-unit: 0.9rem;
+        --container-max: 100%;
+    }
+    .page-content {
+        padding: 10px;
+    }
+    .btn, .form-group input, .form-group select, .form-group textarea, .tab-btn {
+        min-height: 42px;
+        padding: 9px 16px;
+    }
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+    .action-buttons {
+        flex-direction: column;
+    }
+}
+
+/* ===== Breakpoint: 400px – 450px | Small Screens ===== */
+@media only screen and (min-width: 400px) and (max-width: 450px) {
+    html {
+        font-size: 12px;
+    }
+    :root {
+        --font-base: 12px;
+        --spacing-unit: 1rem;
+        --container-max: 100%;
+    }
+    .page-content {
+        padding: 12px;
+    }
+    .btn, .form-group input, .form-group select, .form-group textarea, .tab-btn {
+        min-height: 44px;
+        padding: 10px 18px;
+    }
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+    .action-buttons {
+        flex-direction: column;
+    }
+}
+
+/* ===== Breakpoint: 450px – 500px | Small+ Screens ===== */
+@media only screen and (min-width: 450px) and (max-width: 500px) {
+    html {
+        font-size: 13px;
+    }
+    :root {
+        --font-base: 13px;
+        --spacing-unit: 1.1rem;
+        --container-max: 100%;
+    }
+    .page-content {
+        padding: 14px;
+    }
+    .btn, .form-group input, .form-group select, .form-group textarea, .tab-btn {
+        min-height: 44px;
+        padding: 10px 20px;
+    }
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    .action-buttons {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+}
+
+/* ===== Breakpoint: 500px – 550px | Medium- Screens ===== */
+@media only screen and (min-width: 500px) and (max-width: 550px) {
+    html {
+        font-size: 13.5px;
+    }
+    :root {
+        --font-base: 13.5px;
+        --spacing-unit: 1.2rem;
+        --container-max: 100%;
+    }
+    .page-content {
+        padding: 16px;
+    }
+    .btn, .form-group input, .form-group select, .form-group textarea, .tab-btn {
+        min-height: 46px;
+        padding: 11px 22px;
+    }
     .stats-grid {
         grid-template-columns: repeat(2, 1fr);
     }
 }
 
-/* Large devices (laptops, 1024px - 1440px) */
-@media (min-width: 1024px) and (max-width: 1440px) {
+/* ===== Breakpoint: 550px – 600px | Medium Screens ===== */
+@media only screen and (min-width: 550px) and (max-width: 600px) {
+    html {
+        font-size: 14px;
+    }
+    :root {
+        --font-base: 14px;
+        --spacing-unit: 1.3rem;
+        --container-max: 100%;
+    }
     .page-content {
-        padding: 2rem;
+        padding: 18px;
+    }
+    .btn, .form-group input, .form-group select, .form-group textarea, .tab-btn {
+        min-height: 48px;
+        padding: 12px 24px;
+    }
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
     }
 }
 
-/* Extra large devices (desktops, 1440px - 1920px) */
-@media (min-width: 1440px) and (max-width: 1920px) {
+/* ===== Breakpoint: 600px – 650px | Medium+ Screens ===== */
+@media only screen and (min-width: 600px) and (max-width: 650px) {
+    html {
+        font-size: 14.5px;
+    }
+    :root {
+        --font-base: 14.5px;
+        --spacing-unit: 1.4rem;
+        --container-max: 100%;
+    }
     .page-content {
-        padding: 2.5rem;
+        padding: 20px;
     }
-    
+    .btn, .form-group input, .form-group select, .form-group textarea, .tab-btn {
+        min-height: 48px;
+        padding: 12px 24px;
+    }
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* ===== Breakpoint: 650px – 700px | Large- Screens ===== */
+@media only screen and (min-width: 650px) and (max-width: 700px) {
+    html {
+        font-size: 15px;
+    }
+    :root {
+        --font-base: 15px;
+        --spacing-unit: 1.5rem;
+        --container-max: 100%;
+    }
+    .page-content {
+        padding: 22px;
+    }
+    .btn, .form-group input, .form-group select, .form-group textarea, .tab-btn {
+        min-height: 48px;
+    }
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* ===== Breakpoint: 700px – 750px | Large Screens ===== */
+@media only screen and (min-width: 700px) and (max-width: 750px) {
+    html {
+        font-size: 15.5px;
+    }
+    :root {
+        --font-base: 15.5px;
+        --spacing-unit: 1.6rem;
+        --container-max: 100%;
+    }
+    .page-content {
+        padding: 24px;
+    }
+    .btn, .form-group input, .form-group select, .form-group textarea, .tab-btn {
+        min-height: 48px;
+    }
+    .stats-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+/* ===== Breakpoint: 750px – 800px | Large+ Screens ===== */
+@media only screen and (min-width: 750px) and (max-width: 800px) {
+    html {
+        font-size: 16px;
+    }
+    :root {
+        --font-base: 16px;
+        --spacing-unit: 1.7rem;
+        --container-max: 100%;
+    }
+    .page-content {
+        padding: 26px;
+    }
+    .btn, .form-group input, .form-group select, .form-group textarea, .tab-btn {
+        min-height: 50px;
+    }
+    .stats-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+/* ===== Breakpoint: 800px – 850px | XL- Screens ===== */
+@media only screen and (min-width: 800px) and (max-width: 850px) {
+    html {
+        font-size: 16.5px;
+    }
+    :root {
+        --font-base: 16.5px;
+        --spacing-unit: 1.8rem;
+        --container-max: 100%;
+    }
+    .page-content {
+        padding: 28px;
+    }
+    .btn, .form-group input, .form-group select, .form-group textarea, .tab-btn {
+        min-height: 50px;
+    }
+    .stats-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+/* ===== Breakpoint: 850px – 900px | XL Screens ===== */
+@media only screen and (min-width: 850px) and (max-width: 900px) {
+    html {
+        font-size: 17px;
+    }
+    :root {
+        --font-base: 17px;
+        --spacing-unit: 1.9rem;
+        --container-max: 100%;
+    }
+    .page-content {
+        padding: 30px;
+    }
+    .btn, .form-group input, .form-group select, .form-group textarea, .tab-btn {
+        min-height: 52px;
+    }
+    .stats-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+/* ===== Breakpoint: 900px – 950px | XL+ Screens ===== */
+@media only screen and (min-width: 900px) and (max-width: 950px) {
+    html {
+        font-size: 17px;
+    }
+    :root {
+        --font-base: 17px;
+        --spacing-unit: 2rem;
+        --container-max: 100%;
+    }
+    .page-content {
+        padding: 32px;
+    }
+    .btn, .form-group input, .form-group select, .form-group textarea, .tab-btn {
+        min-height: 52px;
+    }
+    .stats-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+/* ===== Breakpoint: 950px – 1000px | 2XL- Screens ===== */
+@media only screen and (min-width: 950px) and (max-width: 1000px) {
+    html {
+        font-size: 17.5px;
+    }
+    :root {
+        --font-base: 17.5px;
+        --spacing-unit: 2.1rem;
+        --container-max: 100%;
+    }
+    .page-content {
+        padding: 34px;
+    }
+    .btn, .form-group input, .form-group select, .form-group textarea, .tab-btn {
+        min-height: 52px;
+    }
+    .stats-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+/* ===== Breakpoint: 1000px – 1050px | 2XL Screens ===== */
+@media only screen and (min-width: 1000px) and (max-width: 1050px) {
+    html {
+        font-size: 17.5px;
+    }
+    :root {
+        --font-base: 17.5px;
+        --spacing-unit: 2.2rem;
+        --container-max: 100%;
+    }
+    .page-content {
+        padding: 36px;
+    }
+    .btn, .form-group input, .form-group select, .form-group textarea, .tab-btn {
+        min-height: 54px;
+    }
+    .stats-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+/* ===== Breakpoint: 1050px – 1100px | 2XL+ Screens ===== */
+@media only screen and (min-width: 1050px) and (max-width: 1100px) {
+    html {
+        font-size: 18px;
+    }
+    :root {
+        --font-base: 18px;
+        --spacing-unit: 2.3rem;
+        --container-max: 100%;
+    }
+    .page-content {
+        padding: 38px;
+    }
+    .btn, .form-group input, .form-group select, .form-group textarea, .tab-btn {
+        min-height: 54px;
+    }
+    .stats-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+/* ===== Breakpoint: 1100px – 1150px | 3XL- Screens ===== */
+@media only screen and (min-width: 1100px) and (max-width: 1150px) {
+    html {
+        font-size: 18px;
+    }
+    :root {
+        --font-base: 18px;
+        --spacing-unit: 2.4rem;
+        --container-max: 1100px;
+    }
+    .page-content {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 1.5rem;
+    }
+    .btn, .form-group input, .form-group select, .form-group textarea, .tab-btn {
+        min-height: 56px;
+    }
+    .stats-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+/* ===== Breakpoint: 1150px – 1200px | 3XL Screens ===== */
+@media only screen and (min-width: 1150px) and (max-width: 1200px) {
+    html {
+        font-size: 18.5px;
+    }
+    :root {
+        --font-base: 18.5px;
+        --spacing-unit: 2.5rem;
+        --container-max: 1150px;
+    }
+    .page-content {
+        max-width: 1150px;
+        margin: 0 auto;
+        padding: 1.8rem;
+    }
+    .btn, .form-group input, .form-group select, .form-group textarea, .tab-btn {
+        min-height: 56px;
+    }
+    .stats-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+/* ===== Breakpoint: 1200px – 2560px+ | 4XL+ (full desktop & TV) ===== */
+@media only screen and (min-width: 1200px) {
+    html {
+        font-size: 19px;
+    }
+    :root {
+        --font-base: 19px;
+        --spacing-unit: 2.6rem;
+        --container-max: 1400px;
+    }
+    .page-content {
+        max-width: var(--container-max);
+        margin: 0 auto;
+        padding: 2rem;
+    }
+    .btn, .form-group input, .form-group select, .form-group textarea, .tab-btn {
+        min-height: 58px;
+        padding: 0.9rem 2rem;
+    }
     .stat-card {
-        padding: 2.5rem;
+        padding: 2rem;
     }
-    
+    .stat-icon {
+        width: 70px;
+        height: 70px;
+        font-size: 2rem;
+    }
     .modal-content {
         max-width: 900px;
     }
 }
 
-/* 4K and above */
-@media (min-width: 1921px) {
-    .page-content {
-        max-width: 2000px;
-        padding: 3rem;
-    }
-    
+/* Extra large screens (TV/4K) further scale */
+@media only screen and (min-width: 1920px) {
     html {
-        font-size: 18px;
+        font-size: 22px;
     }
-    
+    :root {
+        --font-base: 22px;
+        --spacing-unit: 3rem;
+        --container-max: 1800px;
+    }
+    .page-content {
+        max-width: var(--container-max);
+    }
+    .btn, .form-group input, .form-group select, .form-group textarea, .tab-btn {
+        min-height: 64px;
+        padding: 1rem 2.5rem;
+    }
     .stat-card {
-        padding: 3rem;
+        padding: 2.5rem;
     }
-    
-    .btn {
-        padding: 1rem 2rem;
-        font-size: 1.1rem;
+    .stat-icon {
+        width: 80px;
+        height: 80px;
+        font-size: 2.5rem;
+    }
+    .modal-content {
+        max-width: 1000px;
     }
 }
+
+/* ===== Responsive Adjustments for specific components ===== */
+@media (max-width: 768px) {
+    .tabs {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+    }
+    .table-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .form-actions {
+        flex-direction: column;
+    }
+    .form-actions .btn {
+        width: 100%;
+    }
+    .toast {
+        min-width: auto;
+        width: calc(100vw - 40px);
+        max-width: none;
+    }
+    .action-buttons .btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* Medium devices (tablets, 640px - 1024px) – already handled by breakpoints */
+/* Large devices (laptops, 1024px - 1440px) – already handled */
 
 /* Reduced Motion */
 @media (prefers-reduced-motion: reduce) {

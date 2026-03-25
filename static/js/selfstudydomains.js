@@ -1,6 +1,7 @@
 /**
  * SelfStudy Domains Management JavaScript
  * Complete CRUD operations with dynamic domain discovery
+ * Added pagination: 9 records per page for both tables
  */
 
 // Global variables
@@ -10,6 +11,16 @@ let appsData = [];
 let replicasData = [];
 let currentRegistry = null;
 let currentTab = 'apps-tab';
+
+// Pagination state
+let appsCurrentPage = 1;
+const appsPageSize = 9;
+let replicasCurrentPage = 1;
+const replicasPageSize = 9;
+
+// Filtered data (for search/filter)
+let filteredApps = [];
+let filteredReplicas = [];
 
 // CSRF token for Django
 function getCookie(name) {
@@ -110,7 +121,7 @@ document.addEventListener('DOMContentLoaded', function() {
     updateLastUpdated();
 });
 
-// Tab management (now only two tabs)
+// Tab management
 function initializeTabs() {
     const tabBtns = document.querySelectorAll('.tab-btn');
     const tabContents = document.querySelectorAll('.tab-content');
@@ -128,9 +139,11 @@ function initializeTabs() {
                     content.classList.add('active');
                     currentTab = tabId;
                     
-                    // Load specific data for tab
-                    if (tabId === 'replicas-tab') {
-                        loadReplicas();
+                    // Re-render with current pagination state
+                    if (tabId === 'apps-tab') {
+                        renderAppsTable();
+                    } else if (tabId === 'replicas-tab') {
+                        renderReplicasTable();
                     }
                 }
             });
@@ -167,6 +180,8 @@ async function loadData() {
         if (appsResponse.success) {
             appsData = Array.isArray(appsResponse.apps) ? appsResponse.apps : [];
             currentRegistry = appsResponse.registry;
+            filteredApps = [...appsData];
+            appsCurrentPage = 1;
             renderAppsTable();
             updateAppsFilter();
             updateStatusBar();
@@ -177,6 +192,8 @@ async function loadData() {
         const replicasResponse = await makeRequest('get_replicas');
         if (replicasResponse.success) {
             replicasData = Array.isArray(replicasResponse.replicas) ? replicasResponse.replicas : [];
+            filteredReplicas = [...replicasData];
+            replicasCurrentPage = 1;
             renderReplicasTable();
             updateStatusBar();
         }
@@ -192,12 +209,138 @@ async function loadData() {
     }
 }
 
-// Render apps table
-function renderAppsTable(apps = appsData) {
+// ========== PAGINATION FUNCTIONS ==========
+
+function renderAppsPagination() {
+    const container = document.getElementById('appsPagination');
+    if (!container) return;
+    
+    const totalItems = filteredApps.length;
+    const totalPages = Math.ceil(totalItems / appsPageSize);
+    
+    if (totalPages <= 1) {
+        container.innerHTML = '';
+        return;
+    }
+    
+    let currentPage = appsCurrentPage;
+    if (currentPage > totalPages) currentPage = totalPages;
+    if (currentPage < 1) currentPage = 1;
+    appsCurrentPage = currentPage;
+    
+    let html = '<div class="pagination-controls">';
+    html += `<button class="pagination-btn" data-page="prev" ${currentPage === 1 ? 'disabled' : ''}>« Prev</button>`;
+    
+    let start = Math.max(1, currentPage - 2);
+    let end = Math.min(totalPages, currentPage + 2);
+    if (start > 1) {
+        html += `<button class="pagination-btn" data-page="1">1</button>`;
+        if (start > 2) html += '<span class="pagination-ellipsis">...</span>';
+    }
+    for (let i = start; i <= end; i++) {
+        html += `<button class="pagination-btn ${i === currentPage ? 'active' : ''}" data-page="${i}">${i}</button>`;
+    }
+    if (end < totalPages) {
+        if (end < totalPages - 1) html += '<span class="pagination-ellipsis">...</span>';
+        html += `<button class="pagination-btn" data-page="${totalPages}">${totalPages}</button>`;
+    }
+    html += `<button class="pagination-btn" data-page="next" ${currentPage === totalPages ? 'disabled' : ''}>Next »</button>`;
+    html += '</div>';
+    
+    container.innerHTML = html;
+    
+    // Attach event listeners
+    container.querySelectorAll('.pagination-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const page = btn.dataset.page;
+            if (page === 'prev') {
+                changeAppsPage(currentPage - 1);
+            } else if (page === 'next') {
+                changeAppsPage(currentPage + 1);
+            } else {
+                changeAppsPage(parseInt(page, 10));
+            }
+        });
+    });
+}
+
+function changeAppsPage(page) {
+    const totalPages = Math.ceil(filteredApps.length / appsPageSize);
+    if (page < 1 || page > totalPages) return;
+    appsCurrentPage = page;
+    renderAppsTable();
+}
+
+function renderReplicasPagination() {
+    const container = document.getElementById('replicasPagination');
+    if (!container) return;
+    
+    const totalItems = filteredReplicas.length;
+    const totalPages = Math.ceil(totalItems / replicasPageSize);
+    
+    if (totalPages <= 1) {
+        container.innerHTML = '';
+        return;
+    }
+    
+    let currentPage = replicasCurrentPage;
+    if (currentPage > totalPages) currentPage = totalPages;
+    if (currentPage < 1) currentPage = 1;
+    replicasCurrentPage = currentPage;
+    
+    let html = '<div class="pagination-controls">';
+    html += `<button class="pagination-btn" data-page="prev" ${currentPage === 1 ? 'disabled' : ''}>« Prev</button>`;
+    
+    let start = Math.max(1, currentPage - 2);
+    let end = Math.min(totalPages, currentPage + 2);
+    if (start > 1) {
+        html += `<button class="pagination-btn" data-page="1">1</button>`;
+        if (start > 2) html += '<span class="pagination-ellipsis">...</span>';
+    }
+    for (let i = start; i <= end; i++) {
+        html += `<button class="pagination-btn ${i === currentPage ? 'active' : ''}" data-page="${i}">${i}</button>`;
+    }
+    if (end < totalPages) {
+        if (end < totalPages - 1) html += '<span class="pagination-ellipsis">...</span>';
+        html += `<button class="pagination-btn" data-page="${totalPages}">${totalPages}</button>`;
+    }
+    html += `<button class="pagination-btn" data-page="next" ${currentPage === totalPages ? 'disabled' : ''}>Next »</button>`;
+    html += '</div>';
+    
+    container.innerHTML = html;
+    
+    container.querySelectorAll('.pagination-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const page = btn.dataset.page;
+            if (page === 'prev') {
+                changeReplicasPage(currentPage - 1);
+            } else if (page === 'next') {
+                changeReplicasPage(currentPage + 1);
+            } else {
+                changeReplicasPage(parseInt(page, 10));
+            }
+        });
+    });
+}
+
+function changeReplicasPage(page) {
+    const totalPages = Math.ceil(filteredReplicas.length / replicasPageSize);
+    if (page < 1 || page > totalPages) return;
+    replicasCurrentPage = page;
+    renderReplicasTable();
+}
+
+// ========== RENDERING FUNCTIONS (with pagination) ==========
+
+function renderAppsTable() {
     const tbody = document.getElementById('appsTableBody');
     if (!tbody) return;
     
-    if (apps.length === 0) {
+    const start = (appsCurrentPage - 1) * appsPageSize;
+    const end = start + appsPageSize;
+    const pageApps = filteredApps.slice(start, end);
+    
+    if (pageApps.length === 0) {
         tbody.innerHTML = `
             <tr>
                 <td colspan="7" class="text-center">
@@ -208,12 +351,13 @@ function renderAppsTable(apps = appsData) {
                 </td>
             </tr>
         `;
-        updateTableInfo('apps', 0, 0);
+        updateTableInfo('apps', 0, filteredApps.length);
+        renderAppsPagination();
         return;
     }
     
     let html = '';
-    apps.forEach(app => {
+    pageApps.forEach(app => {
         const createdDate = new Date(app.created_at).toLocaleDateString();
         const replicaCount = app.replicas ? app.replicas.length : 0;
         
@@ -262,15 +406,19 @@ function renderAppsTable(apps = appsData) {
     });
     
     tbody.innerHTML = html;
-    updateTableInfo('apps', apps.length, appsData.length);
+    updateTableInfo('apps', pageApps.length, filteredApps.length);
+    renderAppsPagination();
 }
 
-// Render replicas table
-function renderReplicasTable(replicas = replicasData) {
+function renderReplicasTable() {
     const tbody = document.getElementById('replicasTableBody');
     if (!tbody) return;
     
-    if (replicas.length === 0) {
+    const start = (replicasCurrentPage - 1) * replicasPageSize;
+    const end = start + replicasPageSize;
+    const pageReplicas = filteredReplicas.slice(start, end);
+    
+    if (pageReplicas.length === 0) {
         tbody.innerHTML = `
             <tr>
                 <td colspan="7" class="text-center">
@@ -281,12 +429,13 @@ function renderReplicasTable(replicas = replicasData) {
                 </td>
             </tr>
         `;
-        updateTableInfo('replicas', 0, 0);
+        updateTableInfo('replicas', 0, filteredReplicas.length);
+        renderReplicasPagination();
         return;
     }
     
     let html = '';
-    replicas.forEach(replica => {
+    pageReplicas.forEach(replica => {
         const app = appsData.find(a => a.id === replica.app) || {};
         const createdDate = new Date(replica.created_at).toLocaleDateString();
         const url = replica.replica_url.replace(/\/$/, '');
@@ -337,7 +486,8 @@ function renderReplicasTable(replicas = replicasData) {
     });
     
     tbody.innerHTML = html;
-    updateTableInfo('replicas', replicas.length, replicasData.length);
+    updateTableInfo('replicas', pageReplicas.length, filteredReplicas.length);
+    renderReplicasPagination();
 }
 
 // Update apps filter dropdown
@@ -356,42 +506,47 @@ function updateAppsFilter() {
 // Filter data based on search
 function filterData(searchTerm) {
     if (!searchTerm) {
-        renderAppsTable(appsData);
-        renderReplicasTable(replicasData);
-        return;
+        filteredApps = [...appsData];
+        filteredReplicas = [...replicasData];
+    } else {
+        const term = searchTerm.toLowerCase();
+        
+        filteredApps = appsData.filter(app => 
+            app.app_name.toLowerCase().includes(term) ||
+            (app.description && app.description.toLowerCase().includes(term)) ||
+            app.id.toString().includes(term)
+        );
+        
+        filteredReplicas = replicasData.filter(replica => {
+            const app = appsData.find(a => a.id === replica.app);
+            return (
+                replica.replica_url.toLowerCase().includes(term) ||
+                replica.db_host.toLowerCase().includes(term) ||
+                replica.db_name.toLowerCase().includes(term) ||
+                (app && app.app_name.toLowerCase().includes(term))
+            );
+        });
     }
     
-    const term = searchTerm.toLowerCase();
+    // Reset pages to 1 after filtering
+    appsCurrentPage = 1;
+    replicasCurrentPage = 1;
     
-    const filteredApps = appsData.filter(app => 
-        app.app_name.toLowerCase().includes(term) ||
-        (app.description && app.description.toLowerCase().includes(term)) ||
-        app.id.toString().includes(term)
-    );
-    renderAppsTable(filteredApps);
-    
-    const filteredReplicas = replicasData.filter(replica => {
-        const app = appsData.find(a => a.id === replica.app);
-        return (
-            replica.replica_url.toLowerCase().includes(term) ||
-            replica.db_host.toLowerCase().includes(term) ||
-            replica.db_name.toLowerCase().includes(term) ||
-            (app && app.app_name.toLowerCase().includes(term))
-        );
-    });
-    renderReplicasTable(filteredReplicas);
+    renderAppsTable();
+    renderReplicasTable();
 }
 
 // Filter replicas by app
 function filterReplicasByApp() {
     const appId = document.getElementById('appFilter').value;
     if (!appId) {
-        renderReplicasTable(replicasData);
-        return;
+        filteredReplicas = [...replicasData];
+    } else {
+        filteredReplicas = replicasData.filter(replica => replica.app == appId);
     }
     
-    const filtered = replicasData.filter(replica => replica.app == appId);
-    renderReplicasTable(filtered);
+    replicasCurrentPage = 1;
+    renderReplicasTable();
 }
 
 // Update status bar
@@ -867,7 +1022,7 @@ async function testReplica(replicaId) {
     }
 }
 
-// Modal functions (using reliable display block, like selfstudycourse)
+// Modal functions
 function showModal(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) {
@@ -950,6 +1105,8 @@ async function loadReplicas() {
         const response = await makeRequest('get_replicas');
         if (response.success) {
             replicasData = Array.isArray(response.replicas) ? response.replicas : [];
+            filteredReplicas = [...replicasData];
+            replicasCurrentPage = 1;
             renderReplicasTable();
         }
     } catch (error) {

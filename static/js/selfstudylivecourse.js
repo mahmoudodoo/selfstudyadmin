@@ -6,6 +6,20 @@ let appData = {
     live_course_rooms: []
 };
 
+// Pagination state
+let teachersCurrentPage = 1;
+const teachersPageSize = 9;
+let roomsCurrentPage = 1;
+const roomsPageSize = 9;
+
+// Filtered data (for search)
+let filteredTeachers = [];
+let filteredRooms = [];
+
+// Search terms
+let teachersSearchTerm = '';
+let roomsSearchTerm = '';
+
 // DOM Ready
 document.addEventListener('DOMContentLoaded', function() {
     initializeTabs();
@@ -32,70 +46,55 @@ function initializeTabs() {
     });
 }
 
-// Initialize search functionality
+// Initialize search functionality with pagination reset
 function initializeSearch() {
     const teachersSearch = document.getElementById('teachersSearch');
     const roomsSearch = document.getElementById('roomsSearch');
     
     if (teachersSearch) {
         teachersSearch.addEventListener('input', function() {
-            filterTeachersTable(this.value.toLowerCase());
+            teachersSearchTerm = this.value.toLowerCase();
+            teachersCurrentPage = 1;  // Reset to first page
+            applyTeachersFilter();
         });
     }
     
     if (roomsSearch) {
         roomsSearch.addEventListener('input', function() {
-            filterRoomsTable(this.value.toLowerCase());
+            roomsSearchTerm = this.value.toLowerCase();
+            roomsCurrentPage = 1;  // Reset to first page
+            applyRoomsFilter();
         });
     }
 }
 
-// Filter teachers table
-function filterTeachersTable(searchTerm) {
-    const tbody = document.getElementById('teachersTableBody');
-    const rows = tbody.getElementsByTagName('tr');
-    
-    for (let row of rows) {
-        if (row.classList.contains('no-data')) continue;
-        
-        const teacherId = row.cells[0].textContent.toLowerCase();
-        const teacherName = row.cells[1].textContent.toLowerCase();
-        const actions = row.cells[2].textContent.toLowerCase();
-        
-        const match = teacherId.includes(searchTerm) || 
-                     teacherName.includes(searchTerm) || 
-                     actions.includes(searchTerm);
-        
-        row.style.display = match ? '' : 'none';
+// Apply search filter to teachers data
+function applyTeachersFilter() {
+    if (!teachersSearchTerm) {
+        filteredTeachers = [...appData.teachers];
+    } else {
+        filteredTeachers = appData.teachers.filter(teacher => {
+            return teacher.teacher_id.toLowerCase().includes(teachersSearchTerm) ||
+                   teacher.teachername.toLowerCase().includes(teachersSearchTerm);
+        });
     }
+    renderTeachersTable();
 }
 
-// Filter rooms table
-function filterRoomsTable(searchTerm) {
-    const tbody = document.getElementById('roomsTableBody');
-    const rows = tbody.getElementsByTagName('tr');
-    
-    for (let row of rows) {
-        if (row.classList.contains('no-data')) continue;
-        
-        const roomId = row.cells[0].textContent.toLowerCase();
-        const courseName = row.cells[1].textContent.toLowerCase();
-        const studentName = row.cells[2].textContent.toLowerCase();
-        const teacher = row.cells[3].textContent.toLowerCase();
-        const roomUrl = row.cells[4].textContent.toLowerCase();
-        const createdAt = row.cells[5].textContent.toLowerCase();
-        const actions = row.cells[6].textContent.toLowerCase();
-        
-        const match = roomId.includes(searchTerm) || 
-                     courseName.includes(searchTerm) || 
-                     studentName.includes(searchTerm) || 
-                     teacher.includes(searchTerm) || 
-                     roomUrl.includes(searchTerm) || 
-                     createdAt.includes(searchTerm) || 
-                     actions.includes(searchTerm);
-        
-        row.style.display = match ? '' : 'none';
+// Apply search filter to rooms data
+function applyRoomsFilter() {
+    if (!roomsSearchTerm) {
+        filteredRooms = [...appData.live_course_rooms];
+    } else {
+        filteredRooms = appData.live_course_rooms.filter(room => {
+            return room.room_id.toLowerCase().includes(roomsSearchTerm) ||
+                   room.course_name.toLowerCase().includes(roomsSearchTerm) ||
+                   room.student_name.toLowerCase().includes(roomsSearchTerm) ||
+                   (getTeacherName(room.teacher) && getTeacherName(room.teacher).toLowerCase().includes(roomsSearchTerm)) ||
+                   room.room_url.toLowerCase().includes(roomsSearchTerm);
+        });
     }
+    renderRoomsTable();
 }
 
 // Load all data
@@ -108,6 +107,11 @@ async function loadData() {
         
         if (data.success) {
             appData = data;
+            // Initialize filtered arrays
+            filteredTeachers = [...appData.teachers];
+            filteredRooms = [...appData.live_course_rooms];
+            teachersCurrentPage = 1;
+            roomsCurrentPage = 1;
             updateUI();
             showToast('Data loaded successfully', 'success');
         } else {
@@ -125,8 +129,8 @@ async function loadData() {
 function updateUI() {
     updateStats();
     populateUserSelects();
-    updateTeachersTable();
-    updateRoomsTable();
+    applyTeachersFilter();
+    applyRoomsFilter();
 }
 
 // Update statistics
@@ -182,64 +186,191 @@ function populateUserSelects() {
     });
 }
 
-// Update teachers table
-function updateTeachersTable() {
+// Render teachers table with pagination
+function renderTeachersTable() {
     const tbody = document.getElementById('teachersTableBody');
     tbody.innerHTML = '';
     
-    if (appData.teachers.length === 0) {
+    const totalItems = filteredTeachers.length;
+    const totalPages = Math.ceil(totalItems / teachersPageSize);
+    if (teachersCurrentPage > totalPages && totalPages > 0) teachersCurrentPage = totalPages;
+    if (teachersCurrentPage < 1) teachersCurrentPage = 1;
+    
+    const start = (teachersCurrentPage - 1) * teachersPageSize;
+    const end = start + teachersPageSize;
+    const pageTeachers = filteredTeachers.slice(start, end);
+    
+    if (pageTeachers.length === 0) {
         tbody.innerHTML = '<tr><td colspan="3" class="no-data">No teachers found</td></tr>';
+    } else {
+        pageTeachers.forEach(teacher => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${teacher.teacher_id}</td>
+                <td>${escapeHtml(teacher.teachername)}</td>
+                <td class="actions">
+                    <button class="btn btn-sm btn-warning" onclick="editTeacher('${teacher.teacher_id}')">
+                        <i class="fas fa-edit"></i> Edit
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteTeacher('${teacher.teacher_id}')">
+                        <i class="fas fa-trash"></i> Delete
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(row);
+        });
+    }
+    
+    renderTeachersPagination(totalItems);
+}
+
+// Render pagination for teachers
+function renderTeachersPagination(totalItems) {
+    const container = document.getElementById('teachersPagination');
+    if (!container) return;
+    
+    const totalPages = Math.ceil(totalItems / teachersPageSize);
+    if (totalPages <= 1) {
+        container.innerHTML = '';
         return;
     }
     
-    appData.teachers.forEach(teacher => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>${teacher.teacher_id}</td>
-            <td>${teacher.teachername}</td>
-            <td class="actions">
-                <button class="btn btn-sm btn-warning" onclick="editTeacher('${teacher.teacher_id}')">
-                    <i class="fas fa-edit"></i> Edit
-                </button>
-                <button class="btn btn-sm btn-danger" onclick="deleteTeacher('${teacher.teacher_id}')">
-                    <i class="fas fa-trash"></i> Delete
-                </button>
-            </td>
-        `;
-        tbody.appendChild(row);
+    let html = '<div class="pagination-controls">';
+    html += `<button class="pagination-btn" data-page="prev" ${teachersCurrentPage === 1 ? 'disabled' : ''}>« Prev</button>`;
+    
+    let startPage = Math.max(1, teachersCurrentPage - 2);
+    let endPage = Math.min(totalPages, teachersCurrentPage + 2);
+    if (startPage > 1) {
+        html += `<button class="pagination-btn" data-page="1">1</button>`;
+        if (startPage > 2) html += '<span class="pagination-ellipsis">...</span>';
+    }
+    for (let i = startPage; i <= endPage; i++) {
+        html += `<button class="pagination-btn ${i === teachersCurrentPage ? 'active' : ''}" data-page="${i}">${i}</button>`;
+    }
+    if (endPage < totalPages) {
+        if (endPage < totalPages - 1) html += '<span class="pagination-ellipsis">...</span>';
+        html += `<button class="pagination-btn" data-page="${totalPages}">${totalPages}</button>`;
+    }
+    html += `<button class="pagination-btn" data-page="next" ${teachersCurrentPage === totalPages ? 'disabled' : ''}>Next »</button>`;
+    html += '</div>';
+    
+    container.innerHTML = html;
+    
+    // Attach event listeners
+    container.querySelectorAll('.pagination-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const page = btn.dataset.page;
+            if (page === 'prev') {
+                changeTeachersPage(teachersCurrentPage - 1);
+            } else if (page === 'next') {
+                changeTeachersPage(teachersCurrentPage + 1);
+            } else {
+                changeTeachersPage(parseInt(page, 10));
+            }
+        });
     });
 }
 
-// Update rooms table
-function updateRoomsTable() {
+function changeTeachersPage(page) {
+    const totalPages = Math.ceil(filteredTeachers.length / teachersPageSize);
+    if (page < 1 || page > totalPages) return;
+    teachersCurrentPage = page;
+    renderTeachersTable();
+}
+
+// Render rooms table with pagination
+function renderRoomsTable() {
     const tbody = document.getElementById('roomsTableBody');
     tbody.innerHTML = '';
     
-    if (appData.live_course_rooms.length === 0) {
+    const totalItems = filteredRooms.length;
+    const totalPages = Math.ceil(totalItems / roomsPageSize);
+    if (roomsCurrentPage > totalPages && totalPages > 0) roomsCurrentPage = totalPages;
+    if (roomsCurrentPage < 1) roomsCurrentPage = 1;
+    
+    const start = (roomsCurrentPage - 1) * roomsPageSize;
+    const end = start + roomsPageSize;
+    const pageRooms = filteredRooms.slice(start, end);
+    
+    if (pageRooms.length === 0) {
         tbody.innerHTML = '<tr><td colspan="7" class="no-data">No live course rooms found</td></tr>';
+    } else {
+        pageRooms.forEach(room => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${room.room_id}</td>
+                <td>${escapeHtml(room.course_name)}</td>
+                <td>${escapeHtml(room.student_name)}</td>
+                <td>${escapeHtml(getTeacherName(room.teacher))}</td>
+                <td><a href="${room.room_url}" target="_blank">${room.room_url}</a></td>
+                <td>${new Date(room.created_at).toLocaleString()}</td>
+                <td class="actions">
+                    <button class="btn btn-sm btn-warning" onclick="editRoom('${room.room_id}')">
+                        <i class="fas fa-edit"></i> Edit
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteRoom('${room.room_id}')">
+                        <i class="fas fa-trash"></i> Delete
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(row);
+        });
+    }
+    
+    renderRoomsPagination(totalItems);
+}
+
+// Render pagination for rooms
+function renderRoomsPagination(totalItems) {
+    const container = document.getElementById('roomsPagination');
+    if (!container) return;
+    
+    const totalPages = Math.ceil(totalItems / roomsPageSize);
+    if (totalPages <= 1) {
+        container.innerHTML = '';
         return;
     }
     
-    appData.live_course_rooms.forEach(room => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>${room.room_id}</td>
-            <td>${room.course_name}</td>
-            <td>${room.student_name}</td>
-            <td>${getTeacherName(room.teacher)}</td>
-            <td><a href="${room.room_url}" target="_blank">${room.room_url}</a></td>
-            <td>${new Date(room.created_at).toLocaleString()}</td>
-            <td class="actions">
-                <button class="btn btn-sm btn-warning" onclick="editRoom('${room.room_id}')">
-                    <i class="fas fa-edit"></i> Edit
-                </button>
-                <button class="btn btn-sm btn-danger" onclick="deleteRoom('${room.room_id}')">
-                    <i class="fas fa-trash"></i> Delete
-                </button>
-            </td>
-        `;
-        tbody.appendChild(row);
+    let html = '<div class="pagination-controls">';
+    html += `<button class="pagination-btn" data-page="prev" ${roomsCurrentPage === 1 ? 'disabled' : ''}>« Prev</button>`;
+    
+    let startPage = Math.max(1, roomsCurrentPage - 2);
+    let endPage = Math.min(totalPages, roomsCurrentPage + 2);
+    if (startPage > 1) {
+        html += `<button class="pagination-btn" data-page="1">1</button>`;
+        if (startPage > 2) html += '<span class="pagination-ellipsis">...</span>';
+    }
+    for (let i = startPage; i <= endPage; i++) {
+        html += `<button class="pagination-btn ${i === roomsCurrentPage ? 'active' : ''}" data-page="${i}">${i}</button>`;
+    }
+    if (endPage < totalPages) {
+        if (endPage < totalPages - 1) html += '<span class="pagination-ellipsis">...</span>';
+        html += `<button class="pagination-btn" data-page="${totalPages}">${totalPages}</button>`;
+    }
+    html += `<button class="pagination-btn" data-page="next" ${roomsCurrentPage === totalPages ? 'disabled' : ''}>Next »</button>`;
+    html += '</div>';
+    
+    container.innerHTML = html;
+    
+    container.querySelectorAll('.pagination-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const page = btn.dataset.page;
+            if (page === 'prev') {
+                changeRoomsPage(roomsCurrentPage - 1);
+            } else if (page === 'next') {
+                changeRoomsPage(roomsCurrentPage + 1);
+            } else {
+                changeRoomsPage(parseInt(page, 10));
+            }
+        });
     });
+}
+
+function changeRoomsPage(page) {
+    const totalPages = Math.ceil(filteredRooms.length / roomsPageSize);
+    if (page < 1 || page > totalPages) return;
+    roomsCurrentPage = page;
+    renderRoomsTable();
 }
 
 // Get teacher name by ID
@@ -529,7 +660,7 @@ function showToast(message, type = 'info') {
     toast.innerHTML = `
         <div class="toast-content">
             <i class="fas fa-${getToastIcon(type)}"></i>
-            <span>${message}</span>
+            <span>${escapeHtml(message)}</span>
         </div>
         <button class="toast-close" onclick="this.parentElement.remove()">&times;</button>
     `;
@@ -552,6 +683,13 @@ function getToastIcon(type) {
         info: 'info-circle'
     };
     return icons[type] || 'info-circle';
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 
 // Fixed CSRF Token function

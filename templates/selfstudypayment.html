@@ -6,6 +6,45 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/selfstudypayment.css' %}">
+<style>
+    /* Pagination styles */
+    .pagination {
+        margin-top: 20px;
+        display: flex;
+        justify-content: center;
+    }
+    .pagination-controls {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+    .pagination-btn {
+        padding: 6px 12px;
+        border: 1px solid #ddd;
+        background: white;
+        cursor: pointer;
+        border-radius: 4px;
+        transition: all 0.2s;
+    }
+    .pagination-btn:hover:not(:disabled) {
+        background-color: #f0f0f0;
+        border-color: #aaa;
+    }
+    .pagination-btn.active {
+        background-color: #007bff;
+        color: white;
+        border-color: #007bff;
+    }
+    .pagination-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    .pagination-ellipsis {
+        padding: 6px 12px;
+        color: #666;
+    }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -103,13 +142,16 @@
                     <th>Created</th>
                     <th>Expires</th>
                     <th>Actions</th>
-                </tr>
+                 </tr>
             </thead>
             <tbody id="payments-tbody">
                 <!-- Payments will be loaded here -->
             </tbody>
         </table>
     </div>
+
+    <!-- Pagination Container -->
+    <div id="pagination" class="pagination"></div>
 
     <!-- Loading State -->
     <div id="loading-state" class="loading-state">

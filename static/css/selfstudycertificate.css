@@ -7,30 +7,30 @@
 
 /* ---------------------------------------------
    CSS CUSTOM PROPERTIES (VARIABLES)
-   Easily adjustable cosmic theme
+   Cosmic theme + responsive scaling system
 --------------------------------------------- */
 :root {
     /* Cosmic color palette */
-    --space-dark: rgba(5, 5, 20, 0.85);      /* Deep space background for cards */
-    --space-darker: rgba(2, 2, 10, 0.9);     /* For modals, headers */
-    --space-medium: rgba(10, 10, 30, 0.8);   /* Standard glass background */
-    --space-light: rgba(20, 20, 45, 0.75);   /* Lighter glass for hover states */
+    --space-dark: rgba(5, 5, 20, 0.85);
+    --space-darker: rgba(2, 2, 10, 0.9);
+    --space-medium: rgba(10, 10, 30, 0.8);
+    --space-light: rgba(20, 20, 45, 0.75);
     
     /* Accent colors (cosmic glows) */
-    --cosmic-cyan: #4ECDC4;                   /* Primary interactive color */
-    --cosmic-purple: #8A2BE2;                  /* Secondary / accent */
-    --cosmic-blue: #3B8DF2;                    /* Tertiary */
-    --cosmic-white: #FFFFFF;                    /* Bright text */
-    --cosmic-gray: #E0E0E0;                     /* Body text */
+    --cosmic-cyan: #4ECDC4;
+    --cosmic-purple: #8A2BE2;
+    --cosmic-blue: #3B8DF2;
+    --cosmic-white: #FFFFFF;
+    --cosmic-gray: #E0E0E0;
     --cosmic-glow-cyan: 0 0 20px rgba(78, 205, 196, 0.3);
     --cosmic-glow-purple: 0 0 20px rgba(138, 43, 226, 0.3);
     --cosmic-glow-blue: 0 0 20px rgba(59, 141, 242, 0.3);
     
-    /* Functional colors (maintain meaning but cosmic‑ified) */
+    /* Functional colors */
     --primary-color: var(--cosmic-cyan);
     --secondary-color: var(--cosmic-purple);
-    --danger-color: #FF6B6B;                   /* Soft red with glow */
-    --warning-color: #FFD166;                   /* Warm yellow */
+    --danger-color: #FF6B6B;
+    --warning-color: #FFD166;
     
     /* Backgrounds & borders */
     --bg-glass: var(--space-medium);
@@ -43,25 +43,34 @@
     --text-muted: var(--cosmic-gray);
     --text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8), 0 0 10px rgba(0, 0, 0, 0.5);
     
-    /* Spacing & sizing */
+    /* Spacing & sizing – responsive variables */
+    --font-base: 16px;
+    --spacing-unit: 1rem;
+    --container-max: 1200px;
+    --border-radius-base: 12px;
     --border-radius-card: 16px;
     --border-radius-element: 12px;
     --transition-smooth: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
     
-    /* Glass effect intensity (adjust for performance) */
+    /* Glass effect intensity */
     --blur-amount: 10px;
     --blur-amount-mobile: 5px;
 }
 
 /* ---------------------------------------------
-   BASE & LAYOUT
-   Body is transparent – the galaxy bg sits behind
+   GLOBAL RESET & BOX-SIZING
 --------------------------------------------- */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
 html, body {
     margin: 0;
     padding: 0;
     min-height: 100vh;
-    background: transparent;           /* Let the galaxy background show */
+    background: transparent;           /* Let galaxy background show */
     font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     color: var(--text-light);
     line-height: 1.6;
@@ -77,9 +86,8 @@ html, body {
     left: 0;
     width: 100%;
     height: 100%;
-    z-index: -1;                      /* Behind all content */
-    background: #000;                  /* Fallback deep space */
-    /* Additional properties for canvas/video would be set via JS/CSS */
+    z-index: -1;
+    background: #000;
 }
 
 /* Ensure all content sits above background */
@@ -217,13 +225,13 @@ html, body {
     color: var(--text-light);
     text-shadow: var(--text-shadow);
     box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    min-height: 44px; /* touch target */
 }
 
-.btn i, .btn svg { /* for icons */
+.btn i, .btn svg {
     font-size: 1.1rem;
 }
 
-/* Primary button – cyan glow */
 .btn-primary {
     background: rgba(78, 205, 196, 0.2);
     border-color: var(--primary-color);
@@ -238,7 +246,6 @@ html, body {
     transform: translateY(-2px) scale(1.02);
 }
 
-/* Secondary – purple glow */
 .btn-secondary {
     background: rgba(138, 43, 226, 0.2);
     border-color: var(--secondary-color);
@@ -252,7 +259,6 @@ html, body {
     transform: translateY(-2px);
 }
 
-/* Outline – subtle border */
 .btn-outline {
     background: transparent;
     border: 2px solid rgba(255,255,255,0.3);
@@ -266,7 +272,6 @@ html, body {
     background: rgba(78, 205, 196, 0.1);
 }
 
-/* Danger – red glow */
 .btn-danger {
     background: rgba(255, 107, 107, 0.2);
     border-color: var(--danger-color);
@@ -284,7 +289,6 @@ html, body {
     font-size: 0.85rem;
 }
 
-/* Active state for all buttons */
 .btn:active {
     transform: translateY(2px) scale(0.98);
     box-shadow: 0 2px 8px rgba(0,0,0,0.5);
@@ -320,7 +324,7 @@ html, body {
     color: var(--text-muted);
     transition: var(--transition-smooth);
     border-bottom: 3px solid transparent;
-    margin-bottom: -1px; /* overlap container border */
+    margin-bottom: -1px;
     text-shadow: var(--text-shadow);
 }
 
@@ -351,7 +355,7 @@ html, body {
 .table-container {
     overflow-x: auto;
     border-radius: 12px;
-    background: rgba(0,0,0,0.2); /* subtle dark base */
+    background: rgba(0,0,0,0.2);
 }
 
 .data-table {
@@ -433,7 +437,7 @@ html, body {
     top: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.7);      /* dark overlay, not too heavy */
+    background: rgba(0, 0, 0, 0.7);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     animation: fadeIn 0.3s ease;
@@ -521,6 +525,7 @@ html, body {
     transition: var(--transition-smooth);
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
+    min-height: 44px; /* touch target */
 }
 
 .form-group input::placeholder,
@@ -563,7 +568,7 @@ html, body {
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(5, 5, 20, 0.7);       /* Dark transparent */
+    background: rgba(5, 5, 20, 0.7);
     backdrop-filter: blur(5px);
     -webkit-backdrop-filter: blur(5px);
     z-index: 2000;
@@ -680,7 +685,6 @@ html, body {
     box-shadow: 0 0 15px var(--primary-color);
 }
 
-/* Firefox scrollbar (limited) */
 * {
     scrollbar-width: thin;
     scrollbar-color: rgba(100, 100, 150, 0.5) rgba(0, 0, 0, 0.3);
@@ -722,164 +726,6 @@ html, body {
 }
 
 /* ---------------------------------------------
-   RESPONSIVE DESIGN
-   Mobile-first, progressively enhanced
---------------------------------------------- */
-
-/* Base (mobile first) */
-@media (max-width: 639px) {
-    :root {
-        --blur-amount: var(--blur-amount-mobile); /* reduce blur for performance */
-    }
-
-    .header-section {
-        padding: 1.2rem;
-    }
-
-    .stats-grid {
-        grid-template-columns: 1fr;
-        gap: 1rem;
-    }
-
-    .action-bar {
-        flex-direction: column;
-    }
-
-    .btn {
-        width: 100%;
-        justify-content: center;
-    }
-
-    .tabs {
-        flex-direction: column;
-        padding: 0;
-    }
-
-    .tab-btn {
-        padding: 0.9rem 1rem;
-        border-bottom: none;
-        border-left: 3px solid transparent;
-        text-align: left;
-    }
-
-    .tab-btn.active {
-        border-left-color: var(--primary-color);
-        border-bottom: none;
-        background: rgba(78, 205, 196, 0.1);
-    }
-
-    .data-table {
-        font-size: 0.85rem;
-    }
-
-    .data-table th,
-    .data-table td {
-        padding: 0.7rem 0.5rem;
-    }
-
-    .modal-content {
-        margin: 1rem;
-        width: calc(100% - 2rem);
-    }
-
-    .form-actions {
-        flex-direction: column;
-    }
-
-    .form-actions .btn {
-        width: 100%;
-    }
-
-    .toast {
-        min-width: 250px;
-        right: 10px;
-        left: 10px;
-        font-size: 0.9rem;
-    }
-}
-
-/* Tablet (640px - 1024px) */
-@media (min-width: 640px) and (max-width: 1024px) {
-    .stats-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-
-    .header-section h1 {
-        font-size: 2.2rem;
-    }
-}
-
-/* Laptop (1025px - 1440px) – default styles already cover this */
-@media (min-width: 1025px) and (max-width: 1440px) {
-    .container, .main-content {
-        max-width: 1300px;
-        margin-left: auto;
-        margin-right: auto;
-    }
-}
-
-/* Desktop (1441px - 1920px) */
-@media (min-width: 1441px) and (max-width: 1920px) {
-    :root {
-        --border-radius-card: 20px;
-    }
-
-    .header-section {
-        padding: 3rem;
-    }
-
-    .stat-card {
-        padding: 2rem;
-    }
-
-    .stat-icon {
-        width: 80px;
-        height: 80px;
-        font-size: 2.5rem;
-    }
-
-    .btn {
-        padding: 0.9rem 2.2rem;
-        font-size: 1rem;
-    }
-
-    .data-table {
-        font-size: 1rem;
-    }
-}
-
-/* TV / 4K (1921px and above) */
-@media (min-width: 1921px) {
-    html {
-        font-size: 18px; /* scale up base font */
-    }
-
-    .container, .main-content {
-        max-width: 1800px;
-        margin-left: auto;
-        margin-right: auto;
-    }
-
-    .stat-card {
-        padding: 2.5rem;
-    }
-
-    .stat-icon {
-        width: 100px;
-        height: 100px;
-        font-size: 3rem;
-    }
-
-    .btn {
-        padding: 1rem 2.5rem;
-    }
-
-    .modal-content {
-        max-width: 800px;
-    }
-}
-
-/* ---------------------------------------------
    REDUCED MOTION – accessibility
 --------------------------------------------- */
 @media (prefers-reduced-motion: reduce) {
@@ -894,7 +740,7 @@ html, body {
 }
 
 /* ---------------------------------------------
-   UTILITY CLASSES (unchanged functionality)
+   UTILITY CLASSES
 --------------------------------------------- */
 .text-center { text-align: center; }
 .text-right { text-align: right; }
@@ -903,32 +749,21 @@ html, body {
 .mt-1 { margin-top: 1rem; }
 .mt-2 { margin-top: 2rem; }
 .hidden { display: none; }
-
-/* Additional cosmic utility */
-.glow-cyan {
-    box-shadow: var(--cosmic-glow-cyan);
-}
-.glow-purple {
-    box-shadow: var(--cosmic-glow-purple);
-}
-.glow-blue {
-    box-shadow: var(--cosmic-glow-blue);
-}
+.glow-cyan { box-shadow: var(--cosmic-glow-cyan); }
+.glow-purple { box-shadow: var(--cosmic-glow-purple); }
+.glow-blue { box-shadow: var(--cosmic-glow-blue); }
 
 /* ---------------------------------------------
    ENSURE ALL TEXT IS LIGHT AND READABLE
-   (overwrites any remaining dark text)
 --------------------------------------------- */
 body, p, h1, h2, h3, h4, h5, h6, span, div, a, button, input, select, textarea, label, th, td, li {
-    color: var(--text-light) !important; /* ensure readability, but allow muted variants */
+    color: var(--text-light) !important;
 }
 
-/* But keep muted text for secondary info */
 .text-muted, .stat-info span, .data-table td, .tab-btn:not(.active) {
     color: var(--text-muted) !important;
 }
 
-/* For links inside cards, keep them cyan-ish */
 a {
     color: var(--primary-color);
     text-decoration: none;
@@ -938,4 +773,349 @@ a {
 a:hover {
     text-shadow: 0 0 10px var(--primary-color);
     text-decoration: underline;
+}
+
+/* =============================================
+   GRANULAR RESPONSIVE BREAKPOINTS (50px increments)
+   Ordered smallest to largest. Each breakpoint scales
+   base font, spacing, container width, and touch targets.
+   ============================================= */
+
+/* Ultra small devices (0-199px) – fallback */
+@media only screen and (max-width: 199px) {
+    html {
+        font-size: 7px;
+    }
+    .container, .main-content {
+        max-width: 100%;
+        padding-left: 4px;
+        padding-right: 4px;
+    }
+    .btn, .form-group input, .form-group select, .form-group textarea {
+        min-height: 32px;
+    }
+}
+
+/* ===== Breakpoint: 200px – 250px | Micro Screens ===== */
+@media only screen and (min-width: 200px) and (max-width: 250px) {
+    html {
+        font-size: 8px;
+    }
+    .container, .main-content {
+        max-width: 100%;
+        padding-left: 6px;
+        padding-right: 6px;
+    }
+    .btn, .form-group input, .form-group select, .form-group textarea {
+        min-height: 36px;
+    }
+    .stats-grid { gap: 0.8rem; }
+    .stat-card { padding: 0.8rem; gap: 0.6rem; }
+    .stat-icon { width: 40px; height: 40px; font-size: 1.2rem; }
+}
+
+/* ===== Breakpoint: 250px – 300px | Tiny Screens ===== */
+@media only screen and (min-width: 250px) and (max-width: 300px) {
+    html {
+        font-size: 9px;
+    }
+    .container, .main-content {
+        max-width: 100%;
+        padding-left: 8px;
+        padding-right: 8px;
+    }
+    .btn, .form-group input, .form-group select, .form-group textarea {
+        min-height: 38px;
+    }
+}
+
+/* ===== Breakpoint: 300px – 350px | X-Small Screens ===== */
+@media only screen and (min-width: 300px) and (max-width: 350px) {
+    html {
+        font-size: 10px;
+    }
+    .container, .main-content {
+        max-width: 100%;
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+    .btn, .form-group input, .form-group select, .form-group textarea {
+        min-height: 40px;
+    }
+}
+
+/* ===== Breakpoint: 350px – 400px | Small- Screens ===== */
+@media only screen and (min-width: 350px) and (max-width: 400px) {
+    html {
+        font-size: 11px;
+    }
+    .container, .main-content {
+        max-width: 100%;
+        padding-left: 12px;
+        padding-right: 12px;
+    }
+    .btn, .form-group input, .form-group select, .form-group textarea {
+        min-height: 42px;
+    }
+}
+
+/* ===== Breakpoint: 400px – 450px | Small Screens ===== */
+@media only screen and (min-width: 400px) and (max-width: 450px) {
+    html {
+        font-size: 12px;
+    }
+    .container, .main-content {
+        max-width: 100%;
+        padding-left: 14px;
+        padding-right: 14px;
+    }
+    .btn, .form-group input, .form-group select, .form-group textarea {
+        min-height: 44px;
+    }
+}
+
+/* ===== Breakpoint: 450px – 500px | Small+ Screens ===== */
+@media only screen and (min-width: 450px) and (max-width: 500px) {
+    html {
+        font-size: 13px;
+    }
+    .container, .main-content {
+        max-width: 100%;
+        padding-left: 16px;
+        padding-right: 16px;
+    }
+    .btn, .form-group input, .form-group select, .form-group textarea {
+        min-height: 44px;
+    }
+    .stats-grid { grid-template-columns: 1fr; }
+}
+
+/* ===== Breakpoint: 500px – 550px | Medium- Screens ===== */
+@media only screen and (min-width: 500px) and (max-width: 550px) {
+    html {
+        font-size: 13.5px;
+    }
+    .container, .main-content {
+        max-width: 100%;
+        padding-left: 18px;
+        padding-right: 18px;
+    }
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* ===== Breakpoint: 550px – 600px | Medium Screens ===== */
+@media only screen and (min-width: 550px) and (max-width: 600px) {
+    html {
+        font-size: 14px;
+    }
+    .container, .main-content {
+        max-width: 100%;
+        padding-left: 20px;
+        padding-right: 20px;
+    }
+}
+
+/* ===== Breakpoint: 600px – 650px | Medium+ Screens ===== */
+@media only screen and (min-width: 600px) and (max-width: 650px) {
+    html {
+        font-size: 14.5px;
+    }
+    .container, .main-content {
+        max-width: 100%;
+        padding-left: 22px;
+        padding-right: 22px;
+    }
+}
+
+/* ===== Breakpoint: 650px – 700px | Large- Screens ===== */
+@media only screen and (min-width: 650px) and (max-width: 700px) {
+    html {
+        font-size: 15px;
+    }
+    .container, .main-content {
+        max-width: 100%;
+        padding-left: 24px;
+        padding-right: 24px;
+    }
+}
+
+/* ===== Breakpoint: 700px – 750px | Large Screens ===== */
+@media only screen and (min-width: 700px) and (max-width: 750px) {
+    html {
+        font-size: 15.5px;
+    }
+    .container, .main-content {
+        max-width: 100%;
+        padding-left: 26px;
+        padding-right: 26px;
+    }
+}
+
+/* ===== Breakpoint: 750px – 800px | Large+ Screens ===== */
+@media only screen and (min-width: 750px) and (max-width: 800px) {
+    html {
+        font-size: 16px;
+    }
+    .container, .main-content {
+        max-width: 100%;
+        padding-left: 28px;
+        padding-right: 28px;
+    }
+}
+
+/* ===== Breakpoint: 800px – 850px | XL- Screens ===== */
+@media only screen and (min-width: 800px) and (max-width: 850px) {
+    html {
+        font-size: 16.5px;
+    }
+    .container, .main-content {
+        max-width: 100%;
+        padding-left: 30px;
+        padding-right: 30px;
+    }
+}
+
+/* ===== Breakpoint: 850px – 900px | XL Screens ===== */
+@media only screen and (min-width: 850px) and (max-width: 900px) {
+    html {
+        font-size: 17px;
+    }
+    .container, .main-content {
+        max-width: 100%;
+        padding-left: 32px;
+        padding-right: 32px;
+    }
+}
+
+/* ===== Breakpoint: 900px – 950px | XL+ Screens ===== */
+@media only screen and (min-width: 900px) and (max-width: 950px) {
+    html {
+        font-size: 17px;
+    }
+    .container, .main-content {
+        max-width: 100%;
+        padding-left: 34px;
+        padding-right: 34px;
+    }
+}
+
+/* ===== Breakpoint: 950px – 1000px | 2XL- Screens ===== */
+@media only screen and (min-width: 950px) and (max-width: 1000px) {
+    html {
+        font-size: 17.5px;
+    }
+    .container, .main-content {
+        max-width: 100%;
+        padding-left: 36px;
+        padding-right: 36px;
+    }
+}
+
+/* ===== Breakpoint: 1000px – 1050px | 2XL Screens ===== */
+@media only screen and (min-width: 1000px) and (max-width: 1050px) {
+    html {
+        font-size: 17.5px;
+    }
+    .container, .main-content {
+        max-width: 100%;
+        padding-left: 38px;
+        padding-right: 38px;
+    }
+}
+
+/* ===== Breakpoint: 1050px – 1100px | 2XL+ Screens ===== */
+@media only screen and (min-width: 1050px) and (max-width: 1100px) {
+    html {
+        font-size: 18px;
+    }
+    .container, .main-content {
+        max-width: 100%;
+        padding-left: 40px;
+        padding-right: 40px;
+    }
+}
+
+/* ===== Breakpoint: 1100px – 1150px | 3XL- Screens ===== */
+@media only screen and (min-width: 1100px) and (max-width: 1150px) {
+    html {
+        font-size: 18px;
+    }
+    .container, .main-content {
+        max-width: 1100px;
+        margin-left: auto;
+        margin-right: auto;
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+}
+
+/* ===== Breakpoint: 1150px – 1200px | 3XL Screens ===== */
+@media only screen and (min-width: 1150px) and (max-width: 1200px) {
+    html {
+        font-size: 18.5px;
+    }
+    .container, .main-content {
+        max-width: 1150px;
+        margin-left: auto;
+        margin-right: auto;
+        padding-left: 1.5rem;
+        padding-right: 1.5rem;
+    }
+}
+
+/* ===== Breakpoint: 1200px – 2560px+ | 4XL+ (full desktop & TV) ===== */
+@media only screen and (min-width: 1200px) {
+    html {
+        font-size: 19px;
+    }
+    .container, .main-content {
+        max-width: 1400px;
+        margin-left: auto;
+        margin-right: auto;
+        padding-left: 2rem;
+        padding-right: 2rem;
+    }
+    .btn, .form-group input, .form-group select, .form-group textarea {
+        min-height: 52px;
+        padding: 0.9rem 2rem;
+    }
+    .stat-card {
+        padding: 2rem;
+    }
+    .stat-icon {
+        width: 85px;
+        height: 85px;
+        font-size: 2.5rem;
+    }
+}
+
+/* Extra large screens (TV/4K) further scale */
+@media only screen and (min-width: 1920px) {
+    html {
+        font-size: 22px;
+    }
+    .container, .main-content {
+        max-width: 1800px;
+    }
+    .btn {
+        min-height: 60px;
+        padding: 1rem 2.5rem;
+    }
+    .stat-icon {
+        width: 100px;
+        height: 100px;
+        font-size: 3rem;
+    }
+}
+
+/* High contrast & performance – reduce blur on mobile */
+@media (max-width: 640px) {
+    :root {
+        --blur-amount: var(--blur-amount-mobile);
+    }
+}
+
+/* Ensure icons (sidebar-toggle, chat icon) retain original colors */
+.sidebar-toggle, .chat-icon, [class*="icon"]:not(.btn i):not(.stat-icon) {
+    color: inherit !important;
 }

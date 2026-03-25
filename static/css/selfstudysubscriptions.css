@@ -1,6 +1,7 @@
 /* 
  * SelfStudy Subscriptions Management - Cosmic Space Theme
  * Fixed modal and spinner centering.
+ * Enhanced with granular responsive breakpoints (50px increments) for all screen sizes.
  */
 
 :root {
@@ -608,7 +609,7 @@ body {
     text-shadow: 0 0 10px var(--cosmic-cyan);
 }
 
-/* Responsive Design */
+/* Responsive Design (original) */
 @media (max-width: 768px) {
     .subscriptions-container {
         padding: 1rem;
@@ -629,5 +630,565 @@ body {
         animation-duration: 0.01ms !important;
         animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;
+    }
+}
+
+/* =============================================
+   GRANULAR RESPONSIVE BREAKPOINTS (50px increments)
+   Ordered smallest to largest. Each breakpoint scales
+   base font, spacing, container width, and touch targets.
+   ============================================= */
+
+/* Ultra small devices (0-199px) – fallback */
+@media only screen and (max-width: 199px) {
+    html {
+        font-size: 7px;
+    }
+    .subscriptions-container {
+        padding: 2px;
+    }
+    .btn, .form-control, .search-box input, .tab-btn, .stat-card {
+        min-height: 32px;
+    }
+    .header-stats {
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+    }
+    .modal-content {
+        width: 95%;
+        margin: 0 auto;
+    }
+}
+
+/* ===== Breakpoint: 200px – 250px | Micro Screens ===== */
+@media only screen and (min-width: 200px) and (max-width: 250px) {
+    html {
+        font-size: 8px;
+    }
+    .subscriptions-container {
+        padding: 4px;
+        max-width: 100%;
+    }
+    .btn, .form-control, .search-box input, .tab-btn, .stat-card {
+        min-height: 36px;
+        padding: 0.5rem 0.8rem;
+    }
+    .header-stats {
+        grid-template-columns: 1fr;
+        gap: 0.8rem;
+    }
+    .stat-icon {
+        font-size: 1.8rem;
+        margin-right: 0.8rem;
+    }
+    .stat-info h3 {
+        font-size: 1.4rem;
+    }
+    .tab-btn {
+        padding: 0.6rem 1rem;
+        font-size: 0.8rem;
+    }
+    .modal-content {
+        width: 95%;
+        max-width: none;
+    }
+    .loading-content .spinner {
+        width: 40px;
+        height: 40px;
+    }
+}
+
+/* ===== Breakpoint: 250px – 300px | Tiny Screens ===== */
+@media only screen and (min-width: 250px) and (max-width: 300px) {
+    html {
+        font-size: 9px;
+    }
+    .subscriptions-container {
+        padding: 6px;
+        max-width: 100%;
+    }
+    .btn, .form-control, .search-box input, .tab-btn, .stat-card {
+        min-height: 38px;
+        padding: 0.5rem 1rem;
+    }
+    .header-stats {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    .stat-icon {
+        font-size: 2rem;
+    }
+    .stat-info h3 {
+        font-size: 1.5rem;
+    }
+    .tab-btn {
+        padding: 0.7rem 1.2rem;
+        font-size: 0.85rem;
+    }
+    .domain-card {
+        padding: 1rem;
+    }
+}
+
+/* ===== Breakpoint: 300px – 350px | X-Small Screens ===== */
+@media only screen and (min-width: 300px) and (max-width: 350px) {
+    html {
+        font-size: 10px;
+    }
+    .subscriptions-container {
+        padding: 8px;
+    }
+    .btn, .form-control, .search-box input, .tab-btn, .stat-card {
+        min-height: 40px;
+        padding: 0.6rem 1.2rem;
+    }
+    .header-stats {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    .stat-info h3 {
+        font-size: 1.6rem;
+    }
+    .tab-btn {
+        padding: 0.8rem 1.4rem;
+        font-size: 0.9rem;
+    }
+}
+
+/* ===== Breakpoint: 350px – 400px | Small- Screens ===== */
+@media only screen and (min-width: 350px) and (max-width: 400px) {
+    html {
+        font-size: 11px;
+    }
+    .subscriptions-container {
+        padding: 10px;
+    }
+    .btn, .form-control, .search-box input, .tab-btn, .stat-card {
+        min-height: 42px;
+        padding: 0.6rem 1.4rem;
+    }
+    .header-stats {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    .stat-info h3 {
+        font-size: 1.7rem;
+    }
+    .tab-btn {
+        padding: 0.9rem 1.6rem;
+    }
+}
+
+/* ===== Breakpoint: 400px – 450px | Small Screens ===== */
+@media only screen and (min-width: 400px) and (max-width: 450px) {
+    html {
+        font-size: 12px;
+    }
+    .subscriptions-container {
+        padding: 12px;
+    }
+    .btn, .form-control, .search-box input, .tab-btn, .stat-card {
+        min-height: 44px;
+        padding: 0.7rem 1.6rem;
+    }
+    .header-stats {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    .stat-info h3 {
+        font-size: 1.8rem;
+    }
+    .tab-btn {
+        padding: 1rem 1.8rem;
+    }
+}
+
+/* ===== Breakpoint: 450px – 500px | Small+ Screens ===== */
+@media only screen and (min-width: 450px) and (max-width: 500px) {
+    html {
+        font-size: 13px;
+    }
+    .subscriptions-container {
+        padding: 14px;
+    }
+    .btn, .form-control, .search-box input, .tab-btn, .stat-card {
+        min-height: 44px;
+        padding: 0.8rem 1.8rem;
+    }
+    .header-stats {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+    }
+    .stat-info h3 {
+        font-size: 1.9rem;
+    }
+    .tab-btn {
+        padding: 1rem 2rem;
+    }
+}
+
+/* ===== Breakpoint: 500px – 550px | Medium- Screens ===== */
+@media only screen and (min-width: 500px) and (max-width: 550px) {
+    html {
+        font-size: 13.5px;
+    }
+    .subscriptions-container {
+        padding: 16px;
+    }
+    .btn, .form-control, .search-box input, .tab-btn, .stat-card {
+        min-height: 46px;
+        padding: 0.8rem 2rem;
+    }
+    .header-stats {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1.2rem;
+    }
+    .stat-info h3 {
+        font-size: 2rem;
+    }
+    .tab-btn {
+        padding: 1rem 2rem;
+        font-size: 0.95rem;
+    }
+}
+
+/* ===== Breakpoint: 550px – 600px | Medium Screens ===== */
+@media only screen and (min-width: 550px) and (max-width: 600px) {
+    html {
+        font-size: 14px;
+    }
+    .subscriptions-container {
+        padding: 18px;
+    }
+    .btn, .form-control, .search-box input, .tab-btn, .stat-card {
+        min-height: 48px;
+        padding: 0.9rem 2.2rem;
+    }
+    .header-stats {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1.2rem;
+    }
+    .stat-info h3 {
+        font-size: 2rem;
+    }
+    .tab-btn {
+        padding: 1rem 2rem;
+    }
+}
+
+/* ===== Breakpoint: 600px – 650px | Medium+ Screens ===== */
+@media only screen and (min-width: 600px) and (max-width: 650px) {
+    html {
+        font-size: 14.5px;
+    }
+    .subscriptions-container {
+        padding: 20px;
+    }
+    .btn, .form-control, .search-box input, .tab-btn, .stat-card {
+        min-height: 48px;
+        padding: 0.9rem 2.4rem;
+    }
+    .header-stats {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1.2rem;
+    }
+    .tab-btn {
+        padding: 1rem 2rem;
+    }
+}
+
+/* ===== Breakpoint: 650px – 700px | Large- Screens ===== */
+@media only screen and (min-width: 650px) and (max-width: 700px) {
+    html {
+        font-size: 15px;
+    }
+    .subscriptions-container {
+        padding: 22px;
+    }
+    .btn, .form-control, .search-box input, .tab-btn, .stat-card {
+        min-height: 48px;
+        padding: 1rem 2.5rem;
+    }
+    .header-stats {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1.5rem;
+    }
+    .tab-btn {
+        padding: 1rem 2rem;
+    }
+}
+
+/* ===== Breakpoint: 700px – 750px | Large Screens ===== */
+@media only screen and (min-width: 700px) and (max-width: 750px) {
+    html {
+        font-size: 15.5px;
+    }
+    .subscriptions-container {
+        padding: 24px;
+    }
+    .btn, .form-control, .search-box input, .tab-btn, .stat-card {
+        min-height: 48px;
+        padding: 1rem 2.5rem;
+    }
+    .header-stats {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1.5rem;
+    }
+    .tab-btn {
+        padding: 1rem 2rem;
+    }
+}
+
+/* ===== Breakpoint: 750px – 800px | Large+ Screens ===== */
+@media only screen and (min-width: 750px) and (max-width: 800px) {
+    html {
+        font-size: 16px;
+    }
+    .subscriptions-container {
+        padding: 26px;
+    }
+    .btn, .form-control, .search-box input, .tab-btn, .stat-card {
+        min-height: 50px;
+        padding: 1rem 2.5rem;
+    }
+    .header-stats {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1.5rem;
+    }
+    .tab-btn {
+        padding: 1rem 2rem;
+    }
+}
+
+/* ===== Breakpoint: 800px – 850px | XL- Screens ===== */
+@media only screen and (min-width: 800px) and (max-width: 850px) {
+    html {
+        font-size: 16.5px;
+    }
+    .subscriptions-container {
+        padding: 28px;
+    }
+    .btn, .form-control, .search-box input, .tab-btn, .stat-card {
+        min-height: 50px;
+        padding: 1rem 2.5rem;
+    }
+    .header-stats {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1.5rem;
+    }
+    .tab-btn {
+        padding: 1rem 2rem;
+    }
+}
+
+/* ===== Breakpoint: 850px – 900px | XL Screens ===== */
+@media only screen and (min-width: 850px) and (max-width: 900px) {
+    html {
+        font-size: 17px;
+    }
+    .subscriptions-container {
+        padding: 30px;
+    }
+    .btn, .form-control, .search-box input, .tab-btn, .stat-card {
+        min-height: 52px;
+        padding: 1rem 2.5rem;
+    }
+    .header-stats {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1.5rem;
+    }
+    .tab-btn {
+        padding: 1rem 2rem;
+    }
+}
+
+/* ===== Breakpoint: 900px – 950px | XL+ Screens ===== */
+@media only screen and (min-width: 900px) and (max-width: 950px) {
+    html {
+        font-size: 17px;
+    }
+    .subscriptions-container {
+        padding: 32px;
+    }
+    .btn, .form-control, .search-box input, .tab-btn, .stat-card {
+        min-height: 52px;
+        padding: 1rem 2.5rem;
+    }
+    .header-stats {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1.5rem;
+    }
+    .tab-btn {
+        padding: 1rem 2rem;
+    }
+}
+
+/* ===== Breakpoint: 950px – 1000px | 2XL- Screens ===== */
+@media only screen and (min-width: 950px) and (max-width: 1000px) {
+    html {
+        font-size: 17.5px;
+    }
+    .subscriptions-container {
+        padding: 34px;
+    }
+    .btn, .form-control, .search-box input, .tab-btn, .stat-card {
+        min-height: 52px;
+        padding: 1rem 2.5rem;
+    }
+    .header-stats {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1.5rem;
+    }
+    .tab-btn {
+        padding: 1rem 2rem;
+    }
+}
+
+/* ===== Breakpoint: 1000px – 1050px | 2XL Screens ===== */
+@media only screen and (min-width: 1000px) and (max-width: 1050px) {
+    html {
+        font-size: 17.5px;
+    }
+    .subscriptions-container {
+        padding: 36px;
+    }
+    .btn, .form-control, .search-box input, .tab-btn, .stat-card {
+        min-height: 54px;
+        padding: 1rem 2.5rem;
+    }
+    .header-stats {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1.5rem;
+    }
+    .tab-btn {
+        padding: 1rem 2rem;
+    }
+}
+
+/* ===== Breakpoint: 1050px – 1100px | 2XL+ Screens ===== */
+@media only screen and (min-width: 1050px) and (max-width: 1100px) {
+    html {
+        font-size: 18px;
+    }
+    .subscriptions-container {
+        padding: 38px;
+    }
+    .btn, .form-control, .search-box input, .tab-btn, .stat-card {
+        min-height: 54px;
+        padding: 1rem 2.5rem;
+    }
+    .header-stats {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1.5rem;
+    }
+    .tab-btn {
+        padding: 1rem 2rem;
+    }
+}
+
+/* ===== Breakpoint: 1100px – 1150px | 3XL- Screens ===== */
+@media only screen and (min-width: 1100px) and (max-width: 1150px) {
+    html {
+        font-size: 18px;
+    }
+    .subscriptions-container {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 1.5rem;
+    }
+    .btn, .form-control, .search-box input, .tab-btn, .stat-card {
+        min-height: 56px;
+        padding: 1rem 2.5rem;
+    }
+    .header-stats {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1.5rem;
+    }
+    .tab-btn {
+        padding: 1rem 2rem;
+    }
+}
+
+/* ===== Breakpoint: 1150px – 1200px | 3XL Screens ===== */
+@media only screen and (min-width: 1150px) and (max-width: 1200px) {
+    html {
+        font-size: 18.5px;
+    }
+    .subscriptions-container {
+        max-width: 1150px;
+        margin: 0 auto;
+        padding: 1.8rem;
+    }
+    .btn, .form-control, .search-box input, .tab-btn, .stat-card {
+        min-height: 56px;
+        padding: 1rem 2.5rem;
+    }
+    .header-stats {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1.5rem;
+    }
+    .tab-btn {
+        padding: 1rem 2rem;
+    }
+}
+
+/* ===== Breakpoint: 1200px – 2560px+ | 4XL+ (full desktop & TV) ===== */
+@media only screen and (min-width: 1200px) {
+    html {
+        font-size: 19px;
+    }
+    .subscriptions-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+    .btn, .form-control, .search-box input, .tab-btn, .stat-card {
+        min-height: 58px;
+        padding: 1rem 2.5rem;
+    }
+    .header-stats {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1.5rem;
+    }
+    .stat-icon {
+        font-size: 2.8rem;
+        margin-right: 1.5rem;
+    }
+    .stat-info h3 {
+        font-size: 2.2rem;
+    }
+    .tab-btn {
+        padding: 1rem 2rem;
+        font-size: 1rem;
+    }
+    .modal-content {
+        max-width: 700px;
+    }
+}
+
+/* Extra large screens (TV/4K) further scale */
+@media only screen and (min-width: 1920px) {
+    html {
+        font-size: 22px;
+    }
+    .subscriptions-container {
+        max-width: 1800px;
+        padding: 3rem;
+    }
+    .btn, .form-control, .search-box input, .tab-btn, .stat-card {
+        min-height: 64px;
+        padding: 1rem 3rem;
+    }
+    .header-stats {
+        gap: 2rem;
+    }
+    .stat-icon {
+        font-size: 3rem;
+    }
+    .stat-info h3 {
+        font-size: 2.5rem;
+    }
+    .modal-content {
+        max-width: 800px;
     }
 }

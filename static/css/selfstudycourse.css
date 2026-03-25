@@ -730,154 +730,903 @@
     100% { transform: rotate(360deg); }
 }
 
-/* ---------------------------------------------
-   RESPONSIVE DESIGN – mobile-first
---------------------------------------------- */
+/* =============================================
+   GRANULAR RESPONSIVE BREAKPOINTS (50px increments)
+   Ordered smallest to largest. Each breakpoint scales
+   base font, spacing, container width, and touch targets.
+   ============================================= */
 
-/* Mobile (< 640px) */
-@media (max-width: 639px) {
-    :root {
-        --blur-amount: var(--blur-amount-mobile);
-        --radius: 14px;
+/* Ultra small devices (0-199px) – fallback */
+@media only screen and (max-width: 199px) {
+    html {
+        font-size: 7px;
     }
-
     .course-management {
+        padding: 2px;
+    }
+    .btn, .form-control, .search-input, .search-btn, .tab-btn {
+        min-height: 32px;
+    }
+}
+
+/* ===== Breakpoint: 200px – 250px | Micro Screens ===== */
+@media only screen and (min-width: 200px) and (max-width: 250px) {
+    html {
+        font-size: 8px;
+    }
+    .course-management {
+        padding: 4px;
+    }
+    .header-section {
+        flex-direction: column;
+        align-items: stretch;
         padding: 0.8rem;
     }
+    .search-container {
+        max-width: none;
+    }
+    .tabs {
+        flex-direction: column;
+    }
+    .tab-btn {
+        width: 100%;
+        text-align: center;
+        padding: 0.8rem;
+        min-height: 36px;
+    }
+    .section-header {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: flex-start;
+        padding: 0.8rem;
+    }
+    .btn-group {
+        flex-direction: column;
+        width: 100%;
+    }
+    .btn-group .btn {
+        width: 100%;
+    }
+    .btn, .form-control, .search-input, .search-btn {
+        min-height: 36px;
+        padding: 0.5rem 0.8rem;
+    }
+    .data-table {
+        display: block;
+        overflow-x: auto;
+        font-size: 0.7rem;
+    }
+    .data-table th,
+    .data-table td {
+        padding: 0.6rem 0.4rem;
+    }
+    .modal-content {
+        width: 95%;
+        margin: 10% auto;
+    }
+    .modal-footer {
+        flex-direction: column;
+    }
+    .modal-footer .btn {
+        width: 100%;
+    }
+    .form-actions {
+        flex-direction: column;
+    }
+    .form-actions .btn {
+        width: 100%;
+    }
+}
 
+/* ===== Breakpoint: 250px – 300px | Tiny Screens ===== */
+@media only screen and (min-width: 250px) and (max-width: 300px) {
+    html {
+        font-size: 9px;
+    }
+    .course-management {
+        padding: 6px;
+    }
     .header-section {
         flex-direction: column;
         align-items: stretch;
         padding: 1rem;
     }
-
     .search-container {
         max-width: none;
     }
-
     .tabs {
         flex-direction: column;
     }
-
     .tab-btn {
         width: 100%;
         text-align: center;
         padding: 0.8rem;
+        min-height: 38px;
     }
-
     .section-header {
         flex-direction: column;
         gap: 1rem;
         align-items: flex-start;
         padding: 1rem;
     }
-
     .btn-group {
         flex-direction: column;
         width: 100%;
     }
-
     .btn-group .btn {
         width: 100%;
     }
+    .btn, .form-control, .search-input, .search-btn {
+        min-height: 38px;
+    }
+    .data-table {
+        display: block;
+        overflow-x: auto;
+        font-size: 0.75rem;
+    }
+    .data-table th,
+    .data-table td {
+        padding: 0.7rem 0.5rem;
+    }
+}
 
+/* ===== Breakpoint: 300px – 350px | X-Small Screens ===== */
+@media only screen and (min-width: 300px) and (max-width: 350px) {
+    html {
+        font-size: 10px;
+    }
+    .course-management {
+        padding: 8px;
+    }
+    .header-section {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 1rem;
+    }
+    .search-container {
+        max-width: none;
+    }
+    .tabs {
+        flex-direction: column;
+    }
+    .tab-btn {
+        width: 100%;
+        text-align: center;
+        padding: 0.8rem;
+        min-height: 40px;
+    }
+    .section-header {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: flex-start;
+        padding: 1rem;
+    }
+    .btn-group {
+        flex-direction: column;
+        width: 100%;
+    }
+    .btn-group .btn {
+        width: 100%;
+    }
+    .btn, .form-control, .search-input, .search-btn {
+        min-height: 40px;
+    }
     .data-table {
         display: block;
         overflow-x: auto;
         font-size: 0.8rem;
     }
+}
 
-    .data-table th,
-    .data-table td {
-        padding: 0.8rem 0.5rem;
+/* ===== Breakpoint: 350px – 400px | Small- Screens ===== */
+@media only screen and (min-width: 350px) and (max-width: 400px) {
+    html {
+        font-size: 11px;
     }
-
-    .modal-content {
-        margin: 10% auto;
-        width: 95%;
+    .course-management {
+        padding: 10px;
     }
-
-    .modal-footer {
+    .header-section {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 1rem;
+    }
+    .search-container {
+        max-width: none;
+    }
+    .tabs {
         flex-direction: column;
     }
-
-    .modal-footer .btn {
+    .tab-btn {
         width: 100%;
+        text-align: center;
+        padding: 0.8rem;
+        min-height: 42px;
     }
-
-    .form-actions {
+    .section-header {
         flex-direction: column;
+        gap: 1rem;
+        align-items: flex-start;
+        padding: 1rem;
     }
-
-    .form-actions .btn {
+    .btn-group {
+        flex-direction: column;
         width: 100%;
+    }
+    .btn-group .btn {
+        width: 100%;
+    }
+    .btn, .form-control, .search-input, .search-btn {
+        min-height: 42px;
+    }
+    .data-table {
+        display: block;
+        overflow-x: auto;
     }
 }
 
-/* Tablet (640px - 1024px) */
-@media (min-width: 640px) and (max-width: 1024px) {
+/* ===== Breakpoint: 400px – 450px | Small Screens ===== */
+@media only screen and (min-width: 400px) and (max-width: 450px) {
+    html {
+        font-size: 12px;
+    }
+    .course-management {
+        padding: 12px;
+    }
+    .header-section {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 1.2rem;
+    }
+    .search-container {
+        max-width: none;
+    }
     .tabs {
+        flex-direction: column;
+    }
+    .tab-btn {
+        width: 100%;
+        text-align: center;
+        padding: 0.9rem;
+        min-height: 44px;
+    }
+    .section-header {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: flex-start;
+        padding: 1.2rem;
+    }
+    .btn-group {
+        flex-direction: column;
+        width: 100%;
+    }
+    .btn-group .btn {
+        width: 100%;
+    }
+    .btn, .form-control, .search-input, .search-btn {
+        min-height: 44px;
+    }
+}
+
+/* ===== Breakpoint: 450px – 500px | Small+ Screens ===== */
+@media only screen and (min-width: 450px) and (max-width: 500px) {
+    html {
+        font-size: 13px;
+    }
+    .course-management {
+        padding: 14px;
+    }
+    .header-section {
+        flex-direction: row;
+        flex-wrap: wrap;
+        padding: 1.2rem;
+    }
+    .search-container {
+        max-width: 300px;
+    }
+    .tabs {
+        flex-direction: row;
         flex-wrap: wrap;
     }
+    .tab-btn {
+        flex: 1 0 auto;
+        min-width: 100px;
+        text-align: center;
+        padding: 0.8rem;
+        min-height: 44px;
+    }
+    .section-header {
+        flex-wrap: wrap;
+        gap: 1rem;
+        padding: 1.2rem;
+    }
+    .btn-group {
+        flex-wrap: wrap;
+    }
+    .btn, .form-control, .search-input, .search-btn {
+        min-height: 44px;
+    }
+}
 
+/* ===== Breakpoint: 500px – 550px | Medium- Screens ===== */
+@media only screen and (min-width: 500px) and (max-width: 550px) {
+    html {
+        font-size: 13.5px;
+    }
+    .course-management {
+        padding: 16px;
+    }
+    .header-section {
+        flex-direction: row;
+        flex-wrap: wrap;
+        padding: 1.2rem;
+    }
+    .search-container {
+        max-width: 320px;
+    }
+    .tabs {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+    .tab-btn {
+        flex: 1 0 auto;
+        min-width: 110px;
+        text-align: center;
+        padding: 0.8rem;
+        min-height: 46px;
+    }
+    .section-header {
+        flex-wrap: wrap;
+        gap: 1rem;
+        padding: 1.2rem;
+    }
+    .btn-group {
+        flex-wrap: wrap;
+    }
+    .btn, .form-control, .search-input, .search-btn {
+        min-height: 46px;
+    }
+}
+
+/* ===== Breakpoint: 550px – 600px | Medium Screens ===== */
+@media only screen and (min-width: 550px) and (max-width: 600px) {
+    html {
+        font-size: 14px;
+    }
+    .course-management {
+        padding: 18px;
+    }
+    .header-section {
+        flex-direction: row;
+        flex-wrap: wrap;
+        padding: 1.2rem;
+    }
+    .search-container {
+        max-width: 340px;
+    }
+    .tabs {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
     .tab-btn {
         flex: 1 0 auto;
         min-width: 120px;
         text-align: center;
+        padding: 0.8rem;
+        min-height: 48px;
     }
-
     .section-header {
         flex-wrap: wrap;
+        gap: 1rem;
+        padding: 1.2rem;
     }
-
     .btn-group {
         flex-wrap: wrap;
     }
+    .btn, .form-control, .search-input, .search-btn {
+        min-height: 48px;
+    }
 }
 
-/* Laptop (1025px - 1440px) – default styles apply */
-
-/* Desktop (1441px - 1920px) */
-@media (min-width: 1441px) and (max-width: 1920px) {
-    .course-management {
-        max-width: 1600px;
+/* ===== Breakpoint: 600px – 650px | Medium+ Screens ===== */
+@media only screen and (min-width: 600px) and (max-width: 650px) {
+    html {
+        font-size: 14.5px;
     }
-
+    .course-management {
+        padding: 20px;
+    }
     .header-section {
+        flex-direction: row;
+        flex-wrap: wrap;
+        padding: 1.2rem;
+    }
+    .search-container {
+        max-width: 360px;
+    }
+    .tabs {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+    .tab-btn {
+        flex: 1 0 auto;
+        min-width: 130px;
+        text-align: center;
+        padding: 0.9rem;
+        min-height: 48px;
+    }
+    .section-header {
+        flex-wrap: wrap;
+        gap: 1rem;
+        padding: 1.2rem;
+    }
+    .btn-group {
+        flex-wrap: wrap;
+    }
+    .btn, .form-control, .search-input, .search-btn {
+        min-height: 48px;
+    }
+}
+
+/* ===== Breakpoint: 650px – 700px | Large- Screens ===== */
+@media only screen and (min-width: 650px) and (max-width: 700px) {
+    html {
+        font-size: 15px;
+    }
+    .course-management {
+        padding: 22px;
+    }
+    .header-section {
+        flex-direction: row;
+        justify-content: space-between;
+        padding: 1.2rem;
+    }
+    .search-container {
+        max-width: 380px;
+    }
+    .tabs {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+    .tab-btn {
+        flex: 1 0 auto;
+        min-width: 140px;
+        text-align: center;
+        padding: 0.9rem;
+        min-height: 48px;
+    }
+    .section-header {
+        flex-wrap: wrap;
+        gap: 1rem;
+        padding: 1.2rem;
+    }
+    .btn, .form-control, .search-input, .search-btn {
+        min-height: 48px;
+    }
+}
+
+/* ===== Breakpoint: 700px – 750px | Large Screens ===== */
+@media only screen and (min-width: 700px) and (max-width: 750px) {
+    html {
+        font-size: 15.5px;
+    }
+    .course-management {
+        padding: 24px;
+    }
+    .header-section {
+        flex-direction: row;
+        justify-content: space-between;
+        padding: 1.2rem;
+    }
+    .search-container {
+        max-width: 400px;
+    }
+    .tabs {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+    .tab-btn {
+        flex: 1 0 auto;
+        min-width: 150px;
+        text-align: center;
+        padding: 0.9rem;
+        min-height: 48px;
+    }
+    .section-header {
+        flex-wrap: wrap;
+        gap: 1rem;
+        padding: 1.2rem;
+    }
+    .btn, .form-control, .search-input, .search-btn {
+        min-height: 48px;
+    }
+}
+
+/* ===== Breakpoint: 750px – 800px | Large+ Screens ===== */
+@media only screen and (min-width: 750px) and (max-width: 800px) {
+    html {
+        font-size: 16px;
+    }
+    .course-management {
+        padding: 26px;
+    }
+    .header-section {
+        flex-direction: row;
+        justify-content: space-between;
+        padding: 1.2rem;
+    }
+    .search-container {
+        max-width: 420px;
+    }
+    .tabs {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+    .tab-btn {
+        flex: 1 0 auto;
+        min-width: 160px;
+        text-align: center;
+        padding: 0.9rem;
+        min-height: 50px;
+    }
+    .section-header {
+        flex-wrap: wrap;
+        gap: 1rem;
+        padding: 1.2rem;
+    }
+    .btn, .form-control, .search-input, .search-btn {
+        min-height: 50px;
+    }
+}
+
+/* ===== Breakpoint: 800px – 850px | XL- Screens ===== */
+@media only screen and (min-width: 800px) and (max-width: 850px) {
+    html {
+        font-size: 16.5px;
+    }
+    .course-management {
+        padding: 28px;
+    }
+    .header-section {
+        flex-direction: row;
+        justify-content: space-between;
+        padding: 1.2rem;
+    }
+    .search-container {
+        max-width: 440px;
+    }
+    .tabs {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+    .tab-btn {
+        flex: 1 0 auto;
+        min-width: 170px;
+        text-align: center;
+        padding: 0.9rem;
+        min-height: 50px;
+    }
+    .section-header {
+        flex-wrap: wrap;
+        gap: 1rem;
+        padding: 1.2rem;
+    }
+    .btn, .form-control, .search-input, .search-btn {
+        min-height: 50px;
+    }
+}
+
+/* ===== Breakpoint: 850px – 900px | XL Screens ===== */
+@media only screen and (min-width: 850px) and (max-width: 900px) {
+    html {
+        font-size: 17px;
+    }
+    .course-management {
+        padding: 30px;
+    }
+    .header-section {
+        flex-direction: row;
+        justify-content: space-between;
+        padding: 1.2rem;
+    }
+    .search-container {
+        max-width: 460px;
+    }
+    .tabs {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+    .tab-btn {
+        flex: 1 0 auto;
+        min-width: 180px;
+        text-align: center;
+        padding: 0.9rem;
+        min-height: 52px;
+    }
+    .section-header {
+        flex-wrap: wrap;
+        gap: 1rem;
+        padding: 1.2rem;
+    }
+    .btn, .form-control, .search-input, .search-btn {
+        min-height: 52px;
+    }
+}
+
+/* ===== Breakpoint: 900px – 950px | XL+ Screens ===== */
+@media only screen and (min-width: 900px) and (max-width: 950px) {
+    html {
+        font-size: 17px;
+    }
+    .course-management {
+        padding: 32px;
+    }
+    .header-section {
+        flex-direction: row;
+        justify-content: space-between;
+        padding: 1.2rem;
+    }
+    .search-container {
+        max-width: 480px;
+    }
+    .tabs {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+    .tab-btn {
+        flex: 1 0 auto;
+        min-width: 190px;
+        text-align: center;
+        padding: 0.9rem;
+        min-height: 52px;
+    }
+    .section-header {
+        flex-wrap: wrap;
+        gap: 1rem;
+        padding: 1.2rem;
+    }
+    .btn, .form-control, .search-input, .search-btn {
+        min-height: 52px;
+    }
+}
+
+/* ===== Breakpoint: 950px – 1000px | 2XL- Screens ===== */
+@media only screen and (min-width: 950px) and (max-width: 1000px) {
+    html {
+        font-size: 17.5px;
+    }
+    .course-management {
+        padding: 34px;
+    }
+    .header-section {
+        flex-direction: row;
+        justify-content: space-between;
+        padding: 1.2rem;
+    }
+    .search-container {
+        max-width: 500px;
+    }
+    .tabs {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+    .tab-btn {
+        flex: 1 0 auto;
+        min-width: 200px;
+        text-align: center;
+        padding: 0.9rem;
+        min-height: 52px;
+    }
+    .section-header {
+        flex-wrap: wrap;
+        gap: 1rem;
+        padding: 1.2rem;
+    }
+    .btn, .form-control, .search-input, .search-btn {
+        min-height: 52px;
+    }
+}
+
+/* ===== Breakpoint: 1000px – 1050px | 2XL Screens ===== */
+@media only screen and (min-width: 1000px) and (max-width: 1050px) {
+    html {
+        font-size: 17.5px;
+    }
+    .course-management {
+        padding: 36px;
+    }
+    .header-section {
+        flex-direction: row;
+        justify-content: space-between;
+        padding: 1.2rem;
+    }
+    .search-container {
+        max-width: 520px;
+    }
+    .tabs {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+    .tab-btn {
+        flex: 1 0 auto;
+        min-width: 210px;
+        text-align: center;
+        padding: 0.9rem;
+        min-height: 54px;
+    }
+    .section-header {
+        flex-wrap: wrap;
+        gap: 1rem;
+        padding: 1.2rem;
+    }
+    .btn, .form-control, .search-input, .search-btn {
+        min-height: 54px;
+    }
+}
+
+/* ===== Breakpoint: 1050px – 1100px | 2XL+ Screens ===== */
+@media only screen and (min-width: 1050px) and (max-width: 1100px) {
+    html {
+        font-size: 18px;
+    }
+    .course-management {
+        padding: 38px;
+    }
+    .header-section {
+        flex-direction: row;
+        justify-content: space-between;
+        padding: 1.2rem;
+    }
+    .search-container {
+        max-width: 540px;
+    }
+    .tabs {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+    .tab-btn {
+        flex: 1 0 auto;
+        min-width: 220px;
+        text-align: center;
+        padding: 0.9rem;
+        min-height: 54px;
+    }
+    .section-header {
+        flex-wrap: wrap;
+        gap: 1rem;
+        padding: 1.2rem;
+    }
+    .btn, .form-control, .search-input, .search-btn {
+        min-height: 54px;
+    }
+}
+
+/* ===== Breakpoint: 1100px – 1150px | 3XL- Screens ===== */
+@media only screen and (min-width: 1100px) and (max-width: 1150px) {
+    html {
+        font-size: 18px;
+    }
+    .course-management {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 1.5rem;
+    }
+    .header-section {
+        flex-direction: row;
+        justify-content: space-between;
+        padding: 1.2rem;
+    }
+    .search-container {
+        max-width: 560px;
+    }
+    .tabs {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+    .tab-btn {
+        flex: 1 0 auto;
+        min-width: 230px;
+        text-align: center;
+        padding: 0.9rem;
+        min-height: 56px;
+    }
+    .section-header {
+        flex-wrap: wrap;
+        gap: 1rem;
+        padding: 1.2rem;
+    }
+    .btn, .form-control, .search-input, .search-btn {
+        min-height: 56px;
+    }
+}
+
+/* ===== Breakpoint: 1150px – 1200px | 3XL Screens ===== */
+@media only screen and (min-width: 1150px) and (max-width: 1200px) {
+    html {
+        font-size: 18.5px;
+    }
+    .course-management {
+        max-width: 1150px;
+        margin: 0 auto;
+        padding: 1.8rem;
+    }
+    .header-section {
+        flex-direction: row;
+        justify-content: space-between;
+        padding: 1.2rem;
+    }
+    .search-container {
+        max-width: 580px;
+    }
+    .tabs {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+    .tab-btn {
+        flex: 1 0 auto;
+        min-width: 240px;
+        text-align: center;
+        padding: 0.9rem;
+        min-height: 56px;
+    }
+    .section-header {
+        flex-wrap: wrap;
+        gap: 1rem;
+        padding: 1.2rem;
+    }
+    .btn, .form-control, .search-input, .search-btn {
+        min-height: 56px;
+    }
+}
+
+/* ===== Breakpoint: 1200px – 2560px+ | 4XL+ (full desktop & TV) ===== */
+@media only screen and (min-width: 1200px) {
+    html {
+        font-size: 19px;
+    }
+    .course-management {
+        max-width: 1400px;
+        margin: 0 auto;
         padding: 2rem;
     }
-
-    .section-header {
-        padding: 1.5rem 2rem;
+    .header-section {
+        padding: 1.5rem;
     }
-
+    .search-container {
+        max-width: 600px;
+    }
+    .tab-btn {
+        padding: 1rem 2rem;
+        min-height: 58px;
+    }
+    .section-header {
+        padding: 1.5rem;
+    }
+    .btn, .form-control, .search-input, .search-btn {
+        min-height: 58px;
+        padding: 0.9rem 2rem;
+    }
     .data-table th,
     .data-table td {
         padding: 1.2rem 1.5rem;
     }
-
-    .btn {
-        padding: 0.9rem 2rem;
-        font-size: 1rem;
-    }
 }
 
-/* 4K and above (1921px) */
-@media (min-width: 1921px) {
+/* Extra large screens (TV/4K) further scale */
+@media only screen and (min-width: 1920px) {
     html {
-        font-size: 18px;
+        font-size: 22px;
     }
-
     .course-management {
-        max-width: 2000px;
+        max-width: 1800px;
     }
-
-    .header-section {
-        padding: 2.5rem;
+    .btn, .form-control, .search-input, .search-btn {
+        min-height: 64px;
+        padding: 1rem 2.5rem;
     }
-
-    .section-header {
-        padding: 2rem 2.5rem;
+    .tab-btn {
+        min-height: 64px;
+        padding: 1rem 2.5rem;
     }
 }
 

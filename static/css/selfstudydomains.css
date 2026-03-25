@@ -966,97 +966,6 @@ body {
     box-shadow: 0 0 10px rgba(255, 107, 107, 0.3);
 }
 
-/* ===== Responsive Design ===== */
-@media (max-width: 1200px) {
-    .health-grid {
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    }
-}
-
-@media (max-width: 992px) {
-    .header-section {
-        flex-direction: column;
-        gap: 20px;
-        text-align: center;
-    }
-    
-    .filter-section {
-        flex-direction: column;
-        gap: 20px;
-    }
-    
-    .search-box {
-        max-width: 100%;
-    }
-    
-    .form-row {
-        grid-template-columns: 1fr;
-    }
-}
-
-@media (max-width: 768px) {
-    :root {
-        --blur-amount: var(--blur-amount-mobile);
-    }
-    
-    .page-content {
-        padding: 15px;
-    }
-    
-    .header-left h1 {
-        font-size: 1.8rem;
-    }
-    
-    .tabs {
-        flex-wrap: wrap;
-    }
-    
-    .tab-btn {
-        flex: 1;
-        min-width: 120px;
-        justify-content: center;
-    }
-    
-    .status-bar {
-        grid-template-columns: 1fr 1fr;
-    }
-    
-    .table-footer {
-        flex-direction: column;
-        gap: 15px;
-        text-align: center;
-    }
-    
-    .modal-content {
-        max-width: 95%;
-    }
-}
-
-@media (max-width: 576px) {
-    .status-bar {
-        grid-template-columns: 1fr;
-    }
-    
-    .stats-grid {
-        grid-template-columns: 1fr;
-    }
-    
-    .action-buttons {
-        flex-direction: column;
-        gap: 5px;
-    }
-    
-    .action-btn {
-        width: 32px;
-        height: 32px;
-    }
-    
-    .toast {
-        min-width: auto;
-        max-width: 300px;
-    }
-}
-
 /* ===== Additional Cosmic Utilities (non‑intrusive) ===== */
 .glow-cyan {
     box-shadow: 0 0 20px rgba(78, 205, 196, 0.3);
@@ -1066,4 +975,871 @@ body {
 }
 .glow-blue {
     box-shadow: 0 0 20px rgba(59, 141, 242, 0.3);
+}
+
+/* =============================================
+   GRANULAR RESPONSIVE BREAKPOINTS (50px increments)
+   Ordered smallest to largest. Each breakpoint scales
+   base font, spacing, container width, and touch targets.
+   ============================================= */
+
+/* Ultra small devices (0-199px) – fallback */
+@media only screen and (max-width: 199px) {
+    html {
+        font-size: 7px;
+    }
+    .page-content {
+        padding: 2px;
+    }
+    .btn, .search-input, .filter-select, .form-control, .tab-btn {
+        min-height: 32px;
+    }
+}
+
+/* ===== Breakpoint: 200px – 250px | Micro Screens ===== */
+@media only screen and (min-width: 200px) and (max-width: 250px) {
+    html {
+        font-size: 8px;
+    }
+    .page-content {
+        padding: 4px;
+    }
+    .header-section {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 10px;
+        gap: 15px;
+        text-align: center;
+    }
+    .header-left h1 {
+        font-size: 1.5rem;
+    }
+    .status-bar {
+        grid-template-columns: 1fr;
+        gap: 10px;
+        padding: 10px;
+    }
+    .status-item {
+        padding: 10px;
+    }
+    .tabs {
+        flex-direction: column;
+        gap: 5px;
+    }
+    .tab-btn {
+        width: 100%;
+        text-align: center;
+        justify-content: center;
+        min-height: 36px;
+        padding: 8px 12px;
+    }
+    .filter-section {
+        flex-direction: column;
+        gap: 15px;
+        padding: 12px;
+    }
+    .search-box {
+        max-width: none;
+    }
+    .filter-controls {
+        flex-direction: column;
+        width: 100%;
+    }
+    .filter-select {
+        width: 100%;
+        min-height: 36px;
+    }
+    .btn {
+        min-height: 36px;
+        padding: 6px 12px;
+        font-size: 0.8rem;
+    }
+    .form-control, .search-input {
+        min-height: 36px;
+        padding: 6px 10px;
+    }
+    .card-header {
+        flex-direction: column;
+        gap: 10px;
+        padding: 12px;
+    }
+    .card-body {
+        padding: 12px;
+    }
+    .data-table th,
+    .data-table td {
+        padding: 8px 6px;
+        font-size: 0.7rem;
+    }
+    .action-buttons {
+        flex-direction: column;
+        gap: 4px;
+    }
+    .action-btn {
+        width: 28px;
+        height: 28px;
+    }
+    .modal-content {
+        width: 95%;
+        margin: 10% auto;
+    }
+    .modal-header {
+        padding: 12px;
+    }
+    .modal-body {
+        padding: 12px;
+    }
+    .modal-footer {
+        padding: 12px;
+        flex-direction: column;
+    }
+    .modal-footer .btn {
+        width: 100%;
+    }
+    .toast {
+        min-width: auto;
+        max-width: 280px;
+        padding: 10px 12px;
+    }
+}
+
+/* ===== Breakpoint: 250px – 300px | Tiny Screens ===== */
+@media only screen and (min-width: 250px) and (max-width: 300px) {
+    html {
+        font-size: 9px;
+    }
+    .page-content {
+        padding: 6px;
+    }
+    .header-section {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 12px;
+        text-align: center;
+    }
+    .header-left h1 {
+        font-size: 1.6rem;
+    }
+    .status-bar {
+        grid-template-columns: 1fr;
+        gap: 12px;
+        padding: 12px;
+    }
+    .tabs {
+        flex-direction: column;
+        gap: 6px;
+    }
+    .tab-btn {
+        width: 100%;
+        text-align: center;
+        justify-content: center;
+        min-height: 38px;
+        padding: 8px 12px;
+    }
+    .filter-section {
+        flex-direction: column;
+        gap: 15px;
+        padding: 12px;
+    }
+    .search-box {
+        max-width: none;
+    }
+    .filter-controls {
+        flex-direction: column;
+        width: 100%;
+    }
+    .filter-select {
+        width: 100%;
+        min-height: 38px;
+    }
+    .btn {
+        min-height: 38px;
+        padding: 6px 12px;
+    }
+    .form-control, .search-input {
+        min-height: 38px;
+    }
+    .data-table th,
+    .data-table td {
+        padding: 8px 6px;
+        font-size: 0.75rem;
+    }
+    .action-btn {
+        width: 30px;
+        height: 30px;
+    }
+    .modal-footer {
+        flex-direction: column;
+    }
+    .modal-footer .btn {
+        width: 100%;
+    }
+}
+
+/* ===== Breakpoint: 300px – 350px | X-Small Screens ===== */
+@media only screen and (min-width: 300px) and (max-width: 350px) {
+    html {
+        font-size: 10px;
+    }
+    .page-content {
+        padding: 8px;
+    }
+    .header-section {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 12px;
+        text-align: center;
+    }
+    .status-bar {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+    .tabs {
+        flex-direction: column;
+        gap: 6px;
+    }
+    .tab-btn {
+        width: 100%;
+        justify-content: center;
+        min-height: 40px;
+    }
+    .filter-section {
+        flex-direction: column;
+    }
+    .filter-controls {
+        flex-direction: column;
+        width: 100%;
+    }
+    .filter-select {
+        width: 100%;
+        min-height: 40px;
+    }
+    .btn {
+        min-height: 40px;
+    }
+    .form-control, .search-input {
+        min-height: 40px;
+    }
+    .data-table th,
+    .data-table td {
+        font-size: 0.8rem;
+    }
+    .action-btn {
+        width: 32px;
+        height: 32px;
+    }
+    .modal-footer {
+        flex-direction: column;
+    }
+    .modal-footer .btn {
+        width: 100%;
+    }
+}
+
+/* ===== Breakpoint: 350px – 400px | Small- Screens ===== */
+@media only screen and (min-width: 350px) and (max-width: 400px) {
+    html {
+        font-size: 11px;
+    }
+    .page-content {
+        padding: 10px;
+    }
+    .header-section {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 12px;
+        text-align: center;
+    }
+    .status-bar {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+    .tabs {
+        flex-direction: column;
+        gap: 8px;
+    }
+    .tab-btn {
+        width: 100%;
+        justify-content: center;
+        min-height: 42px;
+    }
+    .filter-section {
+        flex-direction: column;
+    }
+    .filter-controls {
+        flex-direction: column;
+        width: 100%;
+    }
+    .filter-select {
+        width: 100%;
+        min-height: 42px;
+    }
+    .btn {
+        min-height: 42px;
+    }
+    .form-control, .search-input {
+        min-height: 42px;
+    }
+    .data-table th,
+    .data-table td {
+        font-size: 0.85rem;
+    }
+    .action-btn {
+        width: 34px;
+        height: 34px;
+    }
+}
+
+/* ===== Breakpoint: 400px – 450px | Small Screens ===== */
+@media only screen and (min-width: 400px) and (max-width: 450px) {
+    html {
+        font-size: 12px;
+    }
+    .page-content {
+        padding: 12px;
+    }
+    .header-section {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 12px;
+        text-align: center;
+    }
+    .status-bar {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+    .tabs {
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    .tab-btn {
+        flex: 1;
+        min-width: 100px;
+        justify-content: center;
+        min-height: 44px;
+    }
+    .filter-section {
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: space-between;
+    }
+    .search-box {
+        flex: 1;
+        min-width: 180px;
+    }
+    .filter-controls {
+        flex-wrap: wrap;
+    }
+    .filter-select {
+        min-height: 44px;
+    }
+    .btn {
+        min-height: 44px;
+    }
+    .form-control, .search-input {
+        min-height: 44px;
+    }
+    .action-btn {
+        width: 36px;
+        height: 36px;
+    }
+    .modal-footer {
+        flex-direction: row;
+    }
+    .modal-footer .btn {
+        width: auto;
+    }
+}
+
+/* ===== Breakpoint: 450px – 500px | Small+ Screens ===== */
+@media only screen and (min-width: 450px) and (max-width: 500px) {
+    html {
+        font-size: 13px;
+    }
+    .page-content {
+        padding: 14px;
+    }
+    .header-section {
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        padding: 14px;
+    }
+    .status-bar {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+    }
+    .tabs {
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    .tab-btn {
+        flex: 1;
+        min-width: 110px;
+        justify-content: center;
+        min-height: 44px;
+    }
+    .filter-section {
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: space-between;
+    }
+    .filter-controls {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+    .filter-select {
+        min-height: 44px;
+    }
+    .btn {
+        min-height: 44px;
+    }
+    .form-control, .search-input {
+        min-height: 44px;
+    }
+}
+
+/* ===== Breakpoint: 500px – 550px | Medium- Screens ===== */
+@media only screen and (min-width: 500px) and (max-width: 550px) {
+    html {
+        font-size: 13.5px;
+    }
+    .page-content {
+        padding: 16px;
+    }
+    .header-section {
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        padding: 15px;
+    }
+    .status-bar {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
+    }
+    .tabs {
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+    .tab-btn {
+        flex: 1;
+        min-width: 120px;
+        justify-content: center;
+        min-height: 46px;
+    }
+    .filter-section {
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: space-between;
+    }
+    .filter-controls {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+    .filter-select {
+        min-height: 46px;
+    }
+    .btn {
+        min-height: 46px;
+    }
+    .form-control, .search-input {
+        min-height: 46px;
+    }
+}
+
+/* ===== Breakpoint: 550px – 600px | Medium Screens ===== */
+@media only screen and (min-width: 550px) and (max-width: 600px) {
+    html {
+        font-size: 14px;
+    }
+    .page-content {
+        padding: 18px;
+    }
+    .header-section {
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        padding: 16px;
+    }
+    .status-bar {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+    }
+    .tabs {
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+    .tab-btn {
+        flex: 1;
+        min-width: 130px;
+        justify-content: center;
+        min-height: 48px;
+    }
+    .filter-section {
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: space-between;
+    }
+    .filter-controls {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+    .filter-select {
+        min-height: 48px;
+    }
+    .btn {
+        min-height: 48px;
+    }
+    .form-control, .search-input {
+        min-height: 48px;
+    }
+}
+
+/* ===== Breakpoint: 600px – 650px | Medium+ Screens ===== */
+@media only screen and (min-width: 600px) and (max-width: 650px) {
+    html {
+        font-size: 14.5px;
+    }
+    .page-content {
+        padding: 20px;
+    }
+    .status-bar {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 18px;
+    }
+    .tab-btn {
+        flex: 1;
+        min-width: 140px;
+        justify-content: center;
+        min-height: 48px;
+    }
+    .filter-select, .btn, .form-control, .search-input {
+        min-height: 48px;
+    }
+}
+
+/* ===== Breakpoint: 650px – 700px | Large- Screens ===== */
+@media only screen and (min-width: 650px) and (max-width: 700px) {
+    html {
+        font-size: 15px;
+    }
+    .page-content {
+        padding: 22px;
+    }
+    .status-bar {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 18px;
+    }
+    .tab-btn {
+        flex: 1;
+        min-width: 150px;
+        justify-content: center;
+        min-height: 48px;
+    }
+    .filter-select, .btn, .form-control, .search-input {
+        min-height: 48px;
+    }
+}
+
+/* ===== Breakpoint: 700px – 750px | Large Screens ===== */
+@media only screen and (min-width: 700px) and (max-width: 750px) {
+    html {
+        font-size: 15.5px;
+    }
+    .page-content {
+        padding: 24px;
+    }
+    .status-bar {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 20px;
+    }
+    .tab-btn {
+        flex: 1;
+        min-width: 160px;
+        justify-content: center;
+        min-height: 48px;
+    }
+    .filter-select, .btn, .form-control, .search-input {
+        min-height: 48px;
+    }
+}
+
+/* ===== Breakpoint: 750px – 800px | Large+ Screens ===== */
+@media only screen and (min-width: 750px) and (max-width: 800px) {
+    html {
+        font-size: 16px;
+    }
+    .page-content {
+        padding: 26px;
+    }
+    .status-bar {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 20px;
+    }
+    .tab-btn {
+        flex: 1;
+        min-width: 170px;
+        justify-content: center;
+        min-height: 50px;
+    }
+    .filter-select, .btn, .form-control, .search-input {
+        min-height: 50px;
+    }
+}
+
+/* ===== Breakpoint: 800px – 850px | XL- Screens ===== */
+@media only screen and (min-width: 800px) and (max-width: 850px) {
+    html {
+        font-size: 16.5px;
+    }
+    .page-content {
+        padding: 28px;
+    }
+    .status-bar {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 20px;
+    }
+    .tab-btn {
+        flex: 1;
+        min-width: 180px;
+        justify-content: center;
+        min-height: 50px;
+    }
+    .filter-select, .btn, .form-control, .search-input {
+        min-height: 50px;
+    }
+}
+
+/* ===== Breakpoint: 850px – 900px | XL Screens ===== */
+@media only screen and (min-width: 850px) and (max-width: 900px) {
+    html {
+        font-size: 17px;
+    }
+    .page-content {
+        padding: 30px;
+    }
+    .status-bar {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 20px;
+    }
+    .tab-btn {
+        flex: 1;
+        min-width: 190px;
+        justify-content: center;
+        min-height: 52px;
+    }
+    .filter-select, .btn, .form-control, .search-input {
+        min-height: 52px;
+    }
+}
+
+/* ===== Breakpoint: 900px – 950px | XL+ Screens ===== */
+@media only screen and (min-width: 900px) and (max-width: 950px) {
+    html {
+        font-size: 17px;
+    }
+    .page-content {
+        padding: 32px;
+    }
+    .status-bar {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 20px;
+    }
+    .tab-btn {
+        flex: 1;
+        min-width: 200px;
+        justify-content: center;
+        min-height: 52px;
+    }
+    .filter-select, .btn, .form-control, .search-input {
+        min-height: 52px;
+    }
+}
+
+/* ===== Breakpoint: 950px – 1000px | 2XL- Screens ===== */
+@media only screen and (min-width: 950px) and (max-width: 1000px) {
+    html {
+        font-size: 17.5px;
+    }
+    .page-content {
+        padding: 34px;
+    }
+    .status-bar {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 22px;
+    }
+    .tab-btn {
+        flex: 1;
+        min-width: 210px;
+        justify-content: center;
+        min-height: 52px;
+    }
+    .filter-select, .btn, .form-control, .search-input {
+        min-height: 52px;
+    }
+}
+
+/* ===== Breakpoint: 1000px – 1050px | 2XL Screens ===== */
+@media only screen and (min-width: 1000px) and (max-width: 1050px) {
+    html {
+        font-size: 17.5px;
+    }
+    .page-content {
+        padding: 36px;
+    }
+    .status-bar {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 24px;
+    }
+    .tab-btn {
+        flex: 1;
+        min-width: 220px;
+        justify-content: center;
+        min-height: 54px;
+    }
+    .filter-select, .btn, .form-control, .search-input {
+        min-height: 54px;
+    }
+}
+
+/* ===== Breakpoint: 1050px – 1100px | 2XL+ Screens ===== */
+@media only screen and (min-width: 1050px) and (max-width: 1100px) {
+    html {
+        font-size: 18px;
+    }
+    .page-content {
+        padding: 38px;
+    }
+    .status-bar {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 24px;
+    }
+    .tab-btn {
+        flex: 1;
+        min-width: 230px;
+        justify-content: center;
+        min-height: 54px;
+    }
+    .filter-select, .btn, .form-control, .search-input {
+        min-height: 54px;
+    }
+}
+
+/* ===== Breakpoint: 1100px – 1150px | 3XL- Screens ===== */
+@media only screen and (min-width: 1100px) and (max-width: 1150px) {
+    html {
+        font-size: 18px;
+    }
+    .page-content {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 1.5rem;
+    }
+    .status-bar {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 24px;
+    }
+    .tab-btn {
+        flex: 1;
+        min-width: 240px;
+        justify-content: center;
+        min-height: 56px;
+    }
+    .filter-select, .btn, .form-control, .search-input {
+        min-height: 56px;
+    }
+}
+
+/* ===== Breakpoint: 1150px – 1200px | 3XL Screens ===== */
+@media only screen and (min-width: 1150px) and (max-width: 1200px) {
+    html {
+        font-size: 18.5px;
+    }
+    .page-content {
+        max-width: 1150px;
+        margin: 0 auto;
+        padding: 1.8rem;
+    }
+    .status-bar {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 24px;
+    }
+    .tab-btn {
+        flex: 1;
+        min-width: 250px;
+        justify-content: center;
+        min-height: 56px;
+    }
+    .filter-select, .btn, .form-control, .search-input {
+        min-height: 56px;
+    }
+}
+
+/* ===== Breakpoint: 1200px – 2560px+ | 4XL+ (full desktop & TV) ===== */
+@media only screen and (min-width: 1200px) {
+    html {
+        font-size: 19px;
+    }
+    .page-content {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+    .header-section {
+        padding: 1.5rem;
+    }
+    .status-bar {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1.5rem;
+        padding: 1.5rem;
+    }
+    .tab-btn {
+        padding: 1rem 2rem;
+        min-height: 58px;
+    }
+    .filter-section {
+        padding: 1.5rem;
+    }
+    .filter-select, .btn, .form-control, .search-input {
+        min-height: 58px;
+        padding: 0.9rem 1.5rem;
+    }
+    .data-table th,
+    .data-table td {
+        padding: 1.2rem 1.5rem;
+    }
+}
+
+/* Extra large screens (TV/4K) further scale */
+@media only screen and (min-width: 1920px) {
+    html {
+        font-size: 22px;
+    }
+    .page-content {
+        max-width: 1800px;
+    }
+    .filter-select, .btn, .form-control, .search-input {
+        min-height: 64px;
+        padding: 1rem 2rem;
+    }
+    .tab-btn {
+        min-height: 64px;
+        padding: 1rem 2rem;
+    }
+}
+
+/* ===== Reduced Motion ===== */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
 }

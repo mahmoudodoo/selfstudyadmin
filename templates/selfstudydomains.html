@@ -7,6 +7,45 @@
 {% block extra_css %}
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <link rel="stylesheet" href="{% static 'css/selfstudydomains.css' %}">
+<style>
+    /* Pagination styles */
+    .pagination-controls {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+    .pagination-btn {
+        padding: 6px 12px;
+        border: 1px solid #ddd;
+        background: white;
+        cursor: pointer;
+        border-radius: 4px;
+        transition: all 0.2s;
+    }
+    .pagination-btn:hover:not(:disabled) {
+        background-color: #f0f0f0;
+        border-color: #aaa;
+    }
+    .pagination-btn.active {
+        background-color: #007bff;
+        color: white;
+        border-color: #007bff;
+    }
+    .pagination-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    .pagination-ellipsis {
+        padding: 6px 12px;
+        color: #666;
+    }
+    .table-pagination {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 1rem;
+    }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -110,7 +149,6 @@
                             </tr>
                         </thead>
                         <tbody id="appsTableBody">
-                            <!-- Apps will be loaded here -->
                             <tr id="loadingRow">
                                 <td colspan="7" class="text-center">
                                     <div class="loading-spinner">
@@ -125,9 +163,7 @@
                     <div class="table-info">
                         Showing <span id="appsShowing">0</span> of <span id="appsTotal">0</span> applications
                     </div>
-                    <div class="table-pagination" id="appsPagination">
-                        <!-- Pagination will be added here -->
-                    </div>
+                    <div class="table-pagination" id="appsPagination"></div>
                 </div>
             </div>
         </div>
@@ -159,7 +195,6 @@
                             </tr>
                         </thead>
                         <tbody id="replicasTableBody">
-                            <!-- Replicas will be loaded here -->
                             <tr id="replicasLoadingRow">
                                 <td colspan="7" class="text-center">
                                     <div class="loading-spinner">
@@ -174,9 +209,7 @@
                     <div class="table-info">
                         Showing <span id="replicasShowing">0</span> of <span id="replicasTotal">0</span> replicas
                     </div>
-                    <div class="table-pagination" id="replicasPagination">
-                        <!-- Pagination will be added here -->
-                    </div>
+                    <div class="table-pagination" id="replicasPagination"></div>
                 </div>
             </div>
         </div>
@@ -196,7 +229,6 @@
                 </div>
                 
                 <div class="replicas-list" id="appReplicasList">
-                    <!-- Replicas will be loaded here -->
                     <div class="loading-spinner">
                         <i class="fas fa-spinner fa-spin"></i> Loading replicas...
                     </div>
@@ -393,6 +425,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<!-- Chart.js removed as requested -->
 <script src="{% static 'js/selfstudydomains.js' %}"></script>
 {% endblock %}

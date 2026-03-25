@@ -1,12 +1,16 @@
-// SelfStudy Notification Management JavaScript
+// SelfStudy Notification Management JavaScript with Pagination & Search
 class NotificationManager {
     constructor() {
+        this.pageSize = 9;                       // Records per page
         this.currentPage = 1;
-        this.itemsPerPage = 10;
+        this.searchQuery = '';                   // Global search term
+        this.itemsPerPage = 10; // kept for compatibility, but pageSize is used
         this.currentNotificationId = null;
         this.isEditing = false;
-        this.users = []; // Store users for selection
-        this.selectedUsers = []; // For multi-select in group notifications
+        this.users = [];                         // Store users for selection
+        this.selectedUsers = [];                 // For multi-select in group notifications
+        this.allNotifications = [];              // Store raw notifications
+        this.filteredNotifications = [];          // Filtered based on search
         this.init();
     }
 
@@ -64,8 +68,17 @@ class NotificationManager {
         // Refresh button
         document.getElementById('refreshBtn').addEventListener('click', () => this.refreshData());
 
-        // Search functionality
-        document.getElementById('searchInput').addEventListener('input', (e) => this.handleSearch(e));
+        // Search functionality with debouncing
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+            let searchTimeout;
+            searchInput.addEventListener('input', (e) => {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => {
+                    this.handleSearch(e.target.value);
+                }, 300);
+            });
+        }
 
         // Close modals on outside click
         this.setupModalCloseHandlers();
@@ -223,8 +236,14 @@ class NotificationManager {
                     notifications = data.data.results;
                 }
 
-                this.renderNotifications(notifications);
-                this.updateStats(notifications);
+                this.allNotifications = notifications;
+                this.filteredNotifications = [...this.allNotifications];
+                this.currentPage = 1;               // Reset to first page
+                this.searchQuery = '';               // Clear search
+                const searchInput = document.getElementById('searchInput');
+                if (searchInput) searchInput.value = '';
+                this.renderNotifications();
+                this.updateStats(this.allNotifications);
             } else {
                 this.showError('Failed to load notifications: ' + data.error);
             }
@@ -236,53 +255,152 @@ class NotificationManager {
         }
     }
 
-    renderNotifications(notifications) {
-        const tbody = document.getElementById('notificationsTableBody');
-        if (!tbody) return;
+    // ========== SEARCH AND PAGINATION ==========
+    handleSearch(query) {
+        this.searchQuery = query.trim().toLowerCase();
+        this.applyFilter();
+        this.currentPage = 1;                      // Reset to first page
+        this.renderNotifications();
+    }
 
-        if (!notifications || notifications.length === 0) {
-            tbody.innerHTML = `
-            <tr>
-            <td colspan="8" class="no-data">
-            <i class="fas fa-bell-slash"></i>
-            <p>No notifications found</p>
-            </td>
-            </tr>
-            `;
+    applyFilter() {
+        if (!this.searchQuery) {
+            this.filteredNotifications = [...this.allNotifications];
             return;
         }
 
-        tbody.innerHTML = notifications.map(notification => `
+        this.filteredNotifications = this.allNotifications.filter(notification => {
+            // Search across all relevant fields
+            return (
+                (notification.title && notification.title.toLowerCase().includes(this.searchQuery)) ||
+                (notification.message && notification.message.toLowerCase().includes(this.searchQuery)) ||
+                (notification.notification_type && notification.notification_type.toLowerCase().includes(this.searchQuery)) ||
+                (notification.sender && notification.sender.toLowerCase().includes(this.searchQuery)) ||
+                (notification.recipient && notification.recipient.toLowerCase().includes(this.searchQuery)) ||
+                (notification.created_at && notification.created_at.toLowerCase().includes(this.searchQuery)) ||
+                (notification.read !== undefined && (notification.read ? 'yes' : 'no').includes(this.searchQuery))
+            );
+        });
+    }
+
+    renderPagination() {
+        const container = document.getElementById('pagination');
+        if (!container) return;
+
+        const totalItems = this.filteredNotifications.length;
+        const totalPages = Math.ceil(totalItems / this.pageSize);
+
+        if (totalPages <= 1) {
+            container.innerHTML = '';
+            return;
+        }
+
+        let currentPage = this.currentPage;
+        if (currentPage > totalPages) currentPage = totalPages;
+        if (currentPage < 1) currentPage = 1;
+        this.currentPage = currentPage;
+
+        let html = '<div class="pagination-controls">';
+        html += `<button class="pagination-btn" data-page="prev" ${currentPage === 1 ? 'disabled' : ''}>« Prev</button>`;
+
+        // Show pages around current
+        let start = Math.max(1, currentPage - 2);
+        let end = Math.min(totalPages, currentPage + 2);
+        if (start > 1) {
+            html += `<button class="pagination-btn" data-page="1">1</button>`;
+            if (start > 2) html += '<span class="pagination-ellipsis">...</span>';
+        }
+        for (let i = start; i <= end; i++) {
+            html += `<button class="pagination-btn ${i === currentPage ? 'active' : ''}" data-page="${i}">${i}</button>`;
+        }
+        if (end < totalPages) {
+            if (end < totalPages - 1) html += '<span class="pagination-ellipsis">...</span>';
+            html += `<button class="pagination-btn" data-page="${totalPages}">${totalPages}</button>`;
+        }
+        html += `<button class="pagination-btn" data-page="next" ${currentPage === totalPages ? 'disabled' : ''}>Next »</button>`;
+        html += '</div>';
+
+        container.innerHTML = html;
+
+        // Attach event listeners
+        container.querySelectorAll('.pagination-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const page = btn.dataset.page;
+                if (page === 'prev') {
+                    this.changePage(currentPage - 1);
+                } else if (page === 'next') {
+                    this.changePage(currentPage + 1);
+                } else {
+                    this.changePage(parseInt(page, 10));
+                }
+            });
+        });
+    }
+
+    changePage(page) {
+        const totalPages = Math.ceil(this.filteredNotifications.length / this.pageSize);
+        if (page < 1 || page > totalPages) return;
+        this.currentPage = page;
+        this.renderNotifications();
+    }
+
+    getPageData() {
+        const start = (this.currentPage - 1) * this.pageSize;
+        const end = start + this.pageSize;
+        return this.filteredNotifications.slice(start, end);
+    }
+
+    renderNotifications() {
+        const tbody = document.getElementById('notificationsTableBody');
+        if (!tbody) return;
+
+        const pageData = this.getPageData();
+
+        if (pageData.length === 0) {
+            tbody.innerHTML = `
+            <tr>
+                <td colspan="8" class="no-data">
+                    <i class="fas fa-bell-slash"></i>
+                    <p>No notifications found</p>
+                </td>
+            </tr>
+            `;
+            this.renderPagination();
+            return;
+        }
+
+        tbody.innerHTML = pageData.map(notification => `
         <tr data-id="${notification.notification_id}">
-        <td class="title-cell">${this.escapeHtml(notification.title)}</td>
-        <td class="message-cell">${this.escapeHtml(notification.message)}</td>
-        <td>
-        <span class="badge badge-${notification.notification_type}">
-        ${notification.notification_type.charAt(0).toUpperCase() + notification.notification_type.slice(1)}
-        </span>
-        </td>
-        <td>
-        ${notification.read ? '<span class="badge badge-success">Yes</span>' : '<span class="badge badge-warning">No</span>'}
-        </td>
-        <td>${this.escapeHtml(notification.sender)}</td>
-        <td>${this.getRecipientDisplay(notification.recipient, notification.notification_type)}</td>
-        <td>${this.formatDate(notification.created_at)}</td>
-        <td class="actions-cell">
-        <button class="btn-icon view-btn" data-id="${notification.notification_id}" title="View">
-        <i class="fas fa-eye"></i>
-        </button>
-        <button class="btn-icon edit-btn" data-id="${notification.notification_id}" title="Edit">
-        <i class="fas fa-edit"></i>
-        </button>
-        <button class="btn-icon delete-btn" data-id="${notification.notification_id}" title="Delete">
-        <i class="fas fa-trash"></i>
-        </button>
-        </td>
+            <td class="title-cell">${this.escapeHtml(notification.title)}</td>
+            <td class="message-cell">${this.escapeHtml(notification.message)}</td>
+            <td>
+                <span class="badge badge-${notification.notification_type}">
+                    ${notification.notification_type.charAt(0).toUpperCase() + notification.notification_type.slice(1)}
+                </span>
+            </td>
+            <td>
+                ${notification.read ? '<span class="badge badge-success">Yes</span>' : '<span class="badge badge-warning">No</span>'}
+            </td>
+            <td>${this.escapeHtml(notification.sender)}</td>
+            <td>${this.getRecipientDisplay(notification.recipient, notification.notification_type)}</td>
+            <td>${this.formatDate(notification.created_at)}</td>
+            <td class="actions-cell">
+                <button class="btn-icon view-btn" data-id="${notification.notification_id}" title="View">
+                    <i class="fas fa-eye"></i>
+                </button>
+                <button class="btn-icon edit-btn" data-id="${notification.notification_id}" title="Edit">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="btn-icon delete-btn" data-id="${notification.notification_id}" title="Delete">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
         </tr>
         `).join('');
 
         // Bind action buttons
         this.bindActionButtons();
+        this.renderPagination();
     }
 
     getRecipientDisplay(recipient, notificationType) {
@@ -435,13 +553,13 @@ class NotificationManager {
         document.getElementById('viewTitle').textContent = notification.title;
         document.getElementById('viewMessage').textContent = notification.message;
         document.getElementById('viewType').innerHTML = `
-        <span class="badge badge-${notification.notification_type}">
-        ${notification.notification_type.charAt(0).toUpperCase() + notification.notification_type.slice(1)}
-        </span>
+            <span class="badge badge-${notification.notification_type}">
+                ${notification.notification_type.charAt(0).toUpperCase() + notification.notification_type.slice(1)}
+            </span>
         `;
         document.getElementById('viewRead').innerHTML = notification.read ?
-        '<span class="badge badge-success">Yes</span>' :
-        '<span class="badge badge-warning">No</span>';
+            '<span class="badge badge-success">Yes</span>' :
+            '<span class="badge badge-warning">No</span>';
         document.getElementById('viewSender').textContent = notification.sender;
         document.getElementById('viewRecipient').textContent = this.getRecipientDisplay(notification.recipient, notification.notification_type);
 
@@ -484,7 +602,6 @@ class NotificationManager {
             // Use selected users for group notifications
             recipient = this.selectedUsers.join(',');
         } else { // general
-            // For general notifications, we'll let the backend handle getting all users
             recipient = ''; // Backend will populate this with all usernames
         }
 
@@ -494,7 +611,7 @@ class NotificationManager {
             'notification_type': notificationType,
             'read': document.getElementById('read').checked,
             'sender': formData.get('sender') || 'admin',
-            'recipient': recipient  // This will be processed by backend
+            'recipient': recipient
         };
 
         this.setSubmitButtonLoading(true);
@@ -613,16 +730,6 @@ class NotificationManager {
     clearErrors() {
         document.querySelectorAll('.error-message').forEach(el => {
             el.textContent = '';
-        });
-    }
-
-    handleSearch(e) {
-        const searchTerm = e.target.value.toLowerCase();
-        const rows = document.querySelectorAll('#notificationsTableBody tr');
-
-        rows.forEach(row => {
-            const text = row.textContent.toLowerCase();
-            row.style.display = text.includes(searchTerm) ? '' : 'none';
         });
     }
 
@@ -767,12 +874,12 @@ class NotificationManager {
     escapeHtml(unsafe) {
         if (unsafe === null || unsafe === undefined) return '';
         return unsafe
-        .toString()
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
+            .toString()
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
     }
 
     getCsrfToken() {

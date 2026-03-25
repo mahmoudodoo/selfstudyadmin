@@ -7,6 +7,7 @@
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/selfstudyuserprofile.css' %}">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
 {% endblock %}
 
 {% block content %}
@@ -24,7 +25,7 @@
                 <i class="fas fa-users"></i>
             </div>
             <div class="stat-info">
-                <h3>{{ users|length }}</h3>
+                <h3>{{ paginator.count|default:users|length }}</h3>
                 <p>Total Users</p>
             </div>
         </div>
@@ -33,9 +34,7 @@
                 <i class="fas fa-envelope"></i>
             </div>
             <div class="stat-info">
-                {% with verified_count=users|length %}
-                <h3>{{ verified_count }}</h3>
-                {% endwith %}
+                <h3>{{ verified_count|default:0 }}</h3>
                 <p>Verified Emails</p>
             </div>
         </div>
@@ -58,6 +57,32 @@
         <span>Error: {{ error }}</span>
     </div>
     {% endif %}
+
+    <!-- Search Section -->
+    <div class="search-section">
+        <form method="GET" class="search-form" id="searchForm">
+            <div class="search-group">
+                <label for="search_username"><i class="fas fa-user"></i> Username</label>
+                <input type="text" id="search_username" name="username" value="{{ request.GET.username }}" placeholder="Search by username">
+            </div>
+            <div class="search-group">
+                <label for="search_email"><i class="fas fa-envelope"></i> Email</label>
+                <input type="text" id="search_email" name="email" value="{{ request.GET.email }}" placeholder="Search by email">
+            </div>
+            <div class="search-group">
+                <label for="search_status"><i class="fas fa-check-circle"></i> Status</label>
+                <select id="search_status" name="status">
+                    <option value="">All</option>
+                    <option value="verified" {% if request.GET.status == 'verified' %}selected{% endif %}>Verified</option>
+                    <option value="unverified" {% if request.GET.status == 'unverified' %}selected{% endif %}>Unverified</option>
+                </select>
+            </div>
+            <div class="search-actions">
+                <button type="submit" class="btn-search"><i class="fas fa-search"></i> Search</button>
+                <a href="?{% for key, value in request.GET.items %}{% if key != 'username' and key != 'email' and key != 'status' %}{{ key }}={{ value }}&{% endif %}{% endfor %}" class="btn-reset"><i class="fas fa-undo-alt"></i> Reset</a>
+            </div>
+        </form>
+    </div>
 
     <!-- Users Table -->
     <div class="table-container">
@@ -153,7 +178,7 @@
                     <tr>
                         <td colspan="6" class="no-users">
                             <i class="fas fa-users-slash"></i>
-                            <p>No users found</p>
+                            <p>No users found matching your criteria.</p>
                         </td>
                     </tr>
                     {% endfor %}
@@ -161,6 +186,29 @@
             </table>
         </div>
     </div>
+
+    <!-- Pagination -->
+    {% if users %}
+    <div class="pagination">
+        {% if page_obj.has_previous %}
+            <a href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page=1">&laquo; First</a>
+            <a href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.previous_page_number }}">Previous</a>
+        {% endif %}
+
+        {% for num in page_obj.paginator.page_range %}
+            {% if page_obj.number == num %}
+                <span class="current-page">{{ num }}</span>
+            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                <a href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ num }}">{{ num }}</a>
+            {% endif %}
+        {% endfor %}
+
+        {% if page_obj.has_next %}
+            <a href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.next_page_number }}">Next</a>
+            <a href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.paginator.num_pages }}">Last &raquo;</a>
+        {% endif %}
+    </div>
+    {% endif %}
 </div>
 
 <!-- Create User Modal -->
@@ -328,10 +376,8 @@ function closeCreateModal() {
 }
 
 function openEditModal(userId) {
-    // Find the user row by data attribute
     const userRow = document.querySelector(`tr[data-user-id="${userId}"]`);
     if (userRow) {
-        // Populate the form fields from data attributes
         document.getElementById('edit_user_id').value = userId;
         document.getElementById('edit_username').value = userRow.dataset.username || '';
         document.getElementById('edit_email').value = userRow.dataset.email || '';

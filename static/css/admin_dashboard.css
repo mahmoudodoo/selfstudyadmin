@@ -72,6 +72,7 @@ body {
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  font-size: 1rem;
 }
 
 /* Ensure all text has a subtle shadow for readability against moving galaxy */
@@ -510,117 +511,6 @@ h1, h2, h3, h4, p, label, span, a, button, input, select, textarea {
 }
 
 /* ----------------------------------------
-   RESPONSIVE DESIGN – ALL SCREENS
-   ---------------------------------------- */
-
-/* Mobile (< 640px) */
-@media (max-width: 639px) {
-  .dashboard-container {
-    padding: var(--space-md);
-  }
-  .control-panel {
-    flex-direction: column;
-    align-items: stretch;
-    gap: var(--space-md);
-    padding: var(--space-md);
-    backdrop-filter: blur(5px); /* lighter for performance */
-  }
-  .btn-primary {
-    width: 100%;
-    justify-content: center;
-  }
-  .dashboard-grid {
-    grid-template-columns: 1fr;
-    gap: var(--space-md);
-  }
-  .replica-card {
-    padding: var(--space-md);
-  }
-  .metrics-grid {
-    flex-wrap: wrap;
-  }
-  .metric-item {
-    min-width: 70px;
-  }
-  .charts-row canvas {
-    width: 60px !important;
-    height: 60px !important;
-  }
-  /* Increase touch targets */
-  .modern-select,
-  .btn-primary {
-    min-height: 44px;
-  }
-}
-
-/* Tablet (640px - 1024px) */
-@media (min-width: 640px) and (max-width: 1023px) {
-  .dashboard-container {
-    padding: var(--space-lg);
-  }
-  .control-panel {
-    gap: var(--space-md);
-  }
-  .dashboard-grid {
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  }
-  .replica-card {
-    padding: var(--space-md);
-  }
-}
-
-/* Laptop (1024px - 1440px) */
-@media (min-width: 1024px) and (max-width: 1439px) {
-  .dashboard-container {
-    padding: var(--space-xl);
-  }
-  .dashboard-grid {
-    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
-  }
-}
-
-/* Desktop (1440px - 1920px) – enhanced spacing */
-@media (min-width: 1440px) and (max-width: 1919px) {
-  .dashboard-container {
-    padding: calc(var(--space-xl) * 1.5);
-  }
-  .replica-card {
-    padding: var(--space-xl);
-  }
-  .control-panel {
-    padding: var(--space-xl) calc(var(--space-xl) * 1.5);
-  }
-  .metric-value {
-    font-size: var(--fs-lg);
-  }
-}
-
-/* TV / 4K (> 1920px) – scale up proportionally */
-@media (min-width: 1920px) {
-  .dashboard-container {
-    max-width: 85%;
-    padding: calc(var(--space-xl) * 2);
-  }
-  .replica-card {
-    padding: calc(var(--space-xl) * 1.2);
-  }
-  .control-panel {
-    padding: calc(var(--space-xl) * 1.5) calc(var(--space-xl) * 2);
-  }
-  .modern-select,
-  .btn-primary {
-    font-size: var(--fs-md);
-  }
-  .metric-value {
-    font-size: var(--fs-xl);
-  }
-  .charts-row canvas {
-    width: 100px !important;
-    height: 100px !important;
-  }
-}
-
-/* ----------------------------------------
    UTILITY CLASSES (optional)
    ---------------------------------------- */
 .glass-effect {
@@ -632,4 +522,366 @@ h1, h2, h3, h4, p, label, span, a, button, input, select, textarea {
 /* Ensure any Bootstrap icons or similar inherit the glow */
 i.bi {
   filter: drop-shadow(0 0 5px currentColor);
+}
+
+/* ============================================================
+   GRANULAR RESPONSIVE BREAKPOINTS (50px INCREMENT SYSTEM)
+   Each breakpoint progressively scales font, spacing, and containers
+   ============================================================ */
+
+/* ===== Breakpoint: 200px – 250px | Micro Screens ===== */
+@media only screen and (min-width: 200px) and (max-width: 250px) {
+  html { font-size: 8.5px; }
+  .dashboard-container {
+    padding: 0.5rem;
+  }
+  .control-panel {
+    padding: 0.75rem;
+    gap: 0.5rem;
+    backdrop-filter: blur(3px);
+    flex-direction: column;
+  }
+  .btn-primary, .modern-select {
+    min-height: 32px;
+    padding: 0.4rem 0.75rem;
+    font-size: 0.85rem;
+  }
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+  .replica-card {
+    padding: 0.75rem;
+  }
+  .metrics-grid {
+    flex-wrap: wrap;
+  }
+  .charts-row canvas {
+    width: 45px !important;
+    height: 45px !important;
+  }
+  .metric-value {
+    font-size: 1rem;
+  }
+}
+
+/* ===== Breakpoint: 250px – 300px | Tiny Screens ===== */
+@media only screen and (min-width: 250px) and (max-width: 300px) {
+  html { font-size: 9.5px; }
+  .dashboard-container {
+    padding: 0.6rem;
+  }
+  .control-panel {
+    padding: 0.85rem;
+    gap: 0.65rem;
+    backdrop-filter: blur(4px);
+    flex-direction: column;
+  }
+  .btn-primary, .modern-select {
+    min-height: 36px;
+  }
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+  .replica-card {
+    padding: 0.85rem;
+  }
+  .charts-row canvas {
+    width: 50px !important;
+    height: 50px !important;
+  }
+}
+
+/* ===== Breakpoint: 300px – 350px | X-Small Screens ===== */
+@media only screen and (min-width: 300px) and (max-width: 350px) {
+  html { font-size: 10.5px; }
+  .dashboard-container {
+    padding: 0.75rem;
+  }
+  .control-panel {
+    padding: 0.9rem;
+    flex-direction: column;
+    backdrop-filter: blur(5px);
+  }
+  .btn-primary, .modern-select {
+    min-height: 40px;
+  }
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+  .replica-card {
+    padding: 0.9rem;
+  }
+  .charts-row canvas {
+    width: 55px !important;
+    height: 55px !important;
+  }
+}
+
+/* ===== Breakpoint: 350px – 400px | Small- Screens ===== */
+@media only screen and (min-width: 350px) and (max-width: 400px) {
+  html { font-size: 11.5px; }
+  .dashboard-container {
+    padding: 0.85rem;
+  }
+  .control-panel {
+    flex-direction: column;
+    padding: 1rem;
+    backdrop-filter: blur(6px);
+  }
+  .btn-primary, .modern-select {
+    min-height: 42px;
+  }
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+  .charts-row canvas {
+    width: 60px !important;
+    height: 60px !important;
+  }
+}
+
+/* ===== Breakpoint: 400px – 450px | Small Screens ===== */
+@media only screen and (min-width: 400px) and (max-width: 450px) {
+  html { font-size: 12.5px; }
+  .dashboard-container {
+    padding: 1rem;
+  }
+  .control-panel {
+    flex-direction: column;
+    padding: 1.1rem;
+    backdrop-filter: blur(7px);
+  }
+  .btn-primary, .modern-select {
+    min-height: 44px;
+  }
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+  .charts-row canvas {
+    width: 65px !important;
+    height: 65px !important;
+  }
+}
+
+/* ===== Breakpoint: 450px – 500px | Small+ Screens ===== */
+@media only screen and (min-width: 450px) and (max-width: 500px) {
+  html { font-size: 13.5px; }
+  .dashboard-container {
+    padding: 1.1rem;
+  }
+  .control-panel {
+    flex-direction: row;
+    flex-wrap: wrap;
+    padding: 1.2rem;
+    backdrop-filter: blur(8px);
+  }
+  .btn-primary, .modern-select {
+    min-height: 44px;
+  }
+  .dashboard-grid {
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  }
+  .charts-row canvas {
+    width: 70px !important;
+    height: 70px !important;
+  }
+}
+
+/* ===== Breakpoint: 500px – 550px | Medium- Screens ===== */
+@media only screen and (min-width: 500px) and (max-width: 550px) {
+  html { font-size: 14px; }
+  .dashboard-container {
+    padding: 1.2rem;
+  }
+  .control-panel {
+    flex-direction: row;
+    flex-wrap: wrap;
+    padding: 1.3rem;
+    backdrop-filter: blur(8px);
+  }
+  .btn-primary, .modern-select {
+    min-height: 44px;
+  }
+  .dashboard-grid {
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  }
+  .charts-row canvas {
+    width: 75px !important;
+    height: 75px !important;
+  }
+}
+
+/* ===== Breakpoint: 550px – 600px | Medium Screens ===== */
+@media only screen and (min-width: 550px) and (max-width: 600px) {
+  html { font-size: 14.5px; }
+  .dashboard-container {
+    padding: 1.3rem;
+  }
+  .control-panel {
+    flex-direction: row;
+    gap: 1rem;
+    padding: 1.4rem;
+  }
+  .dashboard-grid {
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  }
+  .charts-row canvas {
+    width: 78px !important;
+    height: 78px !important;
+  }
+}
+
+/* ===== Breakpoint: 600px – 650px | Medium+ Screens ===== */
+@media only screen and (min-width: 600px) and (max-width: 650px) {
+  html { font-size: 15px; }
+  .dashboard-container {
+    padding: 1.4rem;
+  }
+  .control-panel {
+    padding: 1.5rem;
+    gap: 1.2rem;
+  }
+  .dashboard-grid {
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  }
+}
+
+/* ===== Breakpoint: 650px – 700px | Large- Screens ===== */
+@media only screen and (min-width: 650px) and (max-width: 700px) {
+  html { font-size: 15.5px; }
+  .dashboard-container {
+    padding: 1.5rem;
+  }
+  .control-panel {
+    padding: 1.6rem;
+  }
+}
+
+/* ===== Breakpoint: 700px – 750px | Large Screens ===== */
+@media only screen and (min-width: 700px) and (max-width: 750px) {
+  html { font-size: 16px; }
+  .dashboard-container {
+    padding: 1.6rem;
+  }
+  .control-panel {
+    padding: 1.7rem;
+  }
+}
+
+/* ===== Breakpoint: 750px – 800px | Large+ Screens ===== */
+@media only screen and (min-width: 750px) and (max-width: 800px) {
+  html { font-size: 16.5px; }
+  .dashboard-container {
+    padding: 1.8rem;
+  }
+}
+
+/* ===== Breakpoint: 800px – 850px | XL- Screens ===== */
+@media only screen and (min-width: 800px) and (max-width: 850px) {
+  html { font-size: 16.8px; }
+  .dashboard-container {
+    padding: 1.9rem;
+  }
+}
+
+/* ===== Breakpoint: 850px – 900px | XL Screens ===== */
+@media only screen and (min-width: 850px) and (max-width: 900px) {
+  html { font-size: 17px; }
+  .dashboard-container {
+    padding: 2rem;
+  }
+}
+
+/* ===== Breakpoint: 900px – 950px | XL+ Screens ===== */
+@media only screen and (min-width: 900px) and (max-width: 950px) {
+  html { font-size: 17.2px; }
+  .dashboard-container {
+    padding: 2.1rem;
+  }
+}
+
+/* ===== Breakpoint: 950px – 1000px | 2XL- Screens ===== */
+@media only screen and (min-width: 950px) and (max-width: 1000px) {
+  html { font-size: 17.5px; }
+  .dashboard-container {
+    padding: 2.2rem;
+  }
+}
+
+/* ===== Breakpoint: 1000px – 1050px | 2XL Screens ===== */
+@media only screen and (min-width: 1000px) and (max-width: 1050px) {
+  html { font-size: 17.8px; }
+  .dashboard-container {
+    padding: 2.3rem;
+  }
+}
+
+/* ===== Breakpoint: 1050px – 1100px | 2XL+ Screens ===== */
+@media only screen and (min-width: 1050px) and (max-width: 1100px) {
+  html { font-size: 18px; }
+  .dashboard-container {
+    padding: 2.4rem;
+  }
+}
+
+/* ===== Breakpoint: 1100px – 1150px | 3XL- Screens ===== */
+@media only screen and (min-width: 1100px) and (max-width: 1150px) {
+  html { font-size: 18.3px; }
+  .dashboard-container {
+    padding: 2.5rem;
+  }
+}
+
+/* ===== Breakpoint: 1150px – 1200px | 3XL Screens ===== */
+@media only screen and (min-width: 1150px) and (max-width: 1200px) {
+  html { font-size: 18.5px; }
+  .dashboard-container {
+    padding: 2.6rem;
+  }
+}
+
+/* ===== Breakpoint: 1200px+ | 4XL / Full-width Desktops & TVs ===== */
+@media only screen and (min-width: 1200px) {
+  html { font-size: 19px; }
+  .dashboard-container {
+    max-width: 85%;
+    padding: 3rem;
+  }
+  .control-panel {
+    padding: 2rem 2.5rem;
+  }
+  .replica-card {
+    padding: 2rem;
+  }
+  .charts-row canvas {
+    width: 100px !important;
+    height: 100px !important;
+  }
+  .metric-value {
+    font-size: 1.6rem;
+  }
+}
+
+/* Extra large screens (TVs, 4K) fine-tuning */
+@media only screen and (min-width: 1920px) {
+  html { font-size: 22px; }
+  .dashboard-container {
+    max-width: 75%;
+    padding: 4rem;
+  }
+  .control-panel {
+    padding: 2.5rem 3rem;
+  }
+  .replica-card {
+    padding: 2.5rem;
+  }
+  .charts-row canvas {
+    width: 120px !important;
+    height: 120px !important;
+  }
+  .btn-primary, .modern-select {
+    font-size: 1.1rem;
+    padding: 0.9rem 1.8rem;
+  }
 }

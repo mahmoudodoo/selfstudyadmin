@@ -100,8 +100,8 @@
                     <th>Last Active</th>
                     <th>Unread</th>
                     <th>Actions</th>
-                </tr>
-            </thead>
+                  </tr>
+                </thead>
             <tbody id="chat-rooms-body">
                 {% for room in chat_rooms %}
                 <tr data-room-id="{{ room.id }}" data-replica="{{ room.replica_url }}" data-ip="{{ room.anonymous_user_ip }}">
@@ -163,11 +163,12 @@
         </table>
     </div>
 
-    <!-- Pagination Info -->
-    <div class="pagination">
+    <!-- Pagination Info and Controls -->
+    <div class="pagination-info">
         Showing <span id="showing-count">{{ chat_rooms|length }}</span> of 
         <span id="total-count">{{ total_rooms }}</span> rooms
     </div>
+    <div id="chat-pagination" class="pagination-controls"></div>
 </div>
 
 <!-- Messages Modal -->
@@ -205,6 +206,47 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/selfstudychat.css' %}">
+<style>
+    /* Pagination styles */
+    .pagination-controls {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: center;
+        margin-top: 1rem;
+    }
+    .pagination-btn {
+        padding: 6px 12px;
+        border: 1px solid #ddd;
+        background: white;
+        cursor: pointer;
+        border-radius: 4px;
+        transition: all 0.2s;
+    }
+    .pagination-btn:hover:not(:disabled) {
+        background-color: #f0f0f0;
+        border-color: #aaa;
+    }
+    .pagination-btn.active {
+        background-color: #007bff;
+        color: white;
+        border-color: #007bff;
+    }
+    .pagination-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    .pagination-ellipsis {
+        padding: 6px 12px;
+        color: #666;
+    }
+    .pagination-info {
+        text-align: center;
+        margin-top: 1rem;
+        color: #666;
+    }
+</style>
 {% endblock %}
 
 {% block extra_js %}

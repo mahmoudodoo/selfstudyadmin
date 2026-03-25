@@ -1,5 +1,14 @@
 class CourseManager {
     constructor() {
+        this.pageSize = 9;                         // Number of records per page
+        this.currentPage = {                       // Current page per tab
+            courses: 1,
+            lessons: 1,
+            comments: 1,
+            homeworks: 1,
+            submissions: 1,
+            registrations: 1
+        };
         this.currentData = {
             courses: [],
             lessons: [],
@@ -9,11 +18,12 @@ class CourseManager {
             registrations: [],
             users: [],
             coursesList: [],
-            lessonsByCourse: {} // Store lessons grouped by course
+            lessonsByCourse: {}
         };
         this.currentTab = 'courses';
         this.deleteCallback = null;
         this.isLoading = false;
+        this.searchQuery = '';                     // Global search term
         this.init();
     }
 
@@ -77,6 +87,9 @@ class CourseManager {
         // Load data if not already loaded
         if (this.currentData[tabName].length === 0) {
             this.loadTabData(tabName);
+        } else {
+            // Re‑render with current page (in case search changed while tab was hidden)
+            this.renderTable(tabName);
         }
     }
 
@@ -86,7 +99,7 @@ class CourseManager {
             // Load users and courses first for dropdowns
             await Promise.all([
                 this.loadUsers(),
-                              this.loadCoursesList()
+                this.loadCoursesList()
             ]);
 
             await this.loadTabData('courses');
@@ -172,7 +185,9 @@ class CourseManager {
                 this.organizeLessonsByCourse();
             }
 
-            this.renderTable(tabName, this.currentData[tabName]);
+            // Reset page to 1 when new data arrives
+            this.currentPage[tabName] = 1;
+            this.renderTable(tabName);
         } catch (error) {
             console.error(`Error loading ${tabName}:`, error);
             this.showError(`Failed to load ${tabName}`);
@@ -191,25 +206,164 @@ class CourseManager {
         });
     }
 
-    renderTable(tabName, data) {
-        const tbody = document.getElementById(`${tabName}-tbody`);
-        if (!tbody) return;
+    // ---- Pagination methods ----
 
-        if (data.length === 0) {
-            const colSpan = this.getColumnCount(tabName);
-            tbody.innerHTML = `
-            <tr>
-            <td colspan="${colSpan}" class="empty-state">
-            <i class="fas fa-inbox"></i>
-            <h4>No data found</h4>
-            <p>No ${tabName} available</p>
-            </td>
-            </tr>
-            `;
+    renderPagination(tabName, totalPages, currentPage) {
+        const container = document.getElementById(`${tabName}-pagination`);
+        if (!container) return;
+
+        if (totalPages <= 1) {
+            container.innerHTML = '';
             return;
         }
 
-        tbody.innerHTML = data.map(item => this.renderTableRow(tabName, item)).join('');
+        let html = '<div class="pagination-controls">';
+        html += `<button class="pagination-btn" data-page="prev" ${currentPage === 1 ? 'disabled' : ''}>« Prev</button>`;
+
+        // Simple pagination: show first, last, and around current
+        const startPage = Math.max(1, currentPage - 2);
+        const endPage = Math.min(totalPages, currentPage + 2);
+
+        if (startPage > 1) {
+            html += `<button class="pagination-btn" data-page="1">1</button>`;
+            if (startPage > 2) html += '<span class="pagination-ellipsis">...</span>';
+        }
+
+        for (let i = startPage; i <= endPage; i++) {
+            html += `<button class="pagination-btn ${i === currentPage ? 'active' : ''}" data-page="${i}">${i}</button>`;
+        }
+
+        if (endPage < totalPages) {
+            if (endPage < totalPages - 1) html += '<span class="pagination-ellipsis">...</span>';
+            html += `<button class="pagination-btn" data-page="${totalPages}">${totalPages}</button>`;
+        }
+
+        html += `<button class="pagination-btn" data-page="next" ${currentPage === totalPages ? 'disabled' : ''}>Next »</button>`;
+        html += '</div>';
+
+        container.innerHTML = html;
+
+        // Attach event listeners
+        container.querySelectorAll('.pagination-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const page = btn.dataset.page;
+                if (page === 'prev') {
+                    this.changePage(tabName, currentPage - 1);
+                } else if (page === 'next') {
+                    this.changePage(tabName, currentPage + 1);
+                } else {
+                    this.changePage(tabName, parseInt(page, 10));
+                }
+            });
+        });
+    }
+
+    changePage(tabName, page) {
+        const totalPages = this.getTotalPages(tabName);
+        if (page < 1 || page > totalPages) return;
+
+        this.currentPage[tabName] = page;
+        this.renderTable(tabName);
+    }
+
+    getTotalPages(tabName) {
+        const fullData = this.currentData[tabName] || [];
+        const filteredData = this.filterDataBySearch(fullData);
+        return Math.ceil(filteredData.length / this.pageSize);
+    }
+
+    // ---- Data filtering ----
+
+    filterDataBySearch(dataArray) {
+        if (!this.searchQuery.trim()) return dataArray;
+
+        const term = this.searchQuery.toLowerCase();
+        return dataArray.filter(item => this.searchInItem(item, term));
+    }
+
+    searchInItem(item, searchTerm) {
+        // Search in all string properties
+        for (let key in item) {
+            if (typeof item[key] === 'string' && item[key].toLowerCase().includes(searchTerm)) {
+                return true;
+            }
+        }
+
+        // Also search in related display names
+        if (item.course_external_id) {
+            const courseTitle = this.getCourseTitle(item.course_external_id);
+            if (courseTitle.toLowerCase().includes(searchTerm)) return true;
+        }
+
+        if (item.user_id) {
+            const userName = this.getUserName(item.user_id);
+            if (userName.toLowerCase().includes(searchTerm)) return true;
+        }
+
+        return false;
+    }
+
+    handleGlobalSearch(query) {
+        this.searchQuery = query;
+
+        // Reset all pages to 1
+        Object.keys(this.currentPage).forEach(tab => {
+            this.currentPage[tab] = 1;
+        });
+
+        // Re‑render all tabs (the active one and any that have data loaded)
+        const tabsWithData = ['courses', 'lessons', 'comments', 'homeworks', 'submissions', 'registrations'];
+        tabsWithData.forEach(tab => {
+            if (this.currentData[tab].length > 0) {
+                this.renderTable(tab);
+            }
+        });
+    }
+
+    // ---- Rendering ----
+
+    renderTable(tabName) {
+        const fullData = this.currentData[tabName] || [];
+        const filteredData = this.filterDataBySearch(fullData);
+        const totalItems = filteredData.length;
+        const totalPages = Math.ceil(totalItems / this.pageSize);
+        const currentPage = this.currentPage[tabName];
+
+        // Ensure current page is valid (e.g., after filtering)
+        let adjustedPage = currentPage;
+        if (totalPages > 0 && currentPage > totalPages) {
+            adjustedPage = totalPages;
+            this.currentPage[tabName] = adjustedPage;
+        } else if (totalPages === 0) {
+            adjustedPage = 1;
+            this.currentPage[tabName] = 1;
+        }
+
+        const start = (adjustedPage - 1) * this.pageSize;
+        const end = start + this.pageSize;
+        const pageData = filteredData.slice(start, end);
+
+        // Render the table body
+        const tbody = document.getElementById(`${tabName}-tbody`);
+        if (!tbody) return;
+
+        if (pageData.length === 0) {
+            const colSpan = this.getColumnCount(tabName);
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="${colSpan}" class="empty-state">
+                        <i class="fas fa-inbox"></i>
+                        <h4>No data found</h4>
+                        <p>No ${tabName} available</p>
+                    </td>
+                </tr>
+            `;
+        } else {
+            tbody.innerHTML = pageData.map(item => this.renderTableRow(tabName, item)).join('');
+        }
+
+        // Render pagination
+        this.renderPagination(tabName, totalPages, adjustedPage);
     }
 
     getColumnCount(tabName) {
@@ -233,73 +387,71 @@ class CourseManager {
             submissions: this.renderSubmissionRow.bind(this),
             registrations: this.renderRegistrationRow.bind(this)
         };
-
         return renderers[tabName](item);
     }
 
     renderCourseRow(course) {
         const firstChar = course.title ? course.title.charAt(0).toUpperCase() : '?';
-
         return `
-        <tr>
-        <td>
-        <div class="course-image-container">
-        ${course.image_url ?
-            `<img src="${course.image_url}" alt="${course.title}" class="course-image" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" onload="this.nextElementSibling.style.display='none';">` :
-            ''
-        }
-        <div class="course-image-fallback" style="${course.image_url ? 'display: none;' : ''}">
-        ${firstChar}
-        </div>
-        </div>
-        </td>
-        <td class="text-truncate" title="${course.title}">${course.title}</td>
-        <td class="text-truncate" title="${course.description}">${course.description}</td>
-        <td>${new Date(course.date_added).toLocaleDateString()}</td>
-        <td>
-        <div class="btn-group">
-        <button class="btn btn-sm btn-warning" onclick="courseManager.showEditModal('course', '${course.external_course_id}')">
-        <i class="fas fa-edit"></i>
-        </button>
-        <button class="btn btn-sm btn-danger" onclick="courseManager.showDeleteModal('course', '${course.external_course_id}', '${this.escapeString(course.title)}')">
-        <i class="fas fa-trash"></i>
-        </button>
-        </div>
-        </td>
-        </tr>
+            <tr>
+                <td>
+                    <div class="course-image-container">
+                        ${course.image_url ?
+                            `<img src="${course.image_url}" alt="${course.title}" class="course-image" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" onload="this.nextElementSibling.style.display='none';">` :
+                            ''
+                        }
+                        <div class="course-image-fallback" style="${course.image_url ? 'display: none;' : ''}">
+                            ${firstChar}
+                        </div>
+                    </div>
+                </td>
+                <td class="text-truncate" title="${course.title}">${course.title}</td>
+                <td class="text-truncate" title="${course.description}">${course.description}</td>
+                <td>${new Date(course.date_added).toLocaleDateString()}</td>
+                <td>
+                    <div class="btn-group">
+                        <button class="btn btn-sm btn-warning" onclick="courseManager.showEditModal('course', '${course.external_course_id}')">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="courseManager.showDeleteModal('course', '${course.external_course_id}', '${this.escapeString(course.title)}')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
         `;
     }
 
     renderLessonRow(lesson) {
         const courseTitle = this.getCourseTitle(lesson.course_external_id);
         return `
-        <tr>
-        <td class="text-truncate" title="${lesson.title}">${lesson.title}</td>
-        <td class="text-truncate" title="${courseTitle}">${courseTitle}</td>
-        <td class="text-truncate">
-        ${lesson.source_code_url ?
-            `<a href="${lesson.source_code_url}" target="_blank">View Source</a>` :
-            'N/A'
-        }
-        </td>
-        <td class="text-truncate">
-        ${lesson.reading_url ?
-            `<a href="${lesson.reading_url}" target="_blank">View Reading</a>` :
-            'N/A'
-        }
-        </td>
-        <td>${new Date(lesson.date_added).toLocaleDateString()}</td>
-        <td>
-        <div class="btn-group">
-        <button class="btn btn-sm btn-warning" onclick="courseManager.showEditModal('lesson', '${lesson.external_lesson_id}')">
-        <i class="fas fa-edit"></i>
-        </button>
-        <button class="btn btn-sm btn-danger" onclick="courseManager.showDeleteModal('lesson', '${lesson.external_lesson_id}', '${this.escapeString(lesson.title)}')">
-        <i class="fas fa-trash"></i>
-        </button>
-        </div>
-        </td>
-        </tr>
+            <tr>
+                <td class="text-truncate" title="${lesson.title}">${lesson.title}</td>
+                <td class="text-truncate" title="${courseTitle}">${courseTitle}</td>
+                <td class="text-truncate">
+                    ${lesson.source_code_url ?
+                        `<a href="${lesson.source_code_url}" target="_blank">View Source</a>` :
+                        'N/A'
+                    }
+                </td>
+                <td class="text-truncate">
+                    ${lesson.reading_url ?
+                        `<a href="${lesson.reading_url}" target="_blank">View Reading</a>` :
+                        'N/A'
+                    }
+                </td>
+                <td>${new Date(lesson.date_added).toLocaleDateString()}</td>
+                <td>
+                    <div class="btn-group">
+                        <button class="btn btn-sm btn-warning" onclick="courseManager.showEditModal('lesson', '${lesson.external_lesson_id}')">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="courseManager.showDeleteModal('lesson', '${lesson.external_lesson_id}', '${this.escapeString(lesson.title)}')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
         `;
     }
 
@@ -307,22 +459,22 @@ class CourseManager {
         const courseTitle = this.getCourseTitle(comment.course_external_id);
         const userName = this.getUserName(comment.user_id);
         return `
-        <tr>
-        <td class="text-truncate" title="${comment.content}">${comment.content}</td>
-        <td title="${userName}">${userName}</td>
-        <td class="text-truncate" title="${courseTitle}">${courseTitle}</td>
-        <td>${new Date(comment.date_added).toLocaleDateString()}</td>
-        <td>
-        <div class="btn-group">
-        <button class="btn btn-sm btn-warning" onclick="courseManager.showEditModal('comment', '${comment.external_comment_id}')">
-        <i class="fas fa-edit"></i>
-        </button>
-        <button class="btn btn-sm btn-danger" onclick="courseManager.showDeleteModal('comment', '${comment.external_comment_id}', '${this.escapeString(comment.content.substring(0, 30))}...')">
-        <i class="fas fa-trash"></i>
-        </button>
-        </div>
-        </td>
-        </tr>
+            <tr>
+                <td class="text-truncate" title="${comment.content}">${comment.content}</td>
+                <td title="${userName}">${userName}</td>
+                <td class="text-truncate" title="${courseTitle}">${courseTitle}</td>
+                <td>${new Date(comment.date_added).toLocaleDateString()}</td>
+                <td>
+                    <div class="btn-group">
+                        <button class="btn btn-sm btn-warning" onclick="courseManager.showEditModal('comment', '${comment.external_comment_id}')">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="courseManager.showDeleteModal('comment', '${comment.external_comment_id}', '${this.escapeString(comment.content.substring(0, 30))}...')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
         `;
     }
 
@@ -330,25 +482,25 @@ class CourseManager {
         const courseTitle = this.getCourseTitle(homework.course_external_id);
         const lessonTitle = homework.lesson_external_id ? this.getLessonTitle(homework.lesson_external_id) : 'N/A';
         return `
-        <tr>
-        <td class="text-truncate" title="${homework.title}">${homework.title}</td>
-        <td class="text-truncate" title="${courseTitle}">${courseTitle}</td>
-        <td class="text-truncate" title="${lessonTitle}">${lessonTitle}</td>
-        <td class="text-truncate">
-        <a href="${homework.homework_url}" target="_blank">View Homework</a>
-        </td>
-        <td class="text-truncate" title="${homework.description}">${homework.description}</td>
-        <td>
-        <div class="btn-group">
-        <button class="btn btn-sm btn-warning" onclick="courseManager.showEditModal('homework', '${homework.external_homework_id}')">
-        <i class="fas fa-edit"></i>
-        </button>
-        <button class="btn btn-sm btn-danger" onclick="courseManager.showDeleteModal('homework', '${homework.external_homework_id}', '${this.escapeString(homework.title)}')">
-        <i class="fas fa-trash"></i>
-        </button>
-        </div>
-        </td>
-        </tr>
+            <tr>
+                <td class="text-truncate" title="${homework.title}">${homework.title}</td>
+                <td class="text-truncate" title="${courseTitle}">${courseTitle}</td>
+                <td class="text-truncate" title="${lessonTitle}">${lessonTitle}</td>
+                <td class="text-truncate">
+                    <a href="${homework.homework_url}" target="_blank">View Homework</a>
+                </td>
+                <td class="text-truncate" title="${homework.description}">${homework.description}</td>
+                <td>
+                    <div class="btn-group">
+                        <button class="btn btn-sm btn-warning" onclick="courseManager.showEditModal('homework', '${homework.external_homework_id}')">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="courseManager.showDeleteModal('homework', '${homework.external_homework_id}', '${this.escapeString(homework.title)}')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
         `;
     }
 
@@ -356,25 +508,25 @@ class CourseManager {
         const userName = this.getUserName(submission.user_id);
         const homeworkTitle = this.getHomeworkTitle(submission.homework_external_id);
         return `
-        <tr>
-        <td title="${userName}">${userName}</td>
-        <td class="text-truncate" title="${homeworkTitle}">${homeworkTitle}</td>
-        <td class="text-truncate">
-        <a href="${submission.submitted_homework_url}" target="_blank">View Submission</a>
-        </td>
-        <td class="text-truncate" title="${submission.description || 'N/A'}">${submission.description || 'N/A'}</td>
-        <td>${new Date(submission.date_submitted).toLocaleDateString()}</td>
-        <td>
-        <div class="btn-group">
-        <button class="btn btn-sm btn-warning" onclick="courseManager.showEditModal('submitted_homework', '${submission.external_submitted_homework_id}')">
-        <i class="fas fa-edit"></i>
-        </button>
-        <button class="btn btn-sm btn-danger" onclick="courseManager.showDeleteModal('submitted_homework', '${submission.external_submitted_homework_id}', 'Submission by ${this.escapeString(userName)}')">
-        <i class="fas fa-trash"></i>
-        </button>
-        </div>
-        </td>
-        </tr>
+            <tr>
+                <td title="${userName}">${userName}</td>
+                <td class="text-truncate" title="${homeworkTitle}">${homeworkTitle}</td>
+                <td class="text-truncate">
+                    <a href="${submission.submitted_homework_url}" target="_blank">View Submission</a>
+                </td>
+                <td class="text-truncate" title="${submission.description || 'N/A'}">${submission.description || 'N/A'}</td>
+                <td>${new Date(submission.date_submitted).toLocaleDateString()}</td>
+                <td>
+                    <div class="btn-group">
+                        <button class="btn btn-sm btn-warning" onclick="courseManager.showEditModal('submitted_homework', '${submission.external_submitted_homework_id}')">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="courseManager.showDeleteModal('submitted_homework', '${submission.external_submitted_homework_id}', 'Submission by ${this.escapeString(userName)}')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
         `;
     }
 
@@ -382,18 +534,18 @@ class CourseManager {
         const userName = this.getUserName(registration.user_id);
         const courseTitle = this.getCourseTitle(registration.course_external_id);
         return `
-        <tr>
-        <td title="${userName}">${userName}</td>
-        <td class="text-truncate" title="${courseTitle}">${courseTitle}</td>
-        <td>${new Date(registration.date_registered).toLocaleDateString()}</td>
-        <td>
-        <div class="btn-group">
-        <button class="btn btn-sm btn-danger" onclick="courseManager.showDeleteModal('registration', '${registration.external_id}', 'Registration for ${this.escapeString(userName)}')">
-        <i class="fas fa-trash"></i>
-        </button>
-        </div>
-        </td>
-        </tr>
+            <tr>
+                <td title="${userName}">${userName}</td>
+                <td class="text-truncate" title="${courseTitle}">${courseTitle}</td>
+                <td>${new Date(registration.date_registered).toLocaleDateString()}</td>
+                <td>
+                    <div class="btn-group">
+                        <button class="btn btn-sm btn-danger" onclick="courseManager.showDeleteModal('registration', '${registration.external_id}', 'Registration for ${this.escapeString(userName)}')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
         `;
     }
 
@@ -419,7 +571,6 @@ class CourseManager {
     }
 
     getLessonsForCourse(courseExternalId) {
-        // Return lessons for a specific course
         return this.currentData.lessonsByCourse[courseExternalId] || [];
     }
 
@@ -427,50 +578,7 @@ class CourseManager {
         return str.replace(/'/g, "\\'").replace(/"/g, '\\"');
     }
 
-    handleGlobalSearch(query) {
-        if (!query.trim()) {
-            // Reset to original data if search is empty
-            Object.keys(this.currentData).forEach(tab => {
-                if (['courses', 'lessons', 'comments', 'homeworks', 'submissions', 'registrations'].includes(tab)) {
-                    this.renderTable(tab, this.currentData[tab]);
-                }
-            });
-            return;
-        }
-
-        const searchTerm = query.toLowerCase();
-
-        Object.keys(this.currentData).forEach(tab => {
-            if (['courses', 'lessons', 'comments', 'homeworks', 'submissions', 'registrations'].includes(tab)) {
-                const filteredData = this.currentData[tab].filter(item =>
-                this.searchInItem(item, searchTerm)
-                );
-                this.renderTable(tab, filteredData);
-            }
-        });
-    }
-
-    searchInItem(item, searchTerm) {
-        // Search in all string properties
-        for (let key in item) {
-            if (typeof item[key] === 'string' && item[key].toLowerCase().includes(searchTerm)) {
-                return true;
-            }
-        }
-
-        // Also search in related display names
-        if (item.course_external_id) {
-            const courseTitle = this.getCourseTitle(item.course_external_id);
-            if (courseTitle.toLowerCase().includes(searchTerm)) return true;
-        }
-
-        if (item.user_id) {
-            const userName = this.getUserName(item.user_id);
-            if (userName.toLowerCase().includes(searchTerm)) return true;
-        }
-
-        return false;
-    }
+    // ---- CRUD operations (unchanged except for page reset after refresh) ----
 
     showCreateModal(entityType) {
         this.currentEntity = { type: entityType, id: null };
@@ -515,12 +623,9 @@ class CourseManager {
             throw new Error(data.error);
         }
 
-        // For endpoints that return arrays, find the specific entity
         if (Array.isArray(data)) {
-            return data.find(item => {
-                const idField = this.getIdField(entityType);
-                return item[idField] === entityId;
-            });
+            const idField = this.getIdField(entityType);
+            return data.find(item => item[idField] === entityId);
         }
 
         return data;
@@ -548,25 +653,24 @@ class CourseManager {
 
             if (field.type === 'textarea') {
                 return `
-                <div class="form-group">
-                <label for="${field.name}">${field.label}</label>
-                <textarea id="${field.name}" name="${field.name}" class="form-control textarea" ${required}>${value}</textarea>
-                </div>
+                    <div class="form-group">
+                        <label for="${field.name}">${field.label}</label>
+                        <textarea id="${field.name}" name="${field.name}" class="form-control textarea" ${required}>${value}</textarea>
+                    </div>
                 `;
             } else if (field.type === 'file') {
                 return `
-                <div class="form-group">
-                <label for="${field.name}">${field.label}</label>
-                <div class="file-input-wrapper">
-                <input type="file" id="${field.name}" name="${field.name}" class="file-input" accept="image/*" ${data ? '' : required}>
-                </div>
-                </div>
+                    <div class="form-group">
+                        <label for="${field.name}">${field.label}</label>
+                        <div class="file-input-wrapper">
+                            <input type="file" id="${field.name}" name="${field.name}" class="file-input" accept="image/*" ${data ? '' : required}>
+                        </div>
+                    </div>
                 `;
             } else if (field.type === 'select') {
                 let options = '';
 
                 if (field.name === 'lesson_external_id' && field.dynamicOptions) {
-                    // For lesson dropdown, initially show empty, will be populated dynamically
                     options = '<option value="">Select Lesson</option>';
                 } else {
                     options = field.options.map(option => {
@@ -577,24 +681,23 @@ class CourseManager {
                 }
 
                 return `
-                <div class="form-group">
-                <label for="${field.name}">${field.label}</label>
-                <select id="${field.name}" name="${field.name}" class="form-control" ${required}>
-                ${options}
-                </select>
-                </div>
+                    <div class="form-group">
+                        <label for="${field.name}">${field.label}</label>
+                        <select id="${field.name}" name="${field.name}" class="form-control" ${required}>
+                            ${options}
+                        </select>
+                    </div>
                 `;
             } else {
                 return `
-                <div class="form-group">
-                <label for="${field.name}">${field.label}</label>
-                <input type="${field.type}" id="${field.name}" name="${field.name}" class="form-control" value="${value}" ${required}>
-                </div>
+                    <div class="form-group">
+                        <label for="${field.name}">${field.label}</label>
+                        <input type="${field.type}" id="${field.name}" name="${field.name}" class="form-control" value="${value}" ${required}>
+                    </div>
                 `;
             }
         }).join('');
 
-        // Setup dynamic filtering for homework form
         if (entityType === 'homework') {
             this.setupHomeworkFormDynamicFiltering(data);
         }
@@ -606,20 +709,16 @@ class CourseManager {
 
         if (!courseSelect || !lessonSelect) return;
 
-        // Store current course value if editing
         const currentCourseId = data ? data.course_external_id : null;
 
-        // Function to update lesson dropdown based on selected course
         const updateLessonDropdown = async (courseId) => {
             if (!courseId) {
                 lessonSelect.innerHTML = '<option value="">Select Lesson</option>';
                 return;
             }
 
-            // Load lessons for the selected course
             const lessons = await this.loadLessonsByCourse(courseId);
 
-            // Populate lesson dropdown
             lessonSelect.innerHTML = '<option value="">Select Lesson</option>';
             lessons.forEach(lesson => {
                 const option = document.createElement('option');
@@ -628,29 +727,24 @@ class CourseManager {
                 lessonSelect.appendChild(option);
             });
 
-            // If editing and we have a lesson_external_id, select it
             if (data && data.lesson_external_id) {
                 lessonSelect.value = data.lesson_external_id;
             }
         };
 
-        // Set initial state
         if (currentCourseId) {
             updateLessonDropdown(currentCourseId);
         } else {
             lessonSelect.innerHTML = '<option value="">Select a course first</option>';
         }
 
-        // Add event listener for course selection change
         courseSelect.addEventListener('change', (e) => {
-            const selectedCourseId = e.target.value;
-            updateLessonDropdown(selectedCourseId);
+            updateLessonDropdown(e.target.value);
         });
     }
 
     getFieldValue(field, data) {
         if (field.type === 'select') {
-            // For select fields, get the external_id value
             if (field.name === 'course_external_id' && data.course_external_id) {
                 return data.course_external_id;
             }
@@ -755,7 +849,7 @@ class CourseManager {
                     label: 'Lesson',
                     type: 'select',
                     required: false,
-                    options: [], // Will be populated dynamically
+                    options: [],
                     valueField: 'external_lesson_id',
                     displayField: 'title',
                     dynamicOptions: true
@@ -843,23 +937,20 @@ class CourseManager {
 
             // Refresh the appropriate data based on entity type
             if (entityType === 'course') {
-                // When a course is created, refresh both courses list and courses data
                 await Promise.all([
                     this.loadCoursesList(),
-                                  this.loadTabData('courses')
+                    this.loadTabData('courses')
                 ]);
             } else if (entityType === 'lesson') {
-                // When a lesson is created, refresh lessons and reorganize by course
                 await Promise.all([
                     this.loadTabData('lessons'),
-                                  this.loadCoursesList()
+                    this.loadCoursesList()
                 ]);
                 this.organizeLessonsByCourse();
             } else {
-                // For other entities, refresh current tab and courses list
                 await Promise.all([
                     this.loadCoursesList(),
-                                  this.loadTabData(this.currentTab)
+                    this.loadTabData(this.currentTab)
                 ]);
             }
 
@@ -893,18 +984,16 @@ class CourseManager {
         modal.style.display = 'block';
     }
 
-    // In the performDelete method, update the request body to match the backend expectation
     async performDelete(entityType, entityId) {
         try {
             this.showLoading();
 
-            // Map entity types to their corresponding ID field names
             const idFieldMap = {
                 course: 'course_id',
                 lesson: 'lesson_id',
                 comment: 'comment_id',
                 homework: 'homework_id',
-                submitted_homework: 'submitted_homework_id',  // Changed from submission_id
+                submitted_homework: 'submitted_homework_id',
                 registration: 'registration_id'
             };
 
@@ -918,7 +1007,7 @@ class CourseManager {
                 [idField]: entityId
             };
 
-            console.log('Delete request body:', requestBody);  // Debug log
+            console.log('Delete request body:', requestBody);
 
             const response = await fetch('/selfstudycourse/api/', {
                 method: 'DELETE',
@@ -936,9 +1025,8 @@ class CourseManager {
 
             this.showSuccess(`${this.formatEntityName(entityType)} deleted successfully`);
 
-            // Wait for data refresh to complete before hiding spinner
+            // Reload data for the tab and reset page to 1
             await this.loadTabData(this.currentTab);
-
             this.closeDeleteModal();
         } catch (error) {
             console.error('Error deleting entity:', error);
@@ -955,16 +1043,15 @@ class CourseManager {
     async refreshAllData() {
         this.showLoading();
         try {
-            // Wait for ALL data loading operations to complete
             await Promise.all([
                 this.loadUsers(),
-                              this.loadCoursesList(),
-                              this.loadTabData('courses'),
-                              this.loadTabData('lessons'),
-                              this.loadTabData('comments'),
-                              this.loadTabData('homeworks'),
-                              this.loadTabData('submissions'),
-                              this.loadTabData('registrations')
+                this.loadCoursesList(),
+                this.loadTabData('courses'),
+                this.loadTabData('lessons'),
+                this.loadTabData('comments'),
+                this.loadTabData('homeworks'),
+                this.loadTabData('submissions'),
+                this.loadTabData('registrations')
             ]);
             this.organizeLessonsByCourse();
             this.showSuccess('All data refreshed successfully');
@@ -1003,17 +1090,15 @@ class CourseManager {
     }
 
     showLoading() {
-        if (this.isLoading) return; // Prevent multiple loading states
+        if (this.isLoading) return;
         this.isLoading = true;
         document.getElementById('loadingSpinner').style.display = 'flex';
-        // Disable all buttons and form elements during loading
         this.disableUI(true);
     }
 
     hideLoading() {
         this.isLoading = false;
         document.getElementById('loadingSpinner').style.display = 'none';
-        // Re-enable all buttons and form elements
         this.disableUI(false);
     }
 
@@ -1044,33 +1129,30 @@ class CourseManager {
     }
 
     showNotification(message, type) {
-        // Create notification element
         const notification = document.createElement('div');
         notification.className = `notification notification-${type}`;
         notification.innerHTML = `
-        <div class="notification-content">
-        <i class="fas fa-${type === 'success' ? 'check' : 'exclamation'}-circle"></i>
-        <span>${message}</span>
-        </div>
+            <div class="notification-content">
+                <i class="fas fa-${type === 'success' ? 'check' : 'exclamation'}-circle"></i>
+                <span>${message}</span>
+            </div>
         `;
 
-        // Add styles
         notification.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        background: ${type === 'success' ? '#28a745' : '#dc3545'};
-        color: white;
-        padding: 16px 20px;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        z-index: 10000;
-        animation: slideInRight 0.3s ease;
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: ${type === 'success' ? '#28a745' : '#dc3545'};
+            color: white;
+            padding: 16px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 10000;
+            animation: slideInRight 0.3s ease;
         `;
 
         document.body.appendChild(notification);
 
-        // Remove after 3 seconds
         setTimeout(() => {
             notification.style.animation = 'slideOutRight 0.3s ease';
             setTimeout(() => {
@@ -1112,8 +1194,8 @@ document.getElementById('confirmDeleteBtn').addEventListener('click', function()
     }
 });
 
-// Add CSS for notifications
-const notificationStyles = `
+// Add CSS for notifications and pagination
+const additionalStyles = `
 @keyframes slideInRight {
     from {
         transform: translateX(100%);
@@ -1142,18 +1224,17 @@ const notificationStyles = `
     gap: 8px;
 }
 
-/* Loading spinner improvements */
 #loadingSpinner {
-position: fixed;
-top: 0;
-left: 0;
-width: 100%;
-height: 100%;
-background: rgba(0, 0, 0, 0.5);
-display: none;
-justify-content: center;
-align-items: center;
-z-index: 9999;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
 }
 
 .spinner {
@@ -1170,7 +1251,6 @@ z-index: 9999;
     100% { transform: rotate(360deg); }
 }
 
-/* Homework form specific styles */
 .form-group {
     margin-bottom: 20px;
 }
@@ -1219,8 +1299,52 @@ z-index: 9999;
     width: 100%;
     text-align: center;
 }
+
+/* Pagination styles */
+.pagination {
+    margin-top: 20px;
+    display: flex;
+    justify-content: center;
+}
+
+.pagination-controls {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.pagination-btn {
+    padding: 6px 12px;
+    border: 1px solid #ddd;
+    background: white;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.pagination-btn:hover:not(:disabled) {
+    background-color: #f0f0f0;
+    border-color: #aaa;
+}
+
+.pagination-btn.active {
+    background-color: #007bff;
+    color: white;
+    border-color: #007bff;
+}
+
+.pagination-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.pagination-ellipsis {
+    padding: 6px 12px;
+    color: #666;
+}
 `;
 
 const styleSheet = document.createElement('style');
-styleSheet.textContent = notificationStyles;
+styleSheet.textContent = additionalStyles;
 document.head.appendChild(styleSheet);

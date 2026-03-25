@@ -4,7 +4,7 @@
 let currentProctors = [];
 let currentPage = 1;
 let totalPages = 1;
-let proctorsPerPage = 10;
+let proctorsPerPage = 9; // CHANGED: 9 records per page
 let currentProctorId = null;
 let currentProctorName = '';
 let userProfilesCache = [];
@@ -151,8 +151,8 @@ function renderProctorsTable(proctors) {
                         <h3>No Proctors Found</h3>
                         <p>Click "Add Proctor" to create your first proctor.</p>
                     </div>
-                </td>
-            </tr>
+                 </td>
+             </tr>
         `;
         return;
     }

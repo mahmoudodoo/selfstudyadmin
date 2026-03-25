@@ -1,6 +1,13 @@
 class CertificateManager {
     constructor() {
         this.currentTab = 'course';
+        this.pageSize = 9;                       // Records per page
+        this.currentPage = {                     // Current page per tab
+            course: 1,
+            exam: 1
+        };
+        this.searchQuery = '';                   // Global search term
+
         this.courseCertificates = [];
         this.examCertificates = [];
         this.users = [];
@@ -24,6 +31,18 @@ class CertificateManager {
         // Form submissions
         document.getElementById('course-certificate-form').addEventListener('submit', (e) => this.handleCourseCertificateSubmit(e));
         document.getElementById('exam-certificate-form').addEventListener('submit', (e) => this.handleExamCertificateSubmit(e));
+        
+        // Global search with debouncing
+        let searchTimeout;
+        const searchInput = document.getElementById('globalSearch');
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => {
+                    this.handleGlobalSearch(e.target.value);
+                }, 300);
+            });
+        }
         
         // Modal close events
         document.addEventListener('click', (e) => {
@@ -50,6 +69,12 @@ class CertificateManager {
             await this.loadExams();
             await this.loadCourseCertificates();
             await this.loadExamCertificates();
+            
+            // Reset pages and search when fresh data arrives
+            this.currentPage = { course: 1, exam: 1 };
+            this.searchQuery = '';
+            const searchInput = document.getElementById('globalSearch');
+            if (searchInput) searchInput.value = '';
             
             this.renderTables();
             this.updateStats();
@@ -200,6 +225,128 @@ class CertificateManager {
         select.innerHTML = '';
     }
 
+    // ========== SEARCH AND FILTERING ==========
+    handleGlobalSearch(query) {
+        this.searchQuery = query.trim().toLowerCase();
+        // Reset pages to 1 for both tabs
+        this.currentPage.course = 1;
+        this.currentPage.exam = 1;
+        // Re-render both tabs (only the active one is visible, but both will update)
+        this.renderCourseCertificatesTable();
+        this.renderExamCertificatesTable();
+    }
+
+    filterDataBySearch(dataArray, type) {
+        if (!this.searchQuery) return dataArray;
+
+        const term = this.searchQuery.toLowerCase();
+        return dataArray.filter(item => {
+            // Search in certificate ID
+            if (item.certificate_id && item.certificate_id.toLowerCase().includes(term)) return true;
+            
+            // Search in user name
+            const user = this.users.find(u => (u.external_id || u.user_id) === item.user_id);
+            if (user) {
+                const userName = `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username || user.email;
+                if (userName.toLowerCase().includes(term)) return true;
+            }
+            
+            // Search in course/exam title
+            if (type === 'course') {
+                const course = this.courses.find(c => (c.external_course_id || c.external_id || c.course_id) === item.course_id);
+                if (course && course.title && course.title.toLowerCase().includes(term)) return true;
+            } else {
+                const exam = this.exams.find(e => (e.external_id || e.exam_id) === item.exam_id);
+                if (exam && exam.title && exam.title.toLowerCase().includes(term)) return true;
+            }
+            
+            // Search in message
+            if (item.message && item.message.toLowerCase().includes(term)) return true;
+            
+            // Search in dates (as string)
+            if (type === 'course') {
+                if (item.date && item.date.includes(term)) return true;
+            } else {
+                if (item.taken_date && item.taken_date.includes(term)) return true;
+                if (item.expire_date && item.expire_date.includes(term)) return true;
+            }
+            
+            return false;
+        });
+    }
+
+    // ========== PAGINATION ==========
+    renderPagination(tabName, totalPages, currentPage) {
+        const containerId = tabName === 'course' ? 'course-pagination' : 'exam-pagination';
+        const container = document.getElementById(containerId);
+        if (!container) return;
+
+        if (totalPages <= 1) {
+            container.innerHTML = '';
+            return;
+        }
+
+        let html = '<div class="pagination-controls">';
+        html += `<button class="pagination-btn" data-page="prev" ${currentPage === 1 ? 'disabled' : ''}>« Prev</button>`;
+
+        // Show pages around current
+        let start = Math.max(1, currentPage - 2);
+        let end = Math.min(totalPages, currentPage + 2);
+        if (start > 1) {
+            html += `<button class="pagination-btn" data-page="1">1</button>`;
+            if (start > 2) html += '<span class="pagination-ellipsis">...</span>';
+        }
+        for (let i = start; i <= end; i++) {
+            html += `<button class="pagination-btn ${i === currentPage ? 'active' : ''}" data-page="${i}">${i}</button>`;
+        }
+        if (end < totalPages) {
+            if (end < totalPages - 1) html += '<span class="pagination-ellipsis">...</span>';
+            html += `<button class="pagination-btn" data-page="${totalPages}">${totalPages}</button>`;
+        }
+        html += `<button class="pagination-btn" data-page="next" ${currentPage === totalPages ? 'disabled' : ''}>Next »</button>`;
+        html += '</div>';
+
+        container.innerHTML = html;
+
+        // Attach event listeners
+        container.querySelectorAll('.pagination-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const page = btn.dataset.page;
+                if (page === 'prev') {
+                    this.changePage(tabName, currentPage - 1);
+                } else if (page === 'next') {
+                    this.changePage(tabName, currentPage + 1);
+                } else {
+                    this.changePage(tabName, parseInt(page, 10));
+                }
+            });
+        });
+    }
+
+    changePage(tabName, page) {
+        const totalPages = this.getTotalPages(tabName);
+        if (page < 1 || page > totalPages) return;
+        this.currentPage[tabName] = page;
+        if (tabName === 'course') {
+            this.renderCourseCertificatesTable();
+        } else {
+            this.renderExamCertificatesTable();
+        }
+    }
+
+    getTotalPages(tabName) {
+        let data, filtered;
+        if (tabName === 'course') {
+            data = this.courseCertificates;
+            filtered = this.filterDataBySearch(data, 'course');
+        } else {
+            data = this.examCertificates;
+            filtered = this.filterDataBySearch(data, 'exam');
+        }
+        return Math.ceil(filtered.length / this.pageSize);
+    }
+
+    // ========== TABLE RENDERING (with pagination and filtering) ==========
     renderTables() {
         this.renderCourseCertificatesTable();
         this.renderExamCertificatesTable();
@@ -209,73 +356,97 @@ class CertificateManager {
         const tbody = document.querySelector('#course-certificates-table tbody');
         tbody.innerHTML = '';
 
-        if (this.courseCertificates.length === 0) {
+        const filtered = this.filterDataBySearch(this.courseCertificates, 'course');
+        const totalPages = Math.ceil(filtered.length / this.pageSize);
+        let currentPage = this.currentPage.course;
+        if (totalPages > 0 && currentPage > totalPages) currentPage = totalPages;
+        if (currentPage < 1) currentPage = 1;
+        this.currentPage.course = currentPage;
+
+        const start = (currentPage - 1) * this.pageSize;
+        const end = start + this.pageSize;
+        const pageData = filtered.slice(start, end);
+
+        if (pageData.length === 0) {
             const row = document.createElement('tr');
             row.innerHTML = `<td colspan="7" class="text-center">No course certificates found</td>`;
             tbody.appendChild(row);
-            return;
+        } else {
+            pageData.forEach(certificate => {
+                const user = this.users.find(u => (u.external_id || u.user_id) === certificate.user_id);
+                const course = this.courses.find(c => (c.external_course_id || c.external_id || c.course_id) === certificate.course_id);
+                
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${certificate.certificate_id || 'N/A'}</td>
+                    <td>${user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username : certificate.user_id}</td>
+                    <td>${course ? course.title : certificate.course_id}</td>
+                    <td>${this.formatDate(certificate.date)}</td>
+                    <td>${certificate.hours || 0}</td>
+                    <td>${certificate.message || '-'}</td>
+                    <td class="actions">
+                        <button class="btn btn-outline btn-sm" onclick="certificateManager.editCourseCertificate('${certificate.certificate_id}')">
+                            <i class="fas fa-edit"></i> Edit
+                        </button>
+                        <button class="btn btn-danger btn-sm" onclick="certificateManager.confirmDelete('course', '${certificate.certificate_id}')">
+                            <i class="fas fa-trash"></i> Delete
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
         }
 
-        this.courseCertificates.forEach(certificate => {
-            const user = this.users.find(u => (u.external_id || u.user_id) === certificate.user_id);
-            const course = this.courses.find(c => (c.external_course_id || c.external_id || c.course_id) === certificate.course_id);
-            
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${certificate.certificate_id || 'N/A'}</td>
-                <td>${user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username : certificate.user_id}</td>
-                <td>${course ? course.title : certificate.course_id}</td>
-                <td>${this.formatDate(certificate.date)}</td>
-                <td>${certificate.hours || 0}</td>
-                <td>${certificate.message || '-'}</td>
-                <td class="actions">
-                    <button class="btn btn-outline btn-sm" onclick="certificateManager.editCourseCertificate('${certificate.certificate_id}')">
-                        <i class="fas fa-edit"></i> Edit
-                    </button>
-                    <button class="btn btn-danger btn-sm" onclick="certificateManager.confirmDelete('course', '${certificate.certificate_id}')">
-                        <i class="fas fa-trash"></i> Delete
-                    </button>
-                </td>
-            `;
-            tbody.appendChild(row);
-        });
+        this.renderPagination('course', totalPages, currentPage);
     }
 
     renderExamCertificatesTable() {
         const tbody = document.querySelector('#exam-certificates-table tbody');
         tbody.innerHTML = '';
 
-        if (this.examCertificates.length === 0) {
+        const filtered = this.filterDataBySearch(this.examCertificates, 'exam');
+        const totalPages = Math.ceil(filtered.length / this.pageSize);
+        let currentPage = this.currentPage.exam;
+        if (totalPages > 0 && currentPage > totalPages) currentPage = totalPages;
+        if (currentPage < 1) currentPage = 1;
+        this.currentPage.exam = currentPage;
+
+        const start = (currentPage - 1) * this.pageSize;
+        const end = start + this.pageSize;
+        const pageData = filtered.slice(start, end);
+
+        if (pageData.length === 0) {
             const row = document.createElement('tr');
             row.innerHTML = `<td colspan="7" class="text-center">No exam certificates found</td>`;
             tbody.appendChild(row);
-            return;
+        } else {
+            pageData.forEach(certificate => {
+                const user = this.users.find(u => (u.external_id || u.user_id) === certificate.user_id);
+                const exam = this.exams.find(e => (e.external_id || e.exam_id) === certificate.exam_id);
+                const isExpired = new Date(certificate.expire_date) < new Date();
+                
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${certificate.certificate_id || 'N/A'}</td>
+                    <td>${user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username : certificate.user_id}</td>
+                    <td>${exam ? exam.title : certificate.exam_id}</td>
+                    <td>${this.formatDate(certificate.taken_date)}</td>
+                    <td>${this.formatDate(certificate.expire_date)}</td>
+                    <td><span class="status-badge ${isExpired ? 'status-expired' : 'status-valid'}">${isExpired ? 'Expired' : 'Valid'}</span></td>
+                    <td class="actions">
+                        <button class="btn btn-outline btn-sm" onclick="certificateManager.editExamCertificate('${certificate.certificate_id}')">
+                            <i class="fas fa-edit"></i> Edit
+                        </button>
+                        <button class="btn btn-danger btn-sm" onclick="certificateManager.confirmDelete('exam', '${certificate.certificate_id}')">
+                            <i class="fas fa-trash"></i> Delete
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
         }
 
-        this.examCertificates.forEach(certificate => {
-            const user = this.users.find(u => (u.external_id || u.user_id) === certificate.user_id);
-            const exam = this.exams.find(e => (e.external_id || e.exam_id) === certificate.exam_id);
-            const isExpired = new Date(certificate.expire_date) < new Date();
-            
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${certificate.certificate_id || 'N/A'}</td>
-                <td>${user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username : certificate.user_id}</td>
-                <td>${exam ? exam.title : certificate.exam_id}</td>
-                <td>${this.formatDate(certificate.taken_date)}</td>
-                <td>${this.formatDate(certificate.expire_date)}</td>
-                <td><span class="status-badge ${isExpired ? 'status-expired' : 'status-valid'}">${isExpired ? 'Expired' : 'Valid'}</span></td>
-                <td class="actions">
-                    <button class="btn btn-outline btn-sm" onclick="certificateManager.editExamCertificate('${certificate.certificate_id}')">
-                        <i class="fas fa-edit"></i> Edit
-                    </button>
-                    <button class="btn btn-danger btn-sm" onclick="certificateManager.confirmDelete('exam', '${certificate.certificate_id}')">
-                        <i class="fas fa-trash"></i> Delete
-                    </button>
-                </td>
-            `;
-            tbody.appendChild(row);
-        });
+        this.renderPagination('exam', totalPages, currentPage);
     }
 
     updateStats() {
@@ -288,8 +459,8 @@ class CertificateManager {
     openCreateModal(type) {
         if (type === 'course') {
             document.getElementById('course-modal-title').textContent = 'Create Course Certificate';
-            document.getElementById('course-certificate-id').value = '';
             document.getElementById('course-certificate-form').reset();
+            document.getElementById('course-certificate-id').value = '';
             
             // Set default date to today
             document.getElementById('course-date').value = new Date().toISOString().split('T')[0];
@@ -298,8 +469,8 @@ class CertificateManager {
             this.openModal('course-certificate-modal');
         } else {
             document.getElementById('exam-modal-title').textContent = 'Create Exam Certificate';
-            document.getElementById('exam-certificate-id').value = '';
             document.getElementById('exam-certificate-form').reset();
+            document.getElementById('exam-certificate-id').value = '';
             
             // Set default dates
             const today = new Date().toISOString().split('T')[0];
@@ -616,6 +787,11 @@ class CertificateManager {
     }
 
     async refreshData() {
+        // Reset search and pages
+        this.searchQuery = '';
+        const searchInput = document.getElementById('globalSearch');
+        if (searchInput) searchInput.value = '';
+        this.currentPage = { course: 1, exam: 1 };
         await this.loadInitialData();
     }
 }

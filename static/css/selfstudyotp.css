@@ -46,6 +46,12 @@
     /* Typography */
     --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
     --text-shadow-default: 0 0 10px rgba(0, 0, 0, 0.8), 0 2px 4px rgba(0, 0, 0, 0.5);
+    
+    /* Responsive scaling variables */
+    --font-base: 16px;
+    --spacing-unit: 1rem;
+    --container-max: 1400px;
+    --touch-target-min: 44px;
 }
 
 /* Base Styles */
@@ -68,7 +74,7 @@ body {
 /* Page Content */
 .page-content {
     padding: clamp(1rem, 4vw, 2rem);
-    max-width: 1400px;
+    max-width: var(--container-max);
     margin: 0 auto;
     background: transparent;
     position: relative;
@@ -1126,77 +1132,770 @@ body {
     to { transform: rotate(360deg); }
 }
 
-/* Responsive Design */
+/* =============================================
+   GRANULAR RESPONSIVE BREAKPOINTS (50px increments)
+   Ordered smallest to largest. Each breakpoint scales
+   base font, spacing, container width, and touch targets.
+   ============================================= */
 
-/* Small devices (phones, < 640px) */
-@media (max-width: 639px) {
+/* Ultra small devices (0-199px) – fallback */
+@media only screen and (max-width: 199px) {
+    html {
+        font-size: 7px;
+    }
+    :root {
+        --font-base: 7px;
+        --spacing-unit: 0.5rem;
+        --container-max: 100%;
+        --touch-target-min: 32px;
+    }
+    .page-content {
+        padding: 2px;
+    }
+    .btn, .form-control, .user-select, .search-box input, .pagination button, .action-btn {
+        min-height: 32px;
+    }
+    .stats-grid {
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+    }
+    .content-grid {
+        grid-template-columns: 1fr;
+    }
+    .user-info {
+        grid-template-columns: 1fr;
+    }
+    .modal-content {
+        width: 95%;
+        margin: 0;
+    }
+    .toast-container {
+        left: 10px;
+        right: 10px;
+        max-width: none;
+    }
+    .data-table th, .data-table td {
+        padding: 0.5rem;
+        font-size: 0.7rem;
+    }
+    .stat-icon {
+        width: 40px;
+        height: 40px;
+    }
+}
+
+/* ===== Breakpoint: 200px – 250px | Micro Screens ===== */
+@media only screen and (min-width: 200px) and (max-width: 250px) {
+    html {
+        font-size: 8px;
+    }
+    :root {
+        --font-base: 8px;
+        --spacing-unit: 0.6rem;
+        --container-max: 100%;
+        --touch-target-min: 36px;
+    }
+    .page-content {
+        padding: 4px;
+    }
+    .btn, .form-control, .user-select, .search-box input, .pagination button, .action-btn {
+        min-height: 36px;
+        padding: 0.5rem 0.8rem;
+    }
+    .stats-grid {
+        grid-template-columns: 1fr;
+        gap: 0.8rem;
+    }
+    .content-grid {
+        grid-template-columns: 1fr;
+    }
+    .user-info {
+        grid-template-columns: 1fr;
+    }
+    .modal-content {
+        width: 95%;
+        margin: 0;
+    }
+    .toast-container {
+        left: 10px;
+        right: 10px;
+        max-width: none;
+    }
+    .data-table th, .data-table td {
+        padding: 0.6rem 0.4rem;
+        font-size: 0.7rem;
+    }
+    .stat-icon {
+        width: 44px;
+        height: 44px;
+    }
+    .stat-value {
+        font-size: 1.2rem;
+    }
     .dashboard-header {
         flex-direction: column;
         align-items: stretch;
     }
-
-    .stats-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .content-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .user-info {
-        grid-template-columns: 1fr;
-    }
-
-    .modal-content {
-        max-height: 95vh;
-    }
-
-    .user-select-container {
-        flex-direction: column;
-    }
-
-    .toast-container {
-        left: 1rem;
-        right: 1rem;
-        max-width: none;
-    }
-
-    .data-table th,
-    .data-table td {
-        padding: 0.75rem 0.5rem;
+    .header-actions .btn {
+        width: 100%;
     }
 }
 
-/* Medium devices (tablets, 640px - 1024px) */
-@media (min-width: 640px) and (max-width: 1024px) {
+/* ===== Breakpoint: 250px – 300px | Tiny Screens ===== */
+@media only screen and (min-width: 250px) and (max-width: 300px) {
+    html {
+        font-size: 9px;
+    }
+    :root {
+        --font-base: 9px;
+        --spacing-unit: 0.7rem;
+        --container-max: 100%;
+        --touch-target-min: 38px;
+    }
+    .page-content {
+        padding: 6px;
+    }
+    .btn, .form-control, .user-select, .search-box input, .pagination button, .action-btn {
+        min-height: 38px;
+        padding: 0.5rem 1rem;
+    }
     .stats-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    .content-grid {
+        grid-template-columns: 1fr;
+    }
+    .user-info {
+        grid-template-columns: 1fr;
+    }
+    .data-table th, .data-table td {
+        padding: 0.7rem 0.5rem;
+        font-size: 0.75rem;
+    }
+    .stat-icon {
+        width: 48px;
+        height: 48px;
+    }
+    .dashboard-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}
+
+/* ===== Breakpoint: 300px – 350px | X-Small Screens ===== */
+@media only screen and (min-width: 300px) and (max-width: 350px) {
+    html {
+        font-size: 10px;
+    }
+    :root {
+        --font-base: 10px;
+        --spacing-unit: 0.8rem;
+        --container-max: 100%;
+        --touch-target-min: 40px;
+    }
+    .page-content {
+        padding: 8px;
+    }
+    .btn, .form-control, .user-select, .search-box input, .pagination button, .action-btn {
+        min-height: 40px;
+        padding: 0.6rem 1.2rem;
+    }
+    .stats-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    .content-grid {
+        grid-template-columns: 1fr;
+    }
+    .user-info {
+        grid-template-columns: 1fr;
+    }
+    .data-table th, .data-table td {
+        font-size: 0.8rem;
+    }
+    .stat-icon {
+        width: 50px;
+        height: 50px;
+    }
+}
+
+/* ===== Breakpoint: 350px – 400px | Small- Screens ===== */
+@media only screen and (min-width: 350px) and (max-width: 400px) {
+    html {
+        font-size: 11px;
+    }
+    :root {
+        --font-base: 11px;
+        --spacing-unit: 0.9rem;
+        --container-max: 100%;
+        --touch-target-min: 42px;
+    }
+    .page-content {
+        padding: 10px;
+    }
+    .btn, .form-control, .user-select, .search-box input, .pagination button, .action-btn {
+        min-height: 42px;
+        padding: 0.6rem 1.4rem;
+    }
+    .stats-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    .content-grid {
+        grid-template-columns: 1fr;
+    }
+    .user-info {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ===== Breakpoint: 400px – 450px | Small Screens ===== */
+@media only screen and (min-width: 400px) and (max-width: 450px) {
+    html {
+        font-size: 12px;
+    }
+    :root {
+        --font-base: 12px;
+        --spacing-unit: 1rem;
+        --container-max: 100%;
+        --touch-target-min: 44px;
+    }
+    .page-content {
+        padding: 12px;
+    }
+    .btn, .form-control, .user-select, .search-box input, .pagination button, .action-btn {
+        min-height: 44px;
+        padding: 0.7rem 1.6rem;
+    }
+    .stats-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    .content-grid {
+        grid-template-columns: 1fr;
+    }
+    .user-info {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ===== Breakpoint: 450px – 500px | Small+ Screens ===== */
+@media only screen and (min-width: 450px) and (max-width: 500px) {
+    html {
+        font-size: 13px;
+    }
+    :root {
+        --font-base: 13px;
+        --spacing-unit: 1.1rem;
+        --container-max: 100%;
+        --touch-target-min: 44px;
+    }
+    .page-content {
+        padding: 14px;
+    }
+    .btn, .form-control, .user-select, .search-box input, .pagination button, .action-btn {
+        min-height: 44px;
+        padding: 0.8rem 1.8rem;
+    }
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+    }
+    .content-grid {
+        grid-template-columns: 1fr;
+    }
+    .user-info {
+        grid-template-columns: 1fr;
+    }
+    .dashboard-header {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+}
+
+/* ===== Breakpoint: 500px – 550px | Medium- Screens ===== */
+@media only screen and (min-width: 500px) and (max-width: 550px) {
+    html {
+        font-size: 13.5px;
+    }
+    :root {
+        --font-base: 13.5px;
+        --spacing-unit: 1.2rem;
+        --container-max: 100%;
+        --touch-target-min: 46px;
+    }
+    .page-content {
+        padding: 16px;
+    }
+    .btn, .form-control, .user-select, .search-box input, .pagination button, .action-btn {
+        min-height: 46px;
+        padding: 0.8rem 2rem;
+    }
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1.2rem;
+    }
+    .content-grid {
+        grid-template-columns: 1fr;
+    }
+    .user-info {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+/* ===== Breakpoint: 550px – 600px | Medium Screens ===== */
+@media only screen and (min-width: 550px) and (max-width: 600px) {
+    html {
+        font-size: 14px;
+    }
+    :root {
+        --font-base: 14px;
+        --spacing-unit: 1.3rem;
+        --container-max: 100%;
+        --touch-target-min: 48px;
+    }
+    .page-content {
+        padding: 18px;
+    }
+    .btn, .form-control, .user-select, .search-box input, .pagination button, .action-btn {
+        min-height: 48px;
+        padding: 0.9rem 2.2rem;
+    }
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1.2rem;
+    }
+    .content-grid {
+        grid-template-columns: 1fr;
+    }
+    .user-info {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+/* ===== Breakpoint: 600px – 650px | Medium+ Screens ===== */
+@media only screen and (min-width: 600px) and (max-width: 650px) {
+    html {
+        font-size: 14.5px;
+    }
+    :root {
+        --font-base: 14.5px;
+        --spacing-unit: 1.4rem;
+        --container-max: 100%;
+        --touch-target-min: 48px;
+    }
+    .page-content {
+        padding: 20px;
+    }
+    .btn, .form-control, .user-select, .search-box input, .pagination button, .action-btn {
+        min-height: 48px;
+        padding: 0.9rem 2.4rem;
+    }
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1.2rem;
+    }
+    .content-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    .user-info {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+/* ===== Breakpoint: 650px – 700px | Large- Screens ===== */
+@media only screen and (min-width: 650px) and (max-width: 700px) {
+    html {
+        font-size: 15px;
+    }
+    :root {
+        --font-base: 15px;
+        --spacing-unit: 1.5rem;
+        --container-max: 100%;
+        --touch-target-min: 48px;
+    }
+    .page-content {
+        padding: 22px;
+    }
+    .btn, .form-control, .user-select, .search-box input, .pagination button, .action-btn {
+        min-height: 48px;
+        padding: 1rem 2.5rem;
+    }
+    .stats-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1.5rem;
+    }
+    .content-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    .user-info {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+/* ===== Breakpoint: 700px – 750px | Large Screens ===== */
+@media only screen and (min-width: 700px) and (max-width: 750px) {
+    html {
+        font-size: 15.5px;
+    }
+    :root {
+        --font-base: 15.5px;
+        --spacing-unit: 1.6rem;
+        --container-max: 100%;
+        --touch-target-min: 48px;
+    }
+    .page-content {
+        padding: 24px;
+    }
+    .btn, .form-control, .user-select, .search-box input, .pagination button, .action-btn {
+        min-height: 48px;
+        padding: 1rem 2.5rem;
+    }
+    .stats-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1.5rem;
+    }
+    .content-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    .user-info {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+/* ===== Breakpoint: 750px – 800px | Large+ Screens ===== */
+@media only screen and (min-width: 750px) and (max-width: 800px) {
+    html {
+        font-size: 16px;
+    }
+    :root {
+        --font-base: 16px;
+        --spacing-unit: 1.7rem;
+        --container-max: 100%;
+        --touch-target-min: 50px;
+    }
+    .page-content {
+        padding: 26px;
+    }
+    .btn, .form-control, .user-select, .search-box input, .pagination button, .action-btn {
+        min-height: 50px;
+        padding: 1rem 2.5rem;
+    }
+    .stats-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1.5rem;
+    }
+    .content-grid {
         grid-template-columns: repeat(2, 1fr);
     }
 }
 
-/* Large devices (laptops, 1024px - 1440px) */
-@media (min-width: 1024px) and (max-width: 1440px) {
+/* ===== Breakpoint: 800px – 850px | XL- Screens ===== */
+@media only screen and (min-width: 800px) and (max-width: 850px) {
+    html {
+        font-size: 16.5px;
+    }
+    :root {
+        --font-base: 16.5px;
+        --spacing-unit: 1.8rem;
+        --container-max: 100%;
+        --touch-target-min: 50px;
+    }
     .page-content {
-        padding: 2rem;
+        padding: 28px;
+    }
+    .btn, .form-control, .user-select, .search-box input, .pagination button, .action-btn {
+        min-height: 50px;
+        padding: 1rem 2.5rem;
+    }
+    .stats-grid {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1.5rem;
+    }
+    .content-grid {
+        grid-template-columns: repeat(2, 1fr);
     }
 }
 
-/* Extra large devices (desktops, 1440px - 1920px) */
-@media (min-width: 1440px) and (max-width: 1920px) {
+/* ===== Breakpoint: 850px – 900px | XL Screens ===== */
+@media only screen and (min-width: 850px) and (max-width: 900px) {
+    html {
+        font-size: 17px;
+    }
+    :root {
+        --font-base: 17px;
+        --spacing-unit: 1.9rem;
+        --container-max: 100%;
+        --touch-target-min: 52px;
+    }
     .page-content {
-        padding: 2.5rem;
+        padding: 30px;
+    }
+    .btn, .form-control, .user-select, .search-box input, .pagination button, .action-btn {
+        min-height: 52px;
+        padding: 1rem 2.5rem;
+    }
+    .stats-grid {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1.5rem;
+    }
+    .content-grid {
+        grid-template-columns: repeat(2, 1fr);
     }
 }
 
-/* 4K and above */
-@media (min-width: 1921px) {
-    .page-content {
-        max-width: 1800px;
-        padding: 3rem;
+/* ===== Breakpoint: 900px – 950px | XL+ Screens ===== */
+@media only screen and (min-width: 900px) and (max-width: 950px) {
+    html {
+        font-size: 17px;
     }
-    
+    :root {
+        --font-base: 17px;
+        --spacing-unit: 2rem;
+        --container-max: 100%;
+        --touch-target-min: 52px;
+    }
+    .page-content {
+        padding: 32px;
+    }
+    .btn, .form-control, .user-select, .search-box input, .pagination button, .action-btn {
+        min-height: 52px;
+        padding: 1rem 2.5rem;
+    }
+    .stats-grid {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1.5rem;
+    }
+    .content-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* ===== Breakpoint: 950px – 1000px | 2XL- Screens ===== */
+@media only screen and (min-width: 950px) and (max-width: 1000px) {
+    html {
+        font-size: 17.5px;
+    }
+    :root {
+        --font-base: 17.5px;
+        --spacing-unit: 2.1rem;
+        --container-max: 100%;
+        --touch-target-min: 52px;
+    }
+    .page-content {
+        padding: 34px;
+    }
+    .btn, .form-control, .user-select, .search-box input, .pagination button, .action-btn {
+        min-height: 52px;
+        padding: 1rem 2.5rem;
+    }
+    .stats-grid {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1.5rem;
+    }
+    .content-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* ===== Breakpoint: 1000px – 1050px | 2XL Screens ===== */
+@media only screen and (min-width: 1000px) and (max-width: 1050px) {
+    html {
+        font-size: 17.5px;
+    }
+    :root {
+        --font-base: 17.5px;
+        --spacing-unit: 2.2rem;
+        --container-max: 100%;
+        --touch-target-min: 54px;
+    }
+    .page-content {
+        padding: 36px;
+    }
+    .btn, .form-control, .user-select, .search-box input, .pagination button, .action-btn {
+        min-height: 54px;
+        padding: 1rem 2.5rem;
+    }
+    .stats-grid {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1.5rem;
+    }
+    .content-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* ===== Breakpoint: 1050px – 1100px | 2XL+ Screens ===== */
+@media only screen and (min-width: 1050px) and (max-width: 1100px) {
     html {
         font-size: 18px;
+    }
+    :root {
+        --font-base: 18px;
+        --spacing-unit: 2.3rem;
+        --container-max: 100%;
+        --touch-target-min: 54px;
+    }
+    .page-content {
+        padding: 38px;
+    }
+    .btn, .form-control, .user-select, .search-box input, .pagination button, .action-btn {
+        min-height: 54px;
+        padding: 1rem 2.5rem;
+    }
+    .stats-grid {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1.5rem;
+    }
+    .content-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* ===== Breakpoint: 1100px – 1150px | 3XL- Screens ===== */
+@media only screen and (min-width: 1100px) and (max-width: 1150px) {
+    html {
+        font-size: 18px;
+    }
+    :root {
+        --font-base: 18px;
+        --spacing-unit: 2.4rem;
+        --container-max: 1100px;
+        --touch-target-min: 56px;
+    }
+    .page-content {
+        max-width: var(--container-max);
+        margin: 0 auto;
+        padding: 1.5rem;
+    }
+    .btn, .form-control, .user-select, .search-box input, .pagination button, .action-btn {
+        min-height: 56px;
+        padding: 1rem 2.5rem;
+    }
+    .stats-grid {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1.5rem;
+    }
+    .content-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    .user-info {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+/* ===== Breakpoint: 1150px – 1200px | 3XL Screens ===== */
+@media only screen and (min-width: 1150px) and (max-width: 1200px) {
+    html {
+        font-size: 18.5px;
+    }
+    :root {
+        --font-base: 18.5px;
+        --spacing-unit: 2.5rem;
+        --container-max: 1150px;
+        --touch-target-min: 56px;
+    }
+    .page-content {
+        max-width: var(--container-max);
+        margin: 0 auto;
+        padding: 1.8rem;
+    }
+    .btn, .form-control, .user-select, .search-box input, .pagination button, .action-btn {
+        min-height: 56px;
+        padding: 1rem 2.5rem;
+    }
+    .stats-grid {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1.5rem;
+    }
+    .content-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* ===== Breakpoint: 1200px – 2560px+ | 4XL+ (full desktop & TV) ===== */
+@media only screen and (min-width: 1200px) {
+    html {
+        font-size: 19px;
+    }
+    :root {
+        --font-base: 19px;
+        --spacing-unit: 2.6rem;
+        --container-max: 1400px;
+        --touch-target-min: 58px;
+    }
+    .page-content {
+        max-width: var(--container-max);
+        margin: 0 auto;
+        padding: 2rem;
+    }
+    .btn, .form-control, .user-select, .search-box input, .pagination button, .action-btn {
+        min-height: 58px;
+        padding: 1rem 2.5rem;
+    }
+    .stats-grid {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1.5rem;
+    }
+    .content-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    .stat-icon {
+        width: 64px;
+        height: 64px;
+    }
+    .stat-value {
+        font-size: 2rem;
+    }
+    .modal-content {
+        max-width: 600px;
+    }
+}
+
+/* Extra large screens (TV/4K) further scale */
+@media only screen and (min-width: 1920px) {
+    html {
+        font-size: 22px;
+    }
+    :root {
+        --font-base: 22px;
+        --spacing-unit: 3rem;
+        --container-max: 1800px;
+        --touch-target-min: 64px;
+    }
+    .page-content {
+        max-width: var(--container-max);
+    }
+    .btn, .form-control, .user-select, .search-box input, .pagination button, .action-btn {
+        min-height: 64px;
+        padding: 1rem 3rem;
+    }
+    .stats-grid {
+        gap: 2rem;
+    }
+    .stat-icon {
+        width: 72px;
+        height: 72px;
+    }
+    .modal-content {
+        max-width: 700px;
+    }
+}
+
+/* ===== Additional Responsive Helpers ===== */
+@media (max-width: 768px) {
+    .user-select-container {
+        flex-direction: column;
+    }
+    .user-select-container .btn {
+        width: 100%;
+    }
+    .modal-footer {
+        flex-direction: column;
+    }
+    .modal-footer .btn {
+        width: 100%;
     }
 }
 

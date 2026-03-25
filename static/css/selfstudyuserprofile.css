@@ -71,6 +71,7 @@ body {
     line-height: 1.6;
     text-shadow: var(--text-shadow-default);
     min-height: 100vh;
+    overflow-x: hidden;
 }
 
 /* Page Layout */
@@ -257,6 +258,7 @@ body {
     text-shadow: 0 0 5px rgba(255,255,255,0.5);
     position: relative;
     overflow: hidden;
+    min-height: 40px;
 }
 
 .btn::before {
@@ -807,85 +809,168 @@ body {
     color: #ef4444;
 }
 
-/* Responsive Design */
+/* =============================================
+   SEARCH & PAGINATION - Cosmic Theme Override
+   ============================================= */
+.search-section {
+    background: var(--space-bg-medium);
+    backdrop-filter: var(--glass-blur);
+    border-radius: var(--border-radius-lg);
+    border: var(--glass-border);
+    box-shadow: var(--glass-shadow);
+    padding: var(--space-lg);
+    margin-bottom: var(--space-2xl);
+}
 
+.search-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-md);
+    align-items: flex-end;
+}
+
+.search-group {
+    flex: 1;
+    min-width: 180px;
+}
+
+.search-group label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: var(--space-xs);
+    color: var(--cosmic-cyan);
+    text-shadow: 0 0 5px var(--cosmic-glow);
+    font-size: 0.9rem;
+}
+
+.search-group input,
+.search-group select {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: var(--border-radius-sm);
+    font-size: 0.95rem;
+    transition: var(--transition-default);
+    background: var(--space-bg-input);
+    color: var(--star-white);
+    backdrop-filter: blur(4px);
+}
+
+.search-group input:focus,
+.search-group select:focus {
+    outline: none;
+    border-color: var(--cosmic-cyan);
+    box-shadow: 0 0 20px var(--cosmic-glow);
+}
+
+.search-actions {
+    display: flex;
+    gap: var(--space-sm);
+}
+
+.btn-search {
+    background: linear-gradient(135deg, rgba(78, 205, 196, 0.2), rgba(58, 134, 255, 0.2));
+    border-color: var(--cosmic-cyan);
+    box-shadow: 0 0 15px var(--cosmic-glow);
+    padding: 0.75rem 1.5rem;
+    border-radius: var(--border-radius-sm);
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition-default);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--star-white);
+    border: 1px solid var(--cosmic-cyan);
+    background-color: transparent;
+}
+
+.btn-search:hover {
+    background: rgba(78, 205, 196, 0.3);
+    box-shadow: 0 0 25px var(--cosmic-glow);
+    transform: translateY(-2px);
+}
+
+.btn-reset {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+    padding: 0.75rem 1.5rem;
+    border-radius: var(--border-radius-sm);
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition-default);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--star-white);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background-color: transparent;
+}
+
+.btn-reset:hover {
+    background: rgba(78, 205, 196, 0.2);
+    border-color: var(--cosmic-cyan);
+    color: var(--cosmic-cyan);
+    box-shadow: 0 0 20px var(--cosmic-glow);
+    transform: translateY(-2px);
+}
+
+.pagination {
+    margin-top: var(--space-2xl);
+    display: flex;
+    justify-content: center;
+    gap: var(--space-sm);
+    flex-wrap: wrap;
+}
+
+.pagination a,
+.pagination span {
+    padding: 0.5rem 1rem;
+    border-radius: var(--border-radius-sm);
+    background: rgba(0, 0, 0, 0.5);
+    color: var(--cosmic-cyan);
+    text-decoration: none;
+    border: 1px solid rgba(78, 205, 196, 0.3);
+    transition: var(--transition-default);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 36px;
+    backdrop-filter: blur(4px);
+}
+
+.pagination a:hover {
+    background: rgba(78, 205, 196, 0.2);
+    border-color: var(--cosmic-cyan);
+    box-shadow: 0 0 15px var(--cosmic-glow);
+    transform: translateY(-2px);
+}
+
+.pagination .current-page {
+    background: linear-gradient(135deg, rgba(78, 205, 196, 0.3), rgba(58, 134, 255, 0.3));
+    border-color: var(--cosmic-cyan);
+    color: var(--star-white);
+    box-shadow: 0 0 20px var(--cosmic-glow);
+    font-weight: 600;
+}
+
+/* Responsive adjustments for search section */
 @media (max-width: 768px) {
-    .page-content {
-        padding: var(--space-md);
-    }
-    
-    .header-section h1 {
-        font-size: 2rem;
-    }
-    
-    .stats-container {
-        grid-template-columns: 1fr;
-    }
-    
-    .action-section {
+    .search-form {
         flex-direction: column;
         align-items: stretch;
     }
-    
-    .form-grid {
-        grid-template-columns: 1fr;
-    }
-    
-    .modal-content {
-        width: 95%;
-    }
-    
-    .modal-header {
-        padding: var(--space-lg) var(--space-xl);
-    }
-    
-    .modal-body {
-        padding: var(--space-lg) var(--space-xl);
-    }
-    
-    .users-table {
-        font-size: 0.9rem;
-    }
-    
-    .users-table th,
-    .users-table td {
-        padding: var(--space-sm) 0.5rem;
-    }
-    
-    .user-avatar img,
-    .avatar-fallback {
-        width: 50px;
-        height: 50px;
-    }
-    
-    .action-buttons {
-        flex-direction: column;
-    }
-}
-
-@media (max-width: 480px) {
-    .header-section {
-        padding: var(--space-xl) var(--space-md);
-    }
-    
-    .header-section h1 {
-        font-size: 1.75rem;
-    }
-    
-    .stat-card {
-        padding: var(--space-md);
-    }
-    
-    .modal-header h2 {
-        font-size: 1.25rem;
-    }
-    
-    .modal-actions {
-        flex-direction: column;
-    }
-    
-    .modal-actions .btn {
+    .search-group {
         width: 100%;
+    }
+    .search-actions {
+        justify-content: flex-end;
+        margin-top: var(--space-sm);
+    }
+    .search-actions .btn,
+    .search-actions .btn-search,
+    .search-actions .btn-reset {
+        flex: 1;
         justify-content: center;
     }
 }
@@ -948,7 +1033,9 @@ body {
     .action-section,
     .modal,
     .btn,
-    .btn-icon {
+    .btn-icon,
+    .search-section,
+    .pagination {
         display: none !important;
     }
     
@@ -987,5 +1074,265 @@ body {
         color: black;
         background: #f0f0f0;
         box-shadow: none;
+    }
+}
+
+/* =============================================
+   ENHANCED RESPONSIVE BREAKPOINTS SYSTEM
+   Granular scaling for all devices (200px → 2560px+)
+   ============================================= */
+
+/* ===== Breakpoint: 200px – 250px | Micro Screens ===== */
+@media only screen and (min-width: 200px) and (max-width: 250px) {
+    html { font-size: 8px; }
+    body { line-height: 1.4; }
+
+    .page-content { padding: 0.5rem; max-width: 100%; }
+    .header-section { padding: 0.75rem; margin-bottom: 1rem; }
+    .header-section h1 { font-size: 1.4rem; }
+    .header-section p { font-size: 0.8rem; }
+
+    .stats-container { gap: 0.5rem; grid-template-columns: 1fr; }
+    .stat-card { padding: 0.6rem; gap: 0.4rem; }
+    .stat-icon { width: 32px; height: 32px; font-size: 0.9rem; }
+    .stat-info h3 { font-size: 1.2rem; }
+    .stat-info p { font-size: 0.7rem; }
+
+    .action-section { padding: 0.5rem; gap: 0.5rem; flex-direction: column; }
+    .domain-info { padding: 0.4rem 0.8rem; font-size: 0.7rem; }
+
+    .btn { padding: 0.4rem 0.6rem; min-height: 32px; font-size: 0.7rem; gap: 0.3rem; }
+    .btn-icon { width: 28px; height: 28px; min-width: 28px; }
+
+    .users-table th, .users-table td { padding: 0.4rem 0.2rem; font-size: 0.65rem; }
+    .user-avatar img, .avatar-fallback { width: 28px; height: 28px; }
+    .user-info .user-name { font-size: 0.8rem; }
+    .contact-info .email, .contact-info .lab-url a { font-size: 0.7rem; }
+    .status-badge { padding: 0.25rem 0.5rem; font-size: 0.65rem; }
+
+    .modal-content { width: 98%; max-width: 98%; }
+    .modal-header { padding: 0.6rem; }
+    .modal-body { padding: 0.6rem; }
+    .form-group input, .form-group select { padding: 0.4rem; font-size: 0.7rem; min-height: 32px; }
+
+    .search-section { padding: 0.6rem; }
+    .search-group label { font-size: 0.7rem; }
+    .search-group input, .search-group select { padding: 0.4rem; font-size: 0.7rem; min-height: 32px; }
+    .btn-search, .btn-reset { padding: 0.4rem 0.8rem; font-size: 0.7rem; min-height: 32px; }
+    .pagination a, .pagination span { padding: 0.3rem 0.6rem; font-size: 0.7rem; min-width: 28px; }
+
+    /* Performance: reduce blur on smallest devices */
+    .header-section, .stat-card, .table-container, .modal-content, .action-section, .btn, .search-section {
+        backdrop-filter: blur(3px) saturate(120%);
+    }
+}
+
+/* ===== Breakpoint: 250px – 300px | Tiny Screens ===== */
+@media only screen and (min-width: 250px) and (max-width: 300px) {
+    html { font-size: 9px; }
+    .page-content { padding: 0.6rem; }
+    .header-section { padding: 1rem; }
+    .header-section h1 { font-size: 1.6rem; }
+    .stat-card { padding: 0.8rem; }
+    .stat-icon { width: 36px; height: 36px; }
+    .btn { min-height: 34px; padding: 0.45rem 0.8rem; }
+    .users-table th, .users-table td { padding: 0.5rem 0.25rem; }
+    .modal-header { padding: 0.8rem; }
+    .modal-body { padding: 0.8rem; }
+    .form-group input, .form-group select { min-height: 34px; }
+    .btn-icon { width: 32px; height: 32px; }
+    .stats-container { grid-template-columns: 1fr; }
+    .action-section { flex-direction: column; }
+    .search-section { padding: 0.8rem; }
+    .search-group input, .search-group select { min-height: 34px; }
+}
+
+/* ===== Breakpoint: 300px – 350px | X-Small Screens ===== */
+@media only screen and (min-width: 300px) and (max-width: 350px) {
+    html { font-size: 10px; }
+    .page-content { padding: 0.75rem; }
+    .header-section { padding: 1.2rem; }
+    .header-section h1 { font-size: 1.8rem; }
+    .stat-card { padding: 0.9rem; gap: 0.7rem; }
+    .stat-icon { width: 40px; height: 40px; }
+    .btn { min-height: 36px; padding: 0.5rem 1rem; }
+    .users-table th, .users-table td { padding: 0.6rem 0.3rem; font-size: 0.75rem; }
+    .modal-header { padding: 1rem; }
+    .modal-body { padding: 1rem; }
+    .stats-container { grid-template-columns: 1fr; }
+    .action-section { flex-direction: column; }
+    .btn-icon { width: 36px; height: 36px; }
+}
+
+/* ===== Breakpoint: 350px – 400px | Small- Screens ===== */
+@media only screen and (min-width: 350px) and (max-width: 400px) {
+    html { font-size: 11px; }
+    .page-content { padding: 0.85rem; }
+    .header-section h1 { font-size: 2rem; }
+    .stat-card { padding: 1rem; }
+    .stat-icon { width: 44px; height: 44px; }
+    .btn { min-height: 38px; }
+    .users-table th, .users-table td { padding: 0.7rem 0.4rem; }
+    .stats-container { grid-template-columns: 1fr; }
+    .action-section { flex-direction: column; }
+}
+
+/* ===== Breakpoint: 400px – 450px | Small Screens ===== */
+@media only screen and (min-width: 400px) and (max-width: 450px) {
+    html { font-size: 12px; }
+    .page-content { padding: 1rem; }
+    .header-section h1 { font-size: 2.2rem; }
+    .stat-card { padding: 1.1rem; }
+    .btn { min-height: 40px; }
+    .stats-container { grid-template-columns: 1fr; }
+    .action-section { flex-direction: row; flex-wrap: wrap; }
+}
+
+/* ===== Breakpoint: 450px – 500px | Small+ Screens ===== */
+@media only screen and (min-width: 450px) and (max-width: 500px) {
+    html { font-size: 13px; }
+    .page-content { padding: 1rem; }
+    .stats-container { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; }
+    .action-section { flex-direction: row; flex-wrap: wrap; justify-content: space-between; }
+    .btn { min-height: 42px; }
+}
+
+/* ===== Breakpoint: 500px – 550px | Medium- Screens ===== */
+@media only screen and (min-width: 500px) and (max-width: 550px) {
+    html { font-size: 13.5px; }
+    .stats-container { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+    .btn { min-height: 44px; padding: 0.6rem 1.2rem; }
+    .page-content { padding: 1.2rem; }
+}
+
+/* ===== Breakpoint: 550px – 600px | Medium Screens ===== */
+@media only screen and (min-width: 550px) and (max-width: 600px) {
+    html { font-size: 14px; }
+    .btn { min-height: 44px; }
+    .page-content { padding: 1.25rem; }
+    .stats-container { gap: 1.2rem; }
+}
+
+/* ===== Breakpoint: 600px – 650px | Medium+ Screens ===== */
+@media only screen and (min-width: 600px) and (max-width: 650px) {
+    html { font-size: 14.5px; }
+    .page-content { padding: 1.3rem; }
+    .stats-container { gap: 1.3rem; }
+}
+
+/* ===== Breakpoint: 650px – 700px | Large- Screens ===== */
+@media only screen and (min-width: 650px) and (max-width: 700px) {
+    html { font-size: 15px; }
+    .page-content { padding: 1.4rem; }
+    .stats-container { gap: 1.4rem; }
+}
+
+/* ===== Breakpoint: 700px – 750px | Large Screens ===== */
+@media only screen and (min-width: 700px) and (max-width: 750px) {
+    html { font-size: 15.5px; }
+    .page-content { padding: 1.5rem; }
+    .stats-container { gap: 1.5rem; }
+}
+
+/* ===== Breakpoint: 750px – 800px | Large+ Screens ===== */
+@media only screen and (min-width: 750px) and (max-width: 800px) {
+    html { font-size: 16px; }
+    .page-content { padding: 1.6rem; }
+    .stats-container { gap: 1.6rem; }
+}
+
+/* ===== Breakpoint: 800px – 850px | XL- Screens ===== */
+@media only screen and (min-width: 800px) and (max-width: 850px) {
+    html { font-size: 16.5px; }
+    .page-content { padding: 1.7rem; }
+}
+
+/* ===== Breakpoint: 850px – 900px | XL Screens ===== */
+@media only screen and (min-width: 850px) and (max-width: 900px) {
+    html { font-size: 17px; }
+    .page-content { padding: 1.8rem; }
+    .stats-container { gap: 1.8rem; }
+}
+
+/* ===== Breakpoint: 900px – 950px | XL+ Screens ===== */
+@media only screen and (min-width: 900px) and (max-width: 950px) {
+    html { font-size: 17px; }
+    .page-content { padding: 1.9rem; max-width: 1200px; }
+}
+
+/* ===== Breakpoint: 950px – 1000px | 2XL- Screens ===== */
+@media only screen and (min-width: 950px) and (max-width: 1000px) {
+    html { font-size: 17.5px; }
+    .page-content { padding: 2rem; max-width: 1300px; }
+}
+
+/* ===== Breakpoint: 1000px – 1050px | 2XL Screens ===== */
+@media only screen and (min-width: 1000px) and (max-width: 1050px) {
+    html { font-size: 17.5px; }
+    .page-content { max-width: 1400px; padding: 2rem; }
+}
+
+/* ===== Breakpoint: 1050px – 1100px | 2XL+ Screens ===== */
+@media only screen and (min-width: 1050px) and (max-width: 1100px) {
+    html { font-size: 18px; }
+    .page-content { max-width: 1400px; padding: 2rem; }
+}
+
+/* ===== Breakpoint: 1100px – 1150px | 3XL- Screens ===== */
+@media only screen and (min-width: 1100px) and (max-width: 1150px) {
+    html { font-size: 18px; }
+    .page-content { max-width: 1500px; padding: 2rem; }
+    .stats-container { gap: 2rem; }
+}
+
+/* ===== Breakpoint: 1150px – 1200px | 3XL Screens ===== */
+@media only screen and (min-width: 1150px) and (max-width: 1200px) {
+    html { font-size: 18.5px; }
+    .page-content { max-width: 1600px; padding: 2rem; }
+    .stats-container { gap: 2rem; }
+}
+
+/* ===== Breakpoint: 1200px+ | 4XL (Desktop, TV) ===== */
+@media only screen and (min-width: 1200px) {
+    html { font-size: 19px; }
+    body { line-height: 1.7; }
+    .page-content { max-width: 1800px; padding: 2.5rem; }
+    .stats-container { gap: 2rem; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+    .header-section { padding: 3rem 2rem; margin-bottom: 3rem; }
+    .header-section h1 { font-size: 2.8rem; }
+    .stat-card { padding: 1.8rem; gap: 1.2rem; }
+    .stat-icon { width: 80px; height: 80px; font-size: 2rem; }
+    .stat-info h3 { font-size: 2.5rem; }
+    .btn { padding: 0.9rem 1.8rem; font-size: 1rem; min-height: 52px; }
+    .btn-icon { width: 48px; height: 48px; }
+    .users-table th, .users-table td { padding: 1.2rem; font-size: 1rem; }
+    .user-avatar img, .avatar-fallback { width: 70px; height: 70px; }
+    .modal-content { max-width: 900px; }
+    .form-group input, .form-group select { padding: 0.9rem; font-size: 1rem; min-height: 48px; }
+    .search-section { padding: 1.8rem; }
+    .search-group input, .search-group select { padding: 0.8rem 1.2rem; font-size: 1rem; min-height: 48px; }
+    .btn-search, .btn-reset { padding: 0.8rem 1.5rem; font-size: 1rem; min-height: 48px; }
+    .pagination a, .pagination span { padding: 0.7rem 1.2rem; font-size: 1rem; min-width: 44px; }
+}
+
+/* Additional touch target refinements for all breakpoints */
+@media (pointer: coarse) {
+    .btn, .btn-icon, .close, .pagination a, .pagination span, .search-group input, .search-group select, .form-group input, .form-group select {
+        min-height: 44px;
+    }
+    @media (min-width: 1200px) {
+        .btn, .btn-icon { min-height: 52px; }
+    }
+}
+
+/* Ensure no horizontal scroll */
+body {
+    overflow-x: hidden;
+}
+
+/* Improve backdrop performance on mobile */
+@media (max-width: 640px) {
+    .header-section, .stat-card, .table-container, .modal-content, .action-section, .search-section {
+        backdrop-filter: blur(6px) saturate(150%);
     }
 }

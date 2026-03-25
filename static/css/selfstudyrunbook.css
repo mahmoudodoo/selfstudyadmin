@@ -2,7 +2,7 @@
  * SelfStudy Runbook Management - Cosmic Space Theme
  * A futuristic, glass-morphism interface floating over a 3D animated galaxy background.
  * Designed with transparency, glowing accents, and light text on dark translucent surfaces.
- * Mobile-first, responsive, and performance-optimized.
+ * Fully responsive across all screen sizes (200px to 2560px+) with granular breakpoint scaling.
  */
 
 :root {
@@ -16,7 +16,7 @@
     --cosmic-cyan: #4ECDC4;
     --cosmic-purple: #8A2BE2;
     --cosmic-blue: #3a86ff;
-    --cosmic-glow: rgba(78, 205, 196, 0.6);    /* Cyan glow */
+    --cosmic-glow: rgba(78, 205, 196, 0.6);
     --cosmic-glow-purple: rgba(138, 43, 226, 0.6);
     --star-white: #ffffff;
     --text-light: #f0f0f0;
@@ -33,11 +33,11 @@
     --glass-border: 1px solid rgba(255, 255, 255, 0.15);
     --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
     
-    /* Spacing & Borders */
-    --border-radius-sm: 8px;
-    --border-radius-md: 12px;
-    --border-radius-lg: 16px;
-    --border-radius-xl: 24px;
+    /* Spacing & Borders (relative) */
+    --border-radius-sm: 0.5rem;
+    --border-radius-md: 0.75rem;
+    --border-radius-lg: 1rem;
+    --border-radius-xl: 1.5rem;
     
     /* Transitions */
     --transition-default: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -55,14 +55,17 @@
     padding: 0;
 }
 
+html {
+    font-size: 19px; /* Baseline for 1200px+ (4XL) */
+}
+
 body {
     font-family: var(--font-family);
     line-height: 1.6;
     color: var(--text-light);
-    background: #000; /* Fallback for deep space */
+    background: #000;
     min-height: 100vh;
     text-shadow: var(--text-shadow-default);
-    /* The actual 3D galaxy background will be behind the body */
 }
 
 .runbook-container {
@@ -80,7 +83,7 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    margin-bottom: var(--space-xl, 2rem);
+    margin-bottom: 2rem;
     flex-wrap: wrap;
     gap: 1.5rem;
 }
@@ -237,7 +240,6 @@ body {
     box-shadow: 0 0 10px var(--danger-glow);
 }
 
-/* Alternate border colors */
 .status-item:nth-child(odd) {
     border-left-color: var(--cosmic-purple);
 }
@@ -245,7 +247,6 @@ body {
     border-left-color: var(--cosmic-cyan);
 }
 
-/* Domain count specific */
 #domainCount {
     font-size: 1.3rem !important;
     color: var(--cosmic-cyan) !important;
@@ -258,7 +259,6 @@ body {
     color: var(--cosmic-purple) !important;
 }
 
-/* App ID styling */
 .status-item:nth-child(3) .value {
     font-family: monospace;
     background: rgba(0, 0, 0, 0.5);
@@ -275,12 +275,6 @@ body {
     grid-template-columns: 1fr 2fr;
     gap: 2rem;
     margin-bottom: 2rem;
-}
-
-@media (max-width: 1024px) {
-    .runbook-main {
-        grid-template-columns: 1fr;
-    }
 }
 
 /* ===== Sections ===== */
@@ -602,6 +596,8 @@ body {
     text-shadow: 0 0 5px rgba(255,255,255,0.5);
     position: relative;
     overflow: hidden;
+    min-height: 2.75rem;
+    line-height: 1.2;
 }
 
 .btn::before {
@@ -668,6 +664,7 @@ body {
 .btn-small {
     padding: 0.25rem 0.75rem;
     font-size: 0.85rem;
+    min-height: 2rem;
 }
 
 .btn:disabled {
@@ -939,68 +936,6 @@ body {
     border-color: var(--cosmic-cyan);
 }
 
-/* ===== Responsive Design ===== */
-@media (max-width: 768px) {
-    .runbook-container {
-        padding: 1rem;
-    }
-    
-    .runbook-header {
-        flex-direction: column;
-        align-items: stretch;
-    }
-    
-    .header-actions {
-        justify-content: flex-start;
-    }
-    
-    .service-status-card .status-content {
-        grid-template-columns: 1fr;
-    }
-    
-    .selection-info {
-        flex-direction: column;
-        align-items: stretch;
-        text-align: center;
-    }
-    
-    .selection-content {
-        flex-direction: column;
-        gap: 0.25rem;
-    }
-    
-    .modal-content {
-        margin: 10px;
-        width: calc(100% - 20px);
-    }
-}
-
-@media (max-width: 480px) {
-    .section-header {
-        flex-direction: column;
-        align-items: stretch;
-    }
-    
-    .search-box {
-        width: 100%;
-    }
-    
-    .form-actions {
-        flex-direction: column;
-    }
-    
-    .btn {
-        width: 100%;
-        justify-content: center;
-    }
-    
-    .toast {
-        left: 20px;
-        right: 20px;
-        max-width: none;
-    }
-}
-
 /* ===== Icons ===== */
 .icon-runbook::before { content: "📋"; }
 .icon-add::before { content: "➕"; }
@@ -1099,4 +1034,195 @@ body {
     .section-item-title {
         color: black;
     }
+}
+
+/* ===== RESPONSIVE BREAKPOINT SYSTEM ===== */
+/* Granular media queries with progressive scaling from 200px to 2560px+ */
+
+/* ===== Breakpoint: 200px – 250px | Micro Screens ===== */
+@media only screen and (min-width: 200px) and (max-width: 250px) {
+    html { font-size: 8px; }
+    .runbook-container { padding: 0.75rem; max-width: 100%; }
+    .runbook-main { grid-template-columns: 1fr; gap: 1rem; }
+    .btn { padding: 0.75rem 1rem; min-height: 44px; font-size: 1rem; }
+    .section-header { flex-direction: column; align-items: stretch; }
+    .search-box { width: 100%; }
+    .form-actions { flex-direction: column; }
+    .btn { width: 100%; justify-content: center; }
+    .status-content { grid-template-columns: 1fr; }
+    .runbook-header { flex-direction: column; align-items: stretch; }
+    .header-actions { justify-content: flex-start; }
+    .selection-info { flex-direction: column; text-align: center; }
+    .modal-content { max-width: 95%; margin: 0 auto; }
+    .toast { left: 10px; right: 10px; max-width: none; }
+}
+
+/* ===== Breakpoint: 250px – 300px | Tiny Screens ===== */
+@media only screen and (min-width: 250px) and (max-width: 300px) {
+    html { font-size: 9px; }
+    .runbook-container { padding: 0.875rem; max-width: 100%; }
+    .runbook-main { grid-template-columns: 1fr; gap: 1.125rem; }
+    .btn { padding: 0.75rem 1rem; min-height: 44px; font-size: 1rem; }
+    .section-header { flex-direction: column; align-items: stretch; }
+    .search-box { width: 100%; }
+    .status-content { grid-template-columns: 1fr; }
+    .runbook-header { flex-direction: column; }
+    .selection-info { flex-direction: column; }
+    .toast { left: 15px; right: 15px; }
+}
+
+/* ===== Breakpoint: 300px – 350px | X-Small Screens ===== */
+@media only screen and (min-width: 300px) and (max-width: 350px) {
+    html { font-size: 10px; }
+    .runbook-container { padding: 1rem; max-width: 100%; }
+    .runbook-main { grid-template-columns: 1fr; gap: 1.25rem; }
+    .btn { padding: 0.75rem 1.125rem; min-height: 44px; font-size: 1rem; }
+    .section-header { flex-direction: column; align-items: stretch; }
+    .search-box { width: 100%; }
+    .status-content { grid-template-columns: 1fr; }
+    .runbook-header { flex-direction: column; }
+    .selection-info { flex-direction: column; }
+}
+
+/* ===== Breakpoint: 350px – 400px | Small- Screens ===== */
+@media only screen and (min-width: 350px) and (max-width: 400px) {
+    html { font-size: 11px; }
+    .runbook-container { padding: 1rem; max-width: 100%; }
+    .runbook-main { grid-template-columns: 1fr; gap: 1.375rem; }
+    .btn { padding: 0.75rem 1.25rem; min-height: 44px; }
+    .status-content { grid-template-columns: 1fr; }
+}
+
+/* ===== Breakpoint: 400px – 450px | Small Screens ===== */
+@media only screen and (min-width: 400px) and (max-width: 450px) {
+    html { font-size: 12px; }
+    .runbook-container { padding: 1rem; max-width: 100%; }
+    .runbook-main { grid-template-columns: 1fr; gap: 1.5rem; }
+    .btn { min-height: 44px; }
+    .status-content { grid-template-columns: 1fr; }
+}
+
+/* ===== Breakpoint: 450px – 500px | Small+ Screens ===== */
+@media only screen and (min-width: 450px) and (max-width: 500px) {
+    html { font-size: 13px; }
+    .runbook-container { padding: 1rem; max-width: 100%; }
+    .runbook-main { grid-template-columns: 1fr; gap: 1.5rem; }
+    .btn { min-height: 44px; }
+    .status-content { grid-template-columns: 1fr; }
+}
+
+/* ===== Breakpoint: 500px – 550px | Medium- Screens ===== */
+@media only screen and (min-width: 500px) and (max-width: 550px) {
+    html { font-size: 13.5px; }
+    .runbook-container { padding: 1rem; max-width: 100%; }
+    .runbook-main { grid-template-columns: 1fr; gap: 1.5rem; }
+    .btn { min-height: 44px; }
+}
+
+/* ===== Breakpoint: 550px – 600px | Medium Screens ===== */
+@media only screen and (min-width: 550px) and (max-width: 600px) {
+    html { font-size: 14px; }
+    .runbook-container { padding: 1.125rem; max-width: 100%; }
+    .runbook-main { grid-template-columns: 1fr; gap: 1.5rem; }
+    .btn { min-height: 44px; }
+    .status-content { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+}
+
+/* ===== Breakpoint: 600px – 650px | Medium+ Screens ===== */
+@media only screen and (min-width: 600px) and (max-width: 650px) {
+    html { font-size: 14.5px; }
+    .runbook-container { padding: 1.25rem; max-width: 100%; }
+    .runbook-main { grid-template-columns: 1fr; gap: 1.5rem; }
+    .btn { min-height: 44px; }
+}
+
+/* ===== Breakpoint: 650px – 700px | Large- Screens ===== */
+@media only screen and (min-width: 650px) and (max-width: 700px) {
+    html { font-size: 15px; }
+    .runbook-container { padding: 1.25rem; max-width: 100%; }
+    .runbook-main { grid-template-columns: 1fr; gap: 1.5rem; }
+    .btn { min-height: 44px; }
+}
+
+/* ===== Breakpoint: 700px – 750px | Large Screens ===== */
+@media only screen and (min-width: 700px) and (max-width: 750px) {
+    html { font-size: 15.5px; }
+    .runbook-container { padding: 1.5rem; max-width: 100%; }
+    .runbook-main { grid-template-columns: 1fr; gap: 1.75rem; }
+    .btn { min-height: 44px; }
+}
+
+/* ===== Breakpoint: 750px – 800px | Large+ Screens ===== */
+@media only screen and (min-width: 750px) and (max-width: 800px) {
+    html { font-size: 16px; }
+    .runbook-container { padding: 1.5rem; max-width: 100%; }
+    .runbook-main { grid-template-columns: 1fr; gap: 1.75rem; }
+    .btn { min-height: 44px; }
+}
+
+/* ===== Breakpoint: 800px – 850px | XL- Screens ===== */
+@media only screen and (min-width: 800px) and (max-width: 850px) {
+    html { font-size: 16.5px; }
+    .runbook-container { padding: 1.5rem; max-width: 100%; }
+    .runbook-main { grid-template-columns: 1fr 2fr; gap: 1.75rem; }
+    .btn { min-height: 44px; }
+}
+
+/* ===== Breakpoint: 850px – 900px | XL Screens ===== */
+@media only screen and (min-width: 850px) and (max-width: 900px) {
+    html { font-size: 17px; }
+    .runbook-container { padding: 1.5rem; max-width: 100%; }
+    .runbook-main { grid-template-columns: 1fr 2fr; gap: 1.75rem; }
+    .btn { min-height: 44px; }
+}
+
+/* ===== Breakpoint: 900px – 950px | XL+ Screens ===== */
+@media only screen and (min-width: 900px) and (max-width: 950px) {
+    html { font-size: 17px; }
+    .runbook-container { padding: 1.5rem; max-width: 100%; }
+    .runbook-main { grid-template-columns: 1fr 2fr; gap: 1.75rem; }
+}
+
+/* ===== Breakpoint: 950px – 1000px | 2XL- Screens ===== */
+@media only screen and (min-width: 950px) and (max-width: 1000px) {
+    html { font-size: 17.5px; }
+    .runbook-container { padding: 1.5rem; max-width: 1200px; margin: 0 auto; }
+    .runbook-main { grid-template-columns: 1fr 2fr; gap: 1.75rem; }
+}
+
+/* ===== Breakpoint: 1000px – 1050px | 2XL Screens ===== */
+@media only screen and (min-width: 1000px) and (max-width: 1050px) {
+    html { font-size: 17.5px; }
+    .runbook-container { padding: 1.5rem; max-width: 1200px; margin: 0 auto; }
+    .runbook-main { grid-template-columns: 1fr 2fr; gap: 2rem; }
+}
+
+/* ===== Breakpoint: 1050px – 1100px | 2XL+ Screens ===== */
+@media only screen and (min-width: 1050px) and (max-width: 1100px) {
+    html { font-size: 18px; }
+    .runbook-container { padding: 1.5rem; max-width: 1200px; margin: 0 auto; }
+    .runbook-main { grid-template-columns: 1fr 2fr; gap: 2rem; }
+}
+
+/* ===== Breakpoint: 1100px – 1150px | 3XL- Screens ===== */
+@media only screen and (min-width: 1100px) and (max-width: 1150px) {
+    html { font-size: 18px; }
+    .runbook-container { padding: 1.75rem; max-width: 1280px; margin: 0 auto; }
+    .runbook-main { grid-template-columns: 1fr 2fr; gap: 2rem; }
+}
+
+/* ===== Breakpoint: 1150px – 1200px | 3XL Screens ===== */
+@media only screen and (min-width: 1150px) and (max-width: 1200px) {
+    html { font-size: 18.5px; }
+    .runbook-container { padding: 1.75rem; max-width: 1280px; margin: 0 auto; }
+    .runbook-main { grid-template-columns: 1fr 2fr; gap: 2rem; }
+}
+
+/* ===== Breakpoint: 1200px+ | 4XL Screens & Beyond ===== */
+@media only screen and (min-width: 1200px) {
+    html { font-size: 19px; }
+    .runbook-container { padding: 2rem; max-width: 1400px; margin: 0 auto; }
+    .runbook-main { grid-template-columns: 1fr 2fr; gap: 2rem; }
+    .btn { min-height: 48px; padding: 0.625rem 1.25rem; }
+    .status-content { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1.75rem; }
 }

@@ -2,6 +2,7 @@
    SPACE COMMAND CENTER THEME – USER MANAGEMENT
    Dark, transparent, glass‑morphic UI with cosmic glows.
    Supports list, create, update, and delete pages.
+   Enhanced with granular 50px-increment responsive breakpoints.
    ============================================================ */
 
 /* ----------------------------------------
@@ -20,8 +21,8 @@
   --nebula-purple: #8A2BE2;
   --star-white: #FFFFFF;
   --cosmic-blue: #3b82f6;
-  --cosmic-orange: #f39c12;   /* edit button */
-  --cosmic-red: #e74c3c;       /* delete button */
+  --cosmic-orange: #f39c12;
+  --cosmic-red: #e74c3c;
 
   /* Text – always light */
   --text-primary: #FFFFFF;
@@ -35,13 +36,13 @@
   --border-glow: 1px solid rgba(255, 255, 255, 0.15);
   --inner-glow: inset 0 0 30px rgba(78, 205, 196, 0.1);
 
-  /* Typography – responsive with clamp */
-  --fs-xs: clamp(0.7rem, 2vw, 0.8rem);
-  --fs-sm: clamp(0.8rem, 2.5vw, 0.9rem);
-  --fs-base: clamp(0.9rem, 3vw, 1rem);
-  --fs-md: clamp(1rem, 3.5vw, 1.2rem);
-  --fs-lg: clamp(1.2rem, 4vw, 1.5rem);
-  --fs-xl: clamp(1.5rem, 5vw, 2rem);
+  /* Typography – will be overridden in breakpoints */
+  --fs-xs: 0.7rem;
+  --fs-sm: 0.8rem;
+  --fs-base: 0.9rem;
+  --fs-md: 1rem;
+  --fs-lg: 1.2rem;
+  --fs-xl: 1.5rem;
 
   /* Spacing */
   --space-xs: 0.5rem;
@@ -693,111 +694,6 @@ h1, h2, h3, h4, p, label, span, a, button, input, select, textarea,
 }
 
 /* ----------------------------------------
-   RESPONSIVE DESIGN
-   ---------------------------------------- */
-@media (max-width: 768px) {
-  .page-content {
-    padding: var(--space-md);
-  }
-
-  .dashboard-header {
-    flex-direction: column;
-    align-items: stretch;
-    text-align: center;
-  }
-
-  .dashboard-header h2 {
-    text-align: center;
-  }
-
-  .btn-primary {
-    width: 100%;
-    justify-content: center;
-  }
-
-  .stats-container {
-    grid-template-columns: 1fr;
-  }
-
-  .stat-card {
-    padding: var(--space-md);
-  }
-
-  .actions {
-    flex-direction: column;
-    gap: var(--space-xs);
-  }
-
-  .btn-edit,
-  .btn-delete {
-    width: 100%;
-    justify-content: center;
-    text-align: center;
-  }
-
-  .pagination {
-    flex-direction: column;
-    gap: var(--space-xs);
-  }
-
-  .page-link {
-    width: 100%;
-    text-align: center;
-  }
-
-  .form-actions {
-    flex-direction: column;
-  }
-
-  .form-actions .btn {
-    width: 100%;
-    justify-content: center;
-  }
-}
-
-@media (max-width: 480px) {
-  .stat-card {
-    flex-direction: column;
-    text-align: center;
-    gap: var(--space-sm);
-  }
-
-  .users-table {
-    min-width: 600px;
-  }
-
-  .form-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* Large screens – enhanced spacing */
-@media (min-width: 1440px) {
-  .page-content {
-    padding: calc(var(--space-xl) * 1.5);
-  }
-
-  .stat-card {
-    padding: var(--space-xl);
-  }
-
-  .form-container {
-    max-width: 900px;
-  }
-}
-
-@media (min-width: 1920px) {
-  .page-content {
-    max-width: 85%;
-    padding: calc(var(--space-xl) * 2);
-  }
-
-  .stat-number {
-    font-size: calc(var(--fs-xl) * 1.2);
-  }
-}
-
-/* ----------------------------------------
    UTILITY CLASSES
    ---------------------------------------- */
 .glass-effect {
@@ -808,4 +704,586 @@ h1, h2, h3, h4, p, label, span, a, button, input, select, textarea,
 
 i.fas, i.far, i.fab {
   filter: drop-shadow(0 0 5px currentColor);
+}
+
+/* ============================================================
+   GRANULAR RESPONSIVE BREAKPOINTS (50px increments)
+   Progressive scaling from micro to 4K.
+   ============================================================ */
+
+/* ===== Breakpoint: 200px – 250px | Micro Screens ===== */
+@media only screen and (min-width: 200px) and (max-width: 250px) {
+  html {
+    font-size: 8px;
+  }
+  :root {
+    --fs-xs: 0.7rem;
+    --fs-sm: 0.8rem;
+    --fs-base: 0.9rem;
+    --fs-md: 1rem;
+    --fs-lg: 1.2rem;
+    --fs-xl: 1.5rem;
+    --space-xs: 0.4rem;
+    --space-sm: 0.6rem;
+    --space-md: 0.8rem;
+    --space-lg: 1rem;
+    --space-xl: 1.2rem;
+  }
+  .page-content {
+    padding: 0.8rem;
+  }
+  .dashboard-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.8rem;
+    margin-bottom: 1rem;
+  }
+  .dashboard-header h2 {
+    text-align: center;
+  }
+  .btn {
+    width: 100%;
+    justify-content: center;
+    min-height: 32px;
+    padding: 0.4rem 1rem;
+  }
+  .stats-container {
+    grid-template-columns: 1fr;
+    gap: 0.8rem;
+  }
+  .stat-card {
+    padding: 0.8rem;
+    flex-direction: column;
+    text-align: center;
+    gap: 0.5rem;
+  }
+  .stat-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 20px;
+  }
+  .table-responsive {
+    overflow-x: auto;
+  }
+  .users-table {
+    min-width: 600px;
+  }
+  .users-table th,
+  .users-table td {
+    padding: 0.5rem 0.4rem;
+  }
+  .actions {
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+  .btn-edit,
+  .btn-delete {
+    width: 100%;
+    justify-content: center;
+    padding: 0.3rem 0.6rem;
+  }
+  .pagination {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .page-link,
+  .current {
+    width: 100%;
+    text-align: center;
+    padding: 0.4rem 0.8rem;
+  }
+  .form-container {
+    padding: 1rem;
+  }
+  .form-grid {
+    grid-template-columns: 1fr;
+    gap: 0.8rem;
+  }
+  .form-actions {
+    flex-direction: column;
+  }
+  .form-actions .btn {
+    width: 100%;
+  }
+}
+
+/* ===== Breakpoint: 250px – 300px | Tiny Screens ===== */
+@media only screen and (min-width: 250px) and (max-width: 300px) {
+  html {
+    font-size: 9px;
+  }
+  :root {
+    --fs-xs: 0.7rem;
+    --fs-sm: 0.8rem;
+    --fs-base: 0.9rem;
+    --fs-md: 1rem;
+    --fs-lg: 1.2rem;
+    --fs-xl: 1.5rem;
+    --space-xs: 0.5rem;
+    --space-sm: 0.7rem;
+    --space-md: 0.9rem;
+    --space-lg: 1.2rem;
+    --space-xl: 1.5rem;
+  }
+  .page-content {
+    padding: 1rem;
+  }
+  .dashboard-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .btn {
+    min-height: 36px;
+  }
+  .stats-container {
+    grid-template-columns: 1fr;
+  }
+  .stat-card {
+    flex-direction: column;
+    text-align: center;
+  }
+  .actions {
+    flex-direction: column;
+  }
+  .pagination {
+    flex-direction: column;
+  }
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+  .form-actions {
+    flex-direction: column;
+  }
+}
+
+/* ===== Breakpoint: 300px – 350px | X-Small ===== */
+@media only screen and (min-width: 300px) and (max-width: 350px) {
+  html {
+    font-size: 10px;
+  }
+  :root {
+    --fs-xs: 0.7rem;
+    --fs-sm: 0.8rem;
+    --fs-base: 0.9rem;
+    --fs-md: 1rem;
+    --fs-lg: 1.2rem;
+    --fs-xl: 1.5rem;
+    --space-xs: 0.5rem;
+    --space-sm: 0.75rem;
+    --space-md: 1rem;
+    --space-lg: 1.3rem;
+    --space-xl: 1.6rem;
+  }
+  .page-content {
+    padding: 1rem;
+  }
+  .dashboard-header {
+    flex-direction: column;
+  }
+  .btn {
+    min-height: 40px;
+  }
+  .stats-container {
+    grid-template-columns: 1fr;
+  }
+  .stat-card {
+    flex-direction: column;
+    text-align: center;
+  }
+  .actions {
+    flex-direction: column;
+  }
+  .pagination {
+    flex-direction: column;
+  }
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+  .form-actions {
+    flex-direction: column;
+  }
+}
+
+/* ===== Breakpoint: 350px – 400px | Small- ===== */
+@media only screen and (min-width: 350px) and (max-width: 400px) {
+  html {
+    font-size: 11px;
+  }
+  :root {
+    --fs-xs: 0.7rem;
+    --fs-sm: 0.8rem;
+    --fs-base: 0.9rem;
+    --fs-md: 1rem;
+    --fs-lg: 1.2rem;
+    --fs-xl: 1.5rem;
+  }
+  .page-content {
+    padding: 1rem;
+  }
+  .dashboard-header {
+    flex-direction: column;
+  }
+  .btn {
+    min-height: 42px;
+  }
+  .stats-container {
+    grid-template-columns: 1fr;
+  }
+  .stat-card {
+    flex-direction: column;
+    text-align: center;
+  }
+  .actions {
+    flex-direction: column;
+  }
+  .pagination {
+    flex-direction: column;
+  }
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+  .form-actions {
+    flex-direction: column;
+  }
+}
+
+/* ===== Breakpoint: 400px – 450px | Small ===== */
+@media only screen and (min-width: 400px) and (max-width: 450px) {
+  html {
+    font-size: 12px;
+  }
+  .page-content {
+    padding: 1rem;
+  }
+  .dashboard-header {
+    flex-direction: column;
+  }
+  .btn {
+    min-height: 44px;
+  }
+  .stats-container {
+    grid-template-columns: 1fr;
+  }
+  .stat-card {
+    flex-direction: column;
+    text-align: center;
+  }
+  .actions {
+    flex-direction: column;
+  }
+  .pagination {
+    flex-direction: column;
+  }
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+  .form-actions {
+    flex-direction: column;
+  }
+}
+
+/* ===== Breakpoint: 450px – 500px | Small+ ===== */
+@media only screen and (min-width: 450px) and (max-width: 500px) {
+  html {
+    font-size: 13px;
+  }
+  .page-content {
+    padding: 1.2rem;
+  }
+  .dashboard-header {
+    flex-direction: column;
+  }
+  .stats-container {
+    grid-template-columns: 1fr;
+  }
+  .stat-card {
+    flex-direction: row;
+    text-align: left;
+  }
+  .actions {
+    flex-direction: row;
+  }
+  .pagination {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+  .form-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+}
+
+/* ===== Breakpoint: 500px – 550px | Medium- ===== */
+@media only screen and (min-width: 500px) and (max-width: 550px) {
+  html {
+    font-size: 13.5px;
+  }
+  .page-content {
+    padding: 1.3rem;
+  }
+  .stats-container {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  }
+  .actions {
+    flex-direction: row;
+  }
+  .pagination {
+    flex-direction: row;
+  }
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ===== Breakpoint: 550px – 600px | Medium ===== */
+@media only screen and (min-width: 550px) and (max-width: 600px) {
+  html {
+    font-size: 14px;
+  }
+  .page-content {
+    padding: 1.4rem;
+  }
+  .stats-container {
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  }
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ===== Breakpoint: 600px – 650px | Medium+ ===== */
+@media only screen and (min-width: 600px) and (max-width: 650px) {
+  html {
+    font-size: 14.5px;
+  }
+  .page-content {
+    padding: 1.5rem;
+  }
+  .stats-container {
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  }
+  .form-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* ===== Breakpoint: 650px – 700px | Large- ===== */
+@media only screen and (min-width: 650px) and (max-width: 700px) {
+  html {
+    font-size: 15px;
+  }
+  .page-content {
+    padding: 1.6rem;
+  }
+  .form-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* ===== Breakpoint: 700px – 750px | Large ===== */
+@media only screen and (min-width: 700px) and (max-width: 750px) {
+  html {
+    font-size: 15.5px;
+  }
+  .page-content {
+    padding: 1.8rem;
+  }
+  .form-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* ===== Breakpoint: 750px – 800px | Large+ ===== */
+@media only screen and (min-width: 750px) and (max-width: 800px) {
+  html {
+    font-size: 16px;
+  }
+  .page-content {
+    padding: 1.9rem;
+  }
+  .form-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* ===== Breakpoint: 800px – 850px | XL- ===== */
+@media only screen and (min-width: 800px) and (max-width: 850px) {
+  html {
+    font-size: 16.5px;
+  }
+  .page-content {
+    padding: 2rem;
+  }
+  .form-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* ===== Breakpoint: 850px – 900px | XL ===== */
+@media only screen and (min-width: 850px) and (max-width: 900px) {
+  html {
+    font-size: 17px;
+  }
+  .page-content {
+    padding: 2.1rem;
+  }
+  .form-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* ===== Breakpoint: 900px – 950px | XL+ ===== */
+@media only screen and (min-width: 900px) and (max-width: 950px) {
+  html {
+    font-size: 17.2px;
+  }
+  .page-content {
+    padding: 2.2rem;
+  }
+  .form-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* ===== Breakpoint: 950px – 1000px | 2XL- ===== */
+@media only screen and (min-width: 950px) and (max-width: 1000px) {
+  html {
+    font-size: 17.5px;
+  }
+  .page-content {
+    padding: 2.3rem;
+  }
+  .form-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* ===== Breakpoint: 1000px – 1050px | 2XL ===== */
+@media only screen and (min-width: 1000px) and (max-width: 1050px) {
+  html {
+    font-size: 17.8px;
+  }
+  .page-content {
+    padding: 2.4rem;
+  }
+  .form-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* ===== Breakpoint: 1050px – 1100px | 2XL+ ===== */
+@media only screen and (min-width: 1050px) and (max-width: 1100px) {
+  html {
+    font-size: 18px;
+  }
+  .page-content {
+    padding: 2.5rem;
+  }
+  .form-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* ===== Breakpoint: 1100px – 1150px | 3XL- ===== */
+@media only screen and (min-width: 1100px) and (max-width: 1150px) {
+  html {
+    font-size: 18.2px;
+  }
+  .page-content {
+    padding: 2.6rem;
+  }
+  .form-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* ===== Breakpoint: 1150px – 1200px | 3XL ===== */
+@media only screen and (min-width: 1150px) and (max-width: 1200px) {
+  html {
+    font-size: 18.5px;
+  }
+  .page-content {
+    padding: 2.8rem;
+  }
+  .form-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* ===== Breakpoint: 1200px+ | 4XL / Full-width Desktops ===== */
+@media only screen and (min-width: 1200px) {
+  html {
+    font-size: 19px;
+  }
+  .page-content {
+    max-width: 1600px;
+    padding: 3rem;
+  }
+  .stats-container {
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  }
+  .stat-card {
+    padding: 2rem;
+  }
+  .stat-icon {
+    width: 70px;
+    height: 70px;
+    font-size: 32px;
+  }
+  .form-container {
+    max-width: 900px;
+    padding: 3rem;
+  }
+  .form-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .users-table {
+    min-width: 100%;
+  }
+  .users-table th,
+  .users-table td {
+    padding: 1rem 1rem;
+  }
+}
+
+/* ===== TV / 4K (1920px+) – extra scaling ===== */
+@media only screen and (min-width: 1920px) {
+  html {
+    font-size: 22px;
+  }
+  .page-content {
+    max-width: 85%;
+    padding: 4rem;
+  }
+  .dashboard-header h2 {
+    font-size: calc(var(--fs-xl) * 1.2);
+  }
+  .stat-number {
+    font-size: calc(var(--fs-xl) * 1.2);
+  }
+  .stat-icon {
+    width: 85px;
+    height: 85px;
+    font-size: 40px;
+  }
+  .form-container {
+    max-width: 1100px;
+    padding: 4rem;
+  }
+  .btn {
+    font-size: var(--fs-base);
+    padding: 0.9rem 2rem;
+  }
+  .btn-edit,
+  .btn-delete {
+    font-size: var(--fs-sm);
+    padding: 0.5rem 1rem;
+  }
+  .users-table th,
+  .users-table td {
+    padding: 1.2rem 1.2rem;
+  }
 }

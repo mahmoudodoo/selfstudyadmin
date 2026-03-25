@@ -1,9 +1,12 @@
-// SelfStudy Chat Management - Working Version
+// SelfStudy Chat Management - With Pagination (9 per page)
 class ChatManager {
     constructor() {
         this.currentRoomId = null;
         this.currentReplicaUrl = null;
         this.blockedIPs = new Set();
+        this.currentRooms = [];       // Stores all rooms (filtered)
+        this.currentPage = 1;
+        this.pageSize = 9;
         this.init();
     }
 
@@ -148,7 +151,9 @@ class ChatManager {
             const data = await response.json();
             
             if (data.success) {
-                this.renderChatRooms(data.rooms);
+                this.currentRooms = data.rooms;
+                this.currentPage = 1;
+                this.renderCurrentPage();
                 this.updateCounts(data.total);
                 
                 // Update blocked IPs
@@ -167,6 +172,16 @@ class ChatManager {
             loadingIndicator.style.display = 'none';
             refreshBtn.disabled = false;
         }
+    }
+
+    renderCurrentPage() {
+        const total = this.currentRooms.length;
+        const start = (this.currentPage - 1) * this.pageSize;
+        const end = start + this.pageSize;
+        const pageRooms = this.currentRooms.slice(start, end);
+        this.renderChatRooms(pageRooms);
+        this.renderPagination(total);
+        this.updateShowingCount(pageRooms.length, total);
     }
 
     renderChatRooms(rooms) {
@@ -230,6 +245,78 @@ class ChatManager {
         });
         
         tableBody.innerHTML = html;
+    }
+
+    renderPagination(total) {
+        const totalPages = Math.ceil(total / this.pageSize);
+        const container = document.getElementById('chat-pagination');
+        if (!container) return;
+
+        if (totalPages <= 1) {
+            container.innerHTML = '';
+            return;
+        }
+
+        let currentPage = this.currentPage;
+        if (currentPage > totalPages) currentPage = totalPages;
+        if (currentPage < 1) currentPage = 1;
+        this.currentPage = currentPage;
+
+        let html = '<div class="pagination-controls">';
+        html += `<button class="pagination-btn" data-page="prev" ${currentPage === 1 ? 'disabled' : ''}>« Prev</button>`;
+
+        let start = Math.max(1, currentPage - 2);
+        let end = Math.min(totalPages, currentPage + 2);
+        if (start > 1) {
+            html += `<button class="pagination-btn" data-page="1">1</button>`;
+            if (start > 2) html += '<span class="pagination-ellipsis">...</span>';
+        }
+        for (let i = start; i <= end; i++) {
+            html += `<button class="pagination-btn ${i === currentPage ? 'active' : ''}" data-page="${i}">${i}</button>`;
+        }
+        if (end < totalPages) {
+            if (end < totalPages - 1) html += '<span class="pagination-ellipsis">...</span>';
+            html += `<button class="pagination-btn" data-page="${totalPages}">${totalPages}</button>`;
+        }
+        html += `<button class="pagination-btn" data-page="next" ${currentPage === totalPages ? 'disabled' : ''}>Next »</button>`;
+        html += '</div>';
+
+        container.innerHTML = html;
+
+        // Attach event listeners
+        container.querySelectorAll('.pagination-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const page = btn.dataset.page;
+                if (page === 'prev') {
+                    this.changePage(currentPage - 1);
+                } else if (page === 'next') {
+                    this.changePage(currentPage + 1);
+                } else {
+                    this.changePage(parseInt(page, 10));
+                }
+            });
+        });
+    }
+
+    changePage(page) {
+        const totalPages = Math.ceil(this.currentRooms.length / this.pageSize);
+        if (page < 1 || page > totalPages) return;
+        this.currentPage = page;
+        this.renderCurrentPage();
+    }
+
+    updateShowingCount(showing, total) {
+        const showingSpan = document.getElementById('showing-count');
+        const totalSpan = document.getElementById('total-count');
+        if (showingSpan) showingSpan.textContent = showing;
+        if (totalSpan) totalSpan.textContent = total;
+    }
+
+    updateCounts(total = null) {
+        if (total !== null) {
+            document.getElementById('total-count').textContent = total;
+            document.getElementById('total-rooms').textContent = total;
+        }
     }
 
     async showMessages(roomId, replicaUrl) {
@@ -405,12 +492,12 @@ class ChatManager {
                     const data = await response.json();
                     
                     if (data.success) {
-                        // Remove row
+                        // Remove row from DOM
                         const row = document.querySelector(`tr[data-room-id="${roomId}"][data-replica="${replicaUrl}"]`);
                         if (row) row.remove();
-                        
+                        // Refresh data to update counts and pagination
+                        this.loadChatRooms();
                         this.showNotification(data.message, 'success');
-                        this.updateCounts();
                     } else {
                         throw new Error(data.error);
                     }
@@ -489,17 +576,6 @@ class ChatManager {
         } catch (error) {
             console.error('Error marking messages:', error);
             this.showNotification('Failed to mark messages', 'error');
-        }
-    }
-
-    updateCounts(total = null) {
-        const tableBody = document.getElementById('chat-rooms-body');
-        const rows = tableBody.querySelectorAll('tr:not(.no-data)').length;
-        
-        document.getElementById('showing-count').textContent = rows;
-        if (total !== null) {
-            document.getElementById('total-count').textContent = total;
-            document.getElementById('total-rooms').textContent = total;
         }
     }
 

@@ -1,7 +1,17 @@
-// SelfStudy Exam Management JavaScript - ENHANCED VERSION
+// SelfStudy Exam Management JavaScript - WITH PAGINATION & SEARCH
 class SelfStudyExamManager {
     constructor() {
         this.currentTab = 'exams';
+        this.pageSize = 9;                      // Records per page
+        this.currentPage = {                    // Current page per tab
+            exams: 1,
+            quizzes: 1,
+            appointments: 1,
+            examResults: 1,
+            quizResults: 1
+        };
+        this.searchQuery = '';                  // Global search term
+
         this.exams = [];
         this.quizzes = [];
         this.appointments = [];
@@ -39,6 +49,18 @@ class SelfStudyExamManager {
         document.getElementById('exam-result-form').addEventListener('submit', (e) => this.handleExamResultSubmit(e));
         document.getElementById('quiz-result-form').addEventListener('submit', (e) => this.handleQuizResultSubmit(e));
 
+        // Global search with debouncing
+        let searchTimeout;
+        const searchInput = document.getElementById('globalSearch');
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => {
+                    this.handleGlobalSearch(e.target.value);
+                }, 300);
+            });
+        }
+
         window.addEventListener('click', (e) => {
             if (e.target.classList.contains('modal')) {
                 this.closeModals();
@@ -46,6 +68,7 @@ class SelfStudyExamManager {
         });
     }
 
+    // ========== DATA LOADING ==========
     async loadInitialData() {
         this.showLoading();
         try {
@@ -71,6 +94,8 @@ class SelfStudyExamManager {
     async loadTabData(tabName) {
         this.showLoading();
         try {
+            // Reset page to 1 when loading fresh data
+            this.currentPage[tabName] = 1;
             switch(tabName) {
                 case 'appointments':
                     await this.fetchExamAppointments();
@@ -182,6 +207,7 @@ class SelfStudyExamManager {
         });
     }
 
+    // ========== API REQUESTS ==========
     async fetchExams() {
         try {
             const response = await this.apiRequest('GET', { action: 'fetch_exams' });
@@ -375,6 +401,144 @@ class SelfStudyExamManager {
         }
     }
 
+    // ========== SEARCH AND FILTERING ==========
+    handleGlobalSearch(query) {
+        this.searchQuery = query.trim().toLowerCase();
+        // Reset all pages to 1 when search changes
+        for (let tab in this.currentPage) {
+            this.currentPage[tab] = 1;
+        }
+        // Re‑render all tabs that have data loaded
+        if (this.exams.length) this.updateExamsTable();
+        if (this.quizzes.length) this.updateQuizzesTable();
+        if (this.appointments.length) this.updateAppointmentsTable();
+        if (this.examResults.length) this.updateExamResultsTable();
+        if (this.quizResults.length) this.updateQuizResultsTable();
+    }
+
+    filterDataBySearch(dataArray, tabName) {
+        if (!this.searchQuery) return dataArray;
+
+        const term = this.searchQuery.toLowerCase();
+        return dataArray.filter(item => {
+            // Generic search across common fields
+            if (item.title && item.title.toLowerCase().includes(term)) return true;
+            if (item.content && item.content.toLowerCase().includes(term)) return true;
+
+            // Course title lookup
+            if (item.course_id && this.courseMap[item.course_id] && this.courseMap[item.course_id].toLowerCase().includes(term))
+                return true;
+            if (item.course_external_id && this.courseMap[item.course_external_id] && this.courseMap[item.course_external_id].toLowerCase().includes(term))
+                return true;
+
+            // Lesson title lookup (for quizzes)
+            if (item.lesson_id && this.lessonMap[item.lesson_id] && this.lessonMap[item.lesson_id].toLowerCase().includes(term))
+                return true;
+
+            // User name lookup
+            if (item.user && this.userMap[item.user] && this.userMap[item.user].toLowerCase().includes(term))
+                return true;
+            if (item.username && item.username.toLowerCase().includes(term)) return true;
+
+            // Exam/Quiz title lookup (for appointments and results)
+            if (item.exam && this.examMap[item.exam] && this.examMap[item.exam].toLowerCase().includes(term))
+                return true;
+            if (item.quiz && this.quizMap[item.quiz] && this.quizMap[item.quiz].toLowerCase().includes(term))
+                return true;
+
+            // Proctor name lookup (appointments)
+            if (item.proctor_id && this.proctorMap[item.proctor_id] && this.proctorMap[item.proctor_id].toLowerCase().includes(term))
+                return true;
+
+            // Status lookup
+            if (item.appointment_status && item.appointment_status.toLowerCase().includes(term)) return true;
+            if (item.result_status && item.result_status.toLowerCase().includes(term)) return true;
+
+            return false;
+        });
+    }
+
+    // ========== PAGINATION ==========
+    renderPagination(tabName, totalPages, currentPage) {
+        const containerId = `${tabName}-pagination`;
+        const container = document.getElementById(containerId);
+        if (!container) return;
+
+        if (totalPages <= 1) {
+            container.innerHTML = '';
+            return;
+        }
+
+        let html = '<div class="pagination-controls">';
+        html += `<button class="pagination-btn" data-page="prev" ${currentPage === 1 ? 'disabled' : ''}>« Prev</button>`;
+
+        // Show pages around current
+        let start = Math.max(1, currentPage - 2);
+        let end = Math.min(totalPages, currentPage + 2);
+        if (start > 1) {
+            html += `<button class="pagination-btn" data-page="1">1</button>`;
+            if (start > 2) html += '<span class="pagination-ellipsis">...</span>';
+        }
+        for (let i = start; i <= end; i++) {
+            html += `<button class="pagination-btn ${i === currentPage ? 'active' : ''}" data-page="${i}">${i}</button>`;
+        }
+        if (end < totalPages) {
+            if (end < totalPages - 1) html += '<span class="pagination-ellipsis">...</span>';
+            html += `<button class="pagination-btn" data-page="${totalPages}">${totalPages}</button>`;
+        }
+        html += `<button class="pagination-btn" data-page="next" ${currentPage === totalPages ? 'disabled' : ''}>Next »</button>`;
+        html += '</div>';
+
+        container.innerHTML = html;
+
+        // Attach event listeners
+        container.querySelectorAll('.pagination-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const page = btn.dataset.page;
+                if (page === 'prev') {
+                    this.changePage(tabName, currentPage - 1);
+                } else if (page === 'next') {
+                    this.changePage(tabName, currentPage + 1);
+                } else {
+                    this.changePage(tabName, parseInt(page, 10));
+                }
+            });
+        });
+    }
+
+    changePage(tabName, page) {
+        const totalPages = this.getTotalPages(tabName);
+        if (page < 1 || page > totalPages) return;
+        this.currentPage[tabName] = page;
+        // Re‑render the table for this tab
+        this.updateTableForTab(tabName);
+    }
+
+    getTotalPages(tabName) {
+        let data;
+        switch(tabName) {
+            case 'exams': data = this.exams; break;
+            case 'quizzes': data = this.quizzes; break;
+            case 'appointments': data = this.appointments; break;
+            case 'examResults': data = this.examResults; break;
+            case 'quizResults': data = this.quizResults; break;
+            default: return 1;
+        }
+        const filtered = this.filterDataBySearch(data, tabName);
+        return Math.ceil(filtered.length / this.pageSize);
+    }
+
+    updateTableForTab(tabName) {
+        switch(tabName) {
+            case 'exams': this.updateExamsTable(); break;
+            case 'quizzes': this.updateQuizzesTable(); break;
+            case 'appointments': this.updateAppointmentsTable(); break;
+            case 'examResults': this.updateExamResultsTable(); break;
+            case 'quizResults': this.updateQuizResultsTable(); break;
+        }
+    }
+
+    // ========== TABLE RENDERING (with pagination and filtering) ==========
     updateTables() {
         this.updateExamsTable();
         this.updateQuizzesTable();
@@ -386,177 +550,242 @@ class SelfStudyExamManager {
 
     updateExamsTable() {
         const tbody = document.getElementById('exams-tbody');
-        if (this.exams.length === 0) {
+        if (!tbody) return;
+
+        const filteredData = this.filterDataBySearch(this.exams, 'exams');
+        const totalPages = Math.ceil(filteredData.length / this.pageSize);
+        let currentPage = this.currentPage.exams;
+        if (totalPages > 0 && currentPage > totalPages) currentPage = totalPages;
+        if (currentPage < 1) currentPage = 1;
+        this.currentPage.exams = currentPage;
+
+        const start = (currentPage - 1) * this.pageSize;
+        const end = start + this.pageSize;
+        const pageData = filteredData.slice(start, end);
+
+        if (pageData.length === 0) {
             tbody.innerHTML = `
-            <tr>
-            <td colspan="6" class="empty-state">
-            <div class="empty-icon">📊</div>
-            <p>No exams found</p>
-            </td>
-            </tr>
+                <tr><td colspan="6" class="empty-state">
+                    <div class="empty-icon">📊</div>
+                    <p>No exams found</p>
+                </td></tr>
             `;
-            return;
+        } else {
+            tbody.innerHTML = pageData.map(exam => `
+                <tr>
+                    <td>${this.escapeHtml(exam.title)}</td>
+                    <td>${this.escapeHtml(this.courseMap[exam.course_id] || exam.course_id)}</td>
+                    <td>${exam.exam_duration} min</td>
+                    <td>${exam.questions ? exam.questions.length : 0}</td>
+                    <td>${this.formatDate(exam.date_added)}</td>
+                    <td class="table-actions">
+                        <button class="btn btn-edit" onclick="examManager.editExam('${exam.external_id}')">
+                            <span class="btn-icon">✏️</span> Edit
+                        </button>
+                        <button class="btn btn-info" onclick="examManager.manageExamQuestions('${exam.external_id}', '${this.escapeHtml(exam.title)}')">
+                            <span class="btn-icon">❓</span> Questions
+                        </button>
+                        <button class="btn btn-danger" onclick="examManager.deleteExam('${exam.external_id}')">
+                            <span class="btn-icon">🗑️</span> Delete
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
         }
-        tbody.innerHTML = this.exams.map(exam => `
-        <tr>
-        <td>${this.escapeHtml(exam.title)}</td>
-        <td>${this.escapeHtml(this.courseMap[exam.course_id] || exam.course_id)}</td>
-        <td>${exam.exam_duration} min</td>
-        <td>${exam.questions ? exam.questions.length : 0}</td>
-        <td>${this.formatDate(exam.date_added)}</td>
-        <td class="table-actions">
-        <button class="btn btn-edit" onclick="examManager.editExam('${exam.external_id}')">
-        <span class="btn-icon">✏️</span> Edit
-        </button>
-        <button class="btn btn-info" onclick="examManager.manageExamQuestions('${exam.external_id}', '${this.escapeHtml(exam.title)}')">
-        <span class="btn-icon">❓</span> Questions
-        </button>
-        <button class="btn btn-danger" onclick="examManager.deleteExam('${exam.external_id}')">
-        <span class="btn-icon">🗑️</span> Delete
-        </button>
-        </td>
-        </tr>
-        `).join('');
+
+        this.renderPagination('exams', totalPages, currentPage);
     }
 
     updateQuizzesTable() {
         const tbody = document.getElementById('quizzes-tbody');
-        if (this.quizzes.length === 0) {
+        if (!tbody) return;
+
+        const filteredData = this.filterDataBySearch(this.quizzes, 'quizzes');
+        const totalPages = Math.ceil(filteredData.length / this.pageSize);
+        let currentPage = this.currentPage.quizzes;
+        if (totalPages > 0 && currentPage > totalPages) currentPage = totalPages;
+        if (currentPage < 1) currentPage = 1;
+        this.currentPage.quizzes = currentPage;
+
+        const start = (currentPage - 1) * this.pageSize;
+        const end = start + this.pageSize;
+        const pageData = filteredData.slice(start, end);
+
+        if (pageData.length === 0) {
             tbody.innerHTML = `
-            <tr>
-            <td colspan="7" class="empty-state">
-            <div class="empty-icon">📝</div>
-            <p>No quizzes found</p>
-            </td>
-            </tr>
+                <tr><td colspan="7" class="empty-state">
+                    <div class="empty-icon">📝</div>
+                    <p>No quizzes found</p>
+                </td></tr>
             `;
-            return;
+        } else {
+            tbody.innerHTML = pageData.map(quiz => `
+                <tr>
+                    <td>${this.escapeHtml(quiz.title)}</td>
+                    <td>${this.escapeHtml(this.courseMap[quiz.course_id] || quiz.course_id)}</td>
+                    <td>${this.escapeHtml(this.lessonMap[quiz.lesson_id] || quiz.lesson_id)}</td>
+                    <td>${quiz.quiz_duration} min</td>
+                    <td>${quiz.questions ? quiz.questions.length : 0}</td>
+                    <td>${this.formatDate(quiz.date_added)}</td>
+                    <td class="table-actions">
+                        <button class="btn btn-edit" onclick="examManager.editQuiz('${quiz.external_id}')">
+                            <span class="btn-icon">✏️</span> Edit
+                        </button>
+                        <button class="btn btn-info" onclick="examManager.manageQuizQuestions('${quiz.external_id}', '${this.escapeHtml(quiz.title)}')">
+                            <span class="btn-icon">❓</span> Questions
+                        </button>
+                        <button class="btn btn-danger" onclick="examManager.deleteQuiz('${quiz.external_id}')">
+                            <span class="btn-icon">🗑️</span> Delete
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
         }
-        tbody.innerHTML = this.quizzes.map(quiz => `
-        <tr>
-        <td>${this.escapeHtml(quiz.title)}</td>
-        <td>${this.escapeHtml(this.courseMap[quiz.course_id] || quiz.course_id)}</td>
-        <td>${this.escapeHtml(this.lessonMap[quiz.lesson_id] || quiz.lesson_id)}</td>
-        <td>${quiz.quiz_duration} min</td>
-        <td>${quiz.questions ? quiz.questions.length : 0}</td>
-        <td>${this.formatDate(quiz.date_added)}</td>
-        <td class="table-actions">
-        <button class="btn btn-edit" onclick="examManager.editQuiz('${quiz.external_id}')">
-        <span class="btn-icon">✏️</span> Edit
-        </button>
-        <button class="btn btn-info" onclick="examManager.manageQuizQuestions('${quiz.external_id}', '${this.escapeHtml(quiz.title)}')">
-        <span class="btn-icon">❓</span> Questions
-        </button>
-        <button class="btn btn-danger" onclick="examManager.deleteQuiz('${quiz.external_id}')">
-        <span class="btn-icon">🗑️</span> Delete
-        </button>
-        </td>
-        </tr>
-        `).join('');
+
+        this.renderPagination('quizzes', totalPages, currentPage);
     }
 
     updateAppointmentsTable() {
         const tbody = document.getElementById('appointments-tbody');
-        if (this.appointments.length === 0) {
+        if (!tbody) return;
+
+        const filteredData = this.filterDataBySearch(this.appointments, 'appointments');
+        const totalPages = Math.ceil(filteredData.length / this.pageSize);
+        let currentPage = this.currentPage.appointments;
+        if (totalPages > 0 && currentPage > totalPages) currentPage = totalPages;
+        if (currentPage < 1) currentPage = 1;
+        this.currentPage.appointments = currentPage;
+
+        const start = (currentPage - 1) * this.pageSize;
+        const end = start + this.pageSize;
+        const pageData = filteredData.slice(start, end);
+
+        if (pageData.length === 0) {
             tbody.innerHTML = `
-            <tr>
-            <td colspan="10" class="empty-state">
-            <div class="empty-icon">📅</div>
-            <p>No exam appointments found</p>
-            </td>
-            </tr>
+                <tr><td colspan="10" class="empty-state">
+                    <div class="empty-icon">📅</div>
+                    <p>No exam appointments found</p>
+                </td></tr>
             `;
-            return;
+        } else {
+            tbody.innerHTML = pageData.map(appointment => {
+                const proctorId = appointment.proctor_id || appointment.proctor;
+                const proctorUsername = proctorId ? this.proctorMap[proctorId] : null;
+                return `
+                    <tr>
+                        <td>${this.escapeHtml(appointment.username || appointment.user || 'N/A')}</td>
+                        <td>${this.escapeHtml(this.examMap[appointment.exam] || appointment.exam)}</td>
+                        <td>${this.formatDateTime(appointment.appointment_date)}</td>
+                        <td><span class="status-badge status-${appointment.appointment_status.toLowerCase().replace(/ /g, '-')}">${appointment.appointment_status}</span></td>
+                        <td>${proctorUsername ? this.escapeHtml(proctorUsername) : (proctorId ? this.escapeHtml(proctorId) : '-')}</td>
+                        <td>${appointment.can_start ? '<span class="status-badge status-scheduled">Yes</span>' : '<span class="status-badge status-cancelled">No</span>'}</td>
+                        <td>${appointment.is_entered ? '<span class="status-badge status-completed">Yes</span>' : '<span class="status-badge status-cancelled">No</span>'}</td>
+                        <td>${appointment.exam_time ? appointment.exam_time + ' min' : '-'}</td>
+                        <td>${this.formatDateTime(appointment.entered_datetime)}</td>
+                        <td class="table-actions">
+                            <button class="btn btn-edit" onclick="examManager.editExamAppointment('${appointment.external_id}')">
+                                <span class="btn-icon">✏️</span> Edit
+                            </button>
+                            <button class="btn btn-danger" onclick="examManager.deleteExamAppointment('${appointment.external_id}')">
+                                <span class="btn-icon">🗑️</span> Delete
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
         }
-        tbody.innerHTML = this.appointments.map(appointment => {
-            const proctorId = appointment.proctor_id || appointment.proctor;
-            const proctorUsername = proctorId ? this.proctorMap[proctorId] : null;
-            return `
-            <tr>
-            <td>${this.escapeHtml(appointment.username || appointment.user || 'N/A')}</td>
-            <td>${this.escapeHtml(this.examMap[appointment.exam] || appointment.exam)}</td>
-            <td>${this.formatDateTime(appointment.appointment_date)}</td>
-            <td><span class="status-badge status-${appointment.appointment_status.toLowerCase().replace(/ /g, '-')}">${appointment.appointment_status}</span></td>
-            <td>${proctorUsername ? this.escapeHtml(proctorUsername) : (proctorId ? this.escapeHtml(proctorId) : '-')}</td>
-            <td>${appointment.can_start ? '<span class="status-badge status-scheduled">Yes</span>' : '<span class="status-badge status-cancelled">No</span>'}</td>
-            <td>${appointment.is_entered ? '<span class="status-badge status-completed">Yes</span>' : '<span class="status-badge status-cancelled">No</span>'}</td>
-            <td>${appointment.exam_time ? appointment.exam_time + ' min' : '-'}</td>
-            <td>${this.formatDateTime(appointment.entered_datetime)}</td>
-            <td class="table-actions">
-            <button class="btn btn-edit" onclick="examManager.editExamAppointment('${appointment.external_id}')">
-            <span class="btn-icon">✏️</span> Edit
-            </button>
-            <button class="btn btn-danger" onclick="examManager.deleteExamAppointment('${appointment.external_id}')">
-            <span class="btn-icon">🗑️</span> Delete
-            </button>
-            </td>
-            </tr>
-            `;
-        }).join('');
+
+        this.renderPagination('appointments', totalPages, currentPage);
     }
 
     updateExamResultsTable() {
         const tbody = document.getElementById('exam-results-tbody');
-        if (this.examResults.length === 0) {
+        if (!tbody) return;
+
+        const filteredData = this.filterDataBySearch(this.examResults, 'examResults');
+        const totalPages = Math.ceil(filteredData.length / this.pageSize);
+        let currentPage = this.currentPage.examResults;
+        if (totalPages > 0 && currentPage > totalPages) currentPage = totalPages;
+        if (currentPage < 1) currentPage = 1;
+        this.currentPage.examResults = currentPage;
+
+        const start = (currentPage - 1) * this.pageSize;
+        const end = start + this.pageSize;
+        const pageData = filteredData.slice(start, end);
+
+        if (pageData.length === 0) {
             tbody.innerHTML = `
-            <tr>
-            <td colspan="7" class="empty-state">
-            <div class="empty-icon">🎯</div>
-            <p>No exam results found</p>
-            </td>
-            </tr>
+                <tr><td colspan="6" class="empty-state">
+                    <div class="empty-icon">🎯</div>
+                    <p>No exam results found</p>
+                </td></tr>
             `;
-            return;
+        } else {
+            tbody.innerHTML = pageData.map(result => `
+                <tr>
+                    <td>${this.escapeHtml(result.username || result.user || 'N/A')}</td>
+                    <td>${this.escapeHtml(this.examMap[result.exam] || result.exam)}</td>
+                    <td><strong>${result.score}</strong></td>
+                    <td><span class="status-badge status-${result.result_status.toLowerCase()}">${result.result_status}</span></td>
+                    <td>${this.formatDateTime(result.date_taken)}</td>
+                    <td class="table-actions">
+                        <button class="btn btn-edit" onclick="examManager.editExamResult('${result.external_id}')">
+                            <span class="btn-icon">✏️</span> Edit
+                        </button>
+                        <button class="btn btn-danger" onclick="examManager.deleteExamResult('${result.external_id}')">
+                            <span class="btn-icon">🗑️</span> Delete
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
         }
-        tbody.innerHTML = this.examResults.map(result => `
-        <tr>
-        <td>${this.escapeHtml(result.username || result.user || 'N/A')}</td>
-        <td>${this.escapeHtml(this.examMap[result.exam] || result.exam)}</td>
-        <td><strong>${result.score}</strong></td>
-        <td><span class="status-badge status-${result.result_status.toLowerCase()}">${result.result_status}</span></td>
-        <td>${this.formatDateTime(result.date_taken)}</td>
-        <td class="table-actions">
-        <button class="btn btn-edit" onclick="examManager.editExamResult('${result.external_id}')">
-        <span class="btn-icon">✏️</span> Edit
-        </button>
-        <button class="btn btn-danger" onclick="examManager.deleteExamResult('${result.external_id}')">
-        <span class="btn-icon">🗑️</span> Delete
-        </button>
-        </td>
-        </tr>
-        `).join('');
+
+        this.renderPagination('examResults', totalPages, currentPage);
     }
 
     updateQuizResultsTable() {
         const tbody = document.getElementById('quiz-results-tbody');
-        if (this.quizResults.length === 0) {
+        if (!tbody) return;
+
+        const filteredData = this.filterDataBySearch(this.quizResults, 'quizResults');
+        const totalPages = Math.ceil(filteredData.length / this.pageSize);
+        let currentPage = this.currentPage.quizResults;
+        if (totalPages > 0 && currentPage > totalPages) currentPage = totalPages;
+        if (currentPage < 1) currentPage = 1;
+        this.currentPage.quizResults = currentPage;
+
+        const start = (currentPage - 1) * this.pageSize;
+        const end = start + this.pageSize;
+        const pageData = filteredData.slice(start, end);
+
+        if (pageData.length === 0) {
             tbody.innerHTML = `
-            <tr>
-            <td colspan="7" class="empty-state">
-            <div class="empty-icon">🎯</div>
-            <p>No quiz results found</p>
-            </td>
-            </tr>
+                <tr><td colspan="6" class="empty-state">
+                    <div class="empty-icon">📋</div>
+                    <p>No quiz results found</p>
+                </td></tr>
             `;
-            return;
+        } else {
+            tbody.innerHTML = pageData.map(result => `
+                <tr>
+                    <td>${this.escapeHtml(result.username || result.user || 'N/A')}</td>
+                    <td>${this.escapeHtml(this.quizMap[result.quiz] || result.quiz)}</td>
+                    <td><strong>${result.score}</strong></td>
+                    <td><span class="status-badge status-${result.result_status.toLowerCase()}">${result.result_status}</span></td>
+                    <td>${this.formatDateTime(result.date_taken)}</td>
+                    <td class="table-actions">
+                        <button class="btn btn-edit" onclick="examManager.editQuizResult('${result.external_id}')">
+                            <span class="btn-icon">✏️</span> Edit
+                        </button>
+                        <button class="btn btn-danger" onclick="examManager.deleteQuizResult('${result.external_id}')">
+                            <span class="btn-icon">🗑️</span> Delete
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
         }
-        tbody.innerHTML = this.quizResults.map(result => `
-        <tr>
-        <td>${this.escapeHtml(result.username || result.user || 'N/A')}</td>
-        <td>${this.escapeHtml(this.quizMap[result.quiz] || result.quiz)}</td>
-        <td><strong>${result.score}</strong></td>
-        <td><span class="status-badge status-${result.result_status.toLowerCase()}">${result.result_status}</span></td>
-        <td>${this.formatDateTime(result.date_taken)}</td>
-        <td class="table-actions">
-        <button class="btn btn-edit" onclick="examManager.editQuizResult('${result.external_id}')">
-        <span class="btn-icon">✏️</span> Edit
-        </button>
-        <button class="btn btn-danger" onclick="examManager.deleteQuizResult('${result.external_id}')">
-        <span class="btn-icon">🗑️</span> Delete
-        </button>
-        </td>
-        </tr>
-        `).join('');
+
+        this.renderPagination('quizResults', totalPages, currentPage);
     }
 
     updateStats() {
@@ -566,6 +795,7 @@ class SelfStudyExamManager {
         document.getElementById('results-count').textContent = this.examResults.length + this.quizResults.length;
     }
 
+    // ========== CRUD MODALS ==========
     openCreateExamModal() {
         document.getElementById('exam-modal-title').textContent = 'Create New Exam';
         document.getElementById('exam-form').reset();
@@ -762,37 +992,35 @@ class SelfStudyExamManager {
         const questions = this.examQuestions[examId] || [];
         if (questions.length === 0) {
             tbody.innerHTML = `
-            <tr>
-            <td colspan="6" class="empty-state">
-            <div class="empty-icon">❓</div>
-            <p>No questions found for this exam</p>
-            <button class="btn btn-primary" onclick="openCreateExamQuestionModal()">
-            <span class="btn-icon">➕</span> Add First Question
-            </button>
-            </td>
-            </tr>
+                <tr><td colspan="6" class="empty-state">
+                    <div class="empty-icon">❓</div>
+                    <p>No questions found for this exam</p>
+                    <button class="btn btn-primary" onclick="openCreateExamQuestionModal()">
+                        <span class="btn-icon">➕</span> Add First Question
+                    </button>
+                </td></tr>
             `;
             return;
         }
         tbody.innerHTML = questions.map((question, index) => `
-        <tr>
-        <td>${index + 1}</td>
-        <td>${this.escapeHtml(question.text)}</td>
-        <td><span class="status-badge status-scheduled">${question.score || 1}</span></td>
-        <td>${question.answers ? question.answers.length : 0}</td>
-        <td>${this.getCorrectAnswerText(question.answers)}</td>
-        <td class="table-actions">
-        <button class="btn btn-edit" onclick="examManager.editExamQuestion('${question.external_id}')">
-        <span class="btn-icon">✏️</span> Edit
-        </button>
-        <button class="btn btn-info" onclick="examManager.manageExamQuestionAnswers('${question.external_id}', '${this.escapeHtml(question.text)}')">
-        <span class="btn-icon">📝</span> Answers
-        </button>
-        <button class="btn btn-danger" onclick="examManager.deleteExamQuestion('${question.external_id}')">
-        <span class="btn-icon">🗑️</span> Delete
-        </button>
-        </td>
-        </tr>
+            <tr>
+                <td>${index + 1}</td>
+                <td>${this.escapeHtml(question.text)}</td>
+                <td><span class="status-badge status-scheduled">${question.score || 1}</span></td>
+                <td>${question.answers ? question.answers.length : 0}</td>
+                <td>${this.getCorrectAnswerText(question.answers)}</td>
+                <td class="table-actions">
+                    <button class="btn btn-edit" onclick="examManager.editExamQuestion('${question.external_id}')">
+                        <span class="btn-icon">✏️</span> Edit
+                    </button>
+                    <button class="btn btn-info" onclick="examManager.manageExamQuestionAnswers('${question.external_id}', '${this.escapeHtml(question.text)}')">
+                        <span class="btn-icon">📝</span> Answers
+                    </button>
+                    <button class="btn btn-danger" onclick="examManager.deleteExamQuestion('${question.external_id}')">
+                        <span class="btn-icon">🗑️</span> Delete
+                    </button>
+                </td>
+            </tr>
         `).join('');
     }
 
@@ -801,37 +1029,35 @@ class SelfStudyExamManager {
         const questions = this.quizQuestions[quizId] || [];
         if (questions.length === 0) {
             tbody.innerHTML = `
-            <tr>
-            <td colspan="6" class="empty-state">
-            <div class="empty-icon">❓</div>
-            <p>No questions found for this quiz</p>
-            <button class="btn btn-primary" onclick="openCreateQuizQuestionModal()">
-            <span class="btn-icon">➕</span> Add First Question
-            </button>
-            </td>
-            </tr>
+                <tr><td colspan="6" class="empty-state">
+                    <div class="empty-icon">❓</div>
+                    <p>No questions found for this quiz</p>
+                    <button class="btn btn-primary" onclick="openCreateQuizQuestionModal()">
+                        <span class="btn-icon">➕</span> Add First Question
+                    </button>
+                </td></tr>
             `;
             return;
         }
         tbody.innerHTML = questions.map((question, index) => `
-        <tr>
-        <td>${index + 1}</td>
-        <td>${this.escapeHtml(question.text)}</td>
-        <td><span class="status-badge status-scheduled">${question.score || 1}</span></td>
-        <td>${question.answers ? question.answers.length : 0}</td>
-        <td>${this.getCorrectAnswerText(question.answers)}</td>
-        <td class="table-actions">
-        <button class="btn btn-edit" onclick="examManager.editQuizQuestion('${question.external_id}')">
-        <span class="btn-icon">✏️</span> Edit
-        </button>
-        <button class="btn btn-info" onclick="examManager.manageQuizQuestionAnswers('${question.external_id}', '${this.escapeHtml(question.text)}')">
-        <span class="btn-icon">📝</span> Answers
-        </button>
-        <button class="btn btn-danger" onclick="examManager.deleteQuizQuestion('${question.external_id}')">
-        <span class="btn-icon">🗑️</span> Delete
-        </button>
-        </td>
-        </tr>
+            <tr>
+                <td>${index + 1}</td>
+                <td>${this.escapeHtml(question.text)}</td>
+                <td><span class="status-badge status-scheduled">${question.score || 1}</span></td>
+                <td>${question.answers ? question.answers.length : 0}</td>
+                <td>${this.getCorrectAnswerText(question.answers)}</td>
+                <td class="table-actions">
+                    <button class="btn btn-edit" onclick="examManager.editQuizQuestion('${question.external_id}')">
+                        <span class="btn-icon">✏️</span> Edit
+                    </button>
+                    <button class="btn btn-info" onclick="examManager.manageQuizQuestionAnswers('${question.external_id}', '${this.escapeHtml(question.text)}')">
+                        <span class="btn-icon">📝</span> Answers
+                    </button>
+                    <button class="btn btn-danger" onclick="examManager.deleteQuizQuestion('${question.external_id}')">
+                        <span class="btn-icon">🗑️</span> Delete
+                    </button>
+                </td>
+            </tr>
         `).join('');
     }
 
@@ -949,32 +1175,30 @@ class SelfStudyExamManager {
         const answers = this.currentQuestionAnswers || [];
         if (answers.length === 0) {
             tbody.innerHTML = `
-            <tr>
-            <td colspan="4" class="empty-state">
-            <div class="empty-icon">📝</div>
-            <p>No answers found for this question</p>
-            <button class="btn btn-primary" onclick="openCreateExamAnswerModal()">
-            <span class="btn-icon">➕</span> Add First Answer
-            </button>
-            </td>
-            </tr>
+                <tr><td colspan="4" class="empty-state">
+                    <div class="empty-icon">📝</div>
+                    <p>No answers found for this question</p>
+                    <button class="btn btn-primary" onclick="openCreateExamAnswerModal()">
+                        <span class="btn-icon">➕</span> Add First Answer
+                    </button>
+                </td></tr>
             `;
             return;
         }
         tbody.innerHTML = answers.map((answer, index) => `
-        <tr>
-        <td>${index + 1}</td>
-        <td>${this.escapeHtml(answer.text)}</td>
-        <td>${answer.is_correct ? '<span class="status-badge status-passed">✅ Correct</span>' : '<span class="status-badge status-cancelled">❌ Incorrect</span>'}</td>
-        <td class="table-actions">
-        <button class="btn btn-edit" onclick="examManager.editExamAnswer('${answer.external_id}')">
-        <span class="btn-icon">✏️</span> Edit
-        </button>
-        <button class="btn btn-danger" onclick="examManager.deleteExamAnswer('${answer.external_id}')">
-        <span class="btn-icon">🗑️</span> Delete
-        </button>
-        </td>
-        </tr>
+            <tr>
+                <td>${index + 1}</td>
+                <td>${this.escapeHtml(answer.text)}</td>
+                <td>${answer.is_correct ? '<span class="status-badge status-passed">✅ Correct</span>' : '<span class="status-badge status-cancelled">❌ Incorrect</span>'}</td>
+                <td class="table-actions">
+                    <button class="btn btn-edit" onclick="examManager.editExamAnswer('${answer.external_id}')">
+                        <span class="btn-icon">✏️</span> Edit
+                    </button>
+                    <button class="btn btn-danger" onclick="examManager.deleteExamAnswer('${answer.external_id}')">
+                        <span class="btn-icon">🗑️</span> Delete
+                    </button>
+                </td>
+            </tr>
         `).join('');
     }
 
@@ -983,32 +1207,30 @@ class SelfStudyExamManager {
         const answers = this.currentQuestionAnswers || [];
         if (answers.length === 0) {
             tbody.innerHTML = `
-            <tr>
-            <td colspan="4" class="empty-state">
-            <div class="empty-icon">📝</div>
-            <p>No answers found for this question</p>
-            <button class="btn btn-primary" onclick="openCreateQuizAnswerModal()">
-            <span class="btn-icon">➕</span> Add First Answer
-            </button>
-            </td>
-            </tr>
+                <tr><td colspan="4" class="empty-state">
+                    <div class="empty-icon">📝</div>
+                    <p>No answers found for this question</p>
+                    <button class="btn btn-primary" onclick="openCreateQuizAnswerModal()">
+                        <span class="btn-icon">➕</span> Add First Answer
+                    </button>
+                </td></tr>
             `;
             return;
         }
         tbody.innerHTML = answers.map((answer, index) => `
-        <tr>
-        <td>${index + 1}</td>
-        <td>${this.escapeHtml(answer.text)}</td>
-        <td>${answer.is_correct ? '<span class="status-badge status-passed">✅ Correct</span>' : '<span class="status-badge status-cancelled">❌ Incorrect</span>'}</td>
-        <td class="table-actions">
-        <button class="btn btn-edit" onclick="examManager.editQuizAnswer('${answer.external_id}')">
-        <span class="btn-icon">✏️</span> Edit
-        </button>
-        <button class="btn btn-danger" onclick="examManager.deleteQuizAnswer('${answer.external_id}')">
-        <span class="btn-icon">🗑️</span> Delete
-        </button>
-        </td>
-        </tr>
+            <tr>
+                <td>${index + 1}</td>
+                <td>${this.escapeHtml(answer.text)}</td>
+                <td>${answer.is_correct ? '<span class="status-badge status-passed">✅ Correct</span>' : '<span class="status-badge status-cancelled">❌ Incorrect</span>'}</td>
+                <td class="table-actions">
+                    <button class="btn btn-edit" onclick="examManager.editQuizAnswer('${answer.external_id}')">
+                        <span class="btn-icon">✏️</span> Edit
+                    </button>
+                    <button class="btn btn-danger" onclick="examManager.deleteQuizAnswer('${answer.external_id}')">
+                        <span class="btn-icon">🗑️</span> Delete
+                    </button>
+                </td>
+            </tr>
         `).join('');
     }
 
@@ -1465,11 +1687,10 @@ class SelfStudyExamManager {
         }
     }
 
-    // ===== NEW: Import Exam JSON methods =====
+    // ===== IMPORT METHODS =====
     openImportExamModal() {
         document.getElementById('import-exam-modal').style.display = 'block';
         document.body.style.overflow = 'hidden';
-        // Clear previous selections
         document.getElementById('import-exam-course-select').value = '';
         document.getElementById('import-exam-course-id').value = '';
     }
@@ -1502,7 +1723,6 @@ class SelfStudyExamManager {
         }
         try {
             const data = JSON.parse(jsonText);
-            // Basic required fields
             if (!data.external_id || !data.title || !data.course_id || !data.exam_duration) {
                 this.showToast('Missing required fields: external_id, title, course_id, exam_duration', 'error');
                 return false;
@@ -1511,7 +1731,6 @@ class SelfStudyExamManager {
                 this.showToast('questions must be an array', 'error');
                 return false;
             }
-            // Validate that each question has the correct exam field
             for (const question of data.questions) {
                 if (question.exam !== data.external_id) {
                     this.showToast(`Question ${question.external_id} has mismatched exam field`, 'error');
@@ -1543,7 +1762,6 @@ class SelfStudyExamManager {
                 ...examData
             });
             if (response.success) {
-                // Show the detailed message from the server
                 this.showToast(response.message || 'Exam created successfully!', 'success');
                 this.closeImportExamModal();
                 await this.loadInitialData();
@@ -1557,11 +1775,9 @@ class SelfStudyExamManager {
         }
     }
 
-    // ===== NEW: Import Quiz JSON methods =====
     openImportQuizModal() {
         document.getElementById('import-quiz-modal').style.display = 'block';
         document.body.style.overflow = 'hidden';
-        // Clear previous selections
         document.getElementById('import-quiz-course-select').value = '';
         document.getElementById('import-quiz-course-id').value = '';
         document.getElementById('import-quiz-lesson-select').innerHTML = '<option value="">First select a course</option>';
@@ -1608,7 +1824,6 @@ class SelfStudyExamManager {
                 this.showToast('questions must be an array', 'error');
                 return false;
             }
-            // Validate that each question has the correct quiz field
             for (const question of data.questions) {
                 if (question.quiz !== data.external_id) {
                     this.showToast(`Question ${question.external_id} has mismatched quiz field`, 'error');
@@ -1640,7 +1855,6 @@ class SelfStudyExamManager {
                 ...quizData
             });
             if (response.success) {
-                // Show the detailed message from the server
                 this.showToast(response.message || 'Quiz created successfully!', 'success');
                 this.closeImportQuizModal();
                 await this.loadInitialData();
@@ -1654,7 +1868,6 @@ class SelfStudyExamManager {
         }
     }
 
-    // ===== NEW: Validation methods =====
     async validateExamCourse() {
         const jsonText = document.getElementById('exam-json-text').value.trim();
         if (!jsonText) {
@@ -1741,7 +1954,6 @@ class SelfStudyExamManager {
         }
     }
 
-    // ===== NEW: Course/Lesson selection for import modals =====
     onImportExamCourseSelect() {
         const select = document.getElementById('import-exam-course-select');
         const courseId = select.value;
@@ -1753,7 +1965,6 @@ class SelfStudyExamManager {
         const courseId = select.value;
         document.getElementById('import-quiz-course-id').value = courseId;
 
-        // Reset lesson dropdown
         const lessonSelect = document.getElementById('import-quiz-lesson-select');
         lessonSelect.innerHTML = '<option value="">Loading lessons...</option>';
         lessonSelect.disabled = true;
@@ -2035,8 +2246,8 @@ class SelfStudyExamManager {
         const toast = document.createElement('div');
         toast.className = `toast ${type}`;
         toast.innerHTML = `
-        <span class="toast-icon">${this.getToastIcon(type)}</span>
-        <span>${message}</span>
+            <span class="toast-icon">${this.getToastIcon(type)}</span>
+            <span>${message}</span>
         `;
 
         container.appendChild(toast);

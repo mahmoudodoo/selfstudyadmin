@@ -209,7 +209,7 @@ class SelfStudyChatView(View):
                 room['is_blocked'] = room.get('anonymous_user_ip') in blocked_set
             
             context = {
-                'chat_rooms': rooms[:100],  # Limit display
+                'chat_rooms': rooms,  # REMOVED [:100] LIMIT
                 'replica_urls': replicas,
                 'blocked_ips': blocked_ips,
                 'unique_countries': countries,
@@ -391,7 +391,7 @@ class ChatRoomAPIView(View):
             
             return JsonResponse({
                 'success': True,
-                'rooms': rooms[:100],
+                'rooms': rooms,  # REMOVED [:100] LIMIT
                 'blocked_ips': blocked_ips,
                 'total': len(rooms)
             })

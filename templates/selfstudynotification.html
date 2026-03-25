@@ -6,6 +6,45 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/selfstudynotification.css' %}">
+<style>
+    /* Pagination styles */
+    .pagination {
+        margin-top: 20px;
+        display: flex;
+        justify-content: center;
+    }
+    .pagination-controls {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+    .pagination-btn {
+        padding: 6px 12px;
+        border: 1px solid #ddd;
+        background: white;
+        cursor: pointer;
+        border-radius: 4px;
+        transition: all 0.2s;
+    }
+    .pagination-btn:hover:not(:disabled) {
+        background-color: #f0f0f0;
+        border-color: #aaa;
+    }
+    .pagination-btn.active {
+        background-color: #007bff;
+        color: white;
+        border-color: #007bff;
+    }
+    .pagination-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    .pagination-ellipsis {
+        padding: 6px 12px;
+        color: #666;
+    }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -93,53 +132,13 @@
                     </tr>
                 </thead>
                 <tbody id="notificationsTableBody">
-                    {% for notification in notifications %}
-                    <tr data-id="{{ notification.notification_id }}">
-                        <td class="title-cell">{{ notification.title }}</td>
-                        <td class="message-cell">{{ notification.message|truncatewords:10 }}</td>
-                        <td>
-                            <span class="badge badge-{{ notification.notification_type }}">
-                                {{ notification.notification_type|title }}
-                            </span>
-                        </td>
-                        <td>
-                            {% if notification.read %}
-                                <span class="badge badge-success">Yes</span>
-                            {% else %}
-                                <span class="badge badge-warning">No</span>
-                            {% endif %}
-                        </td>
-                        <td>{{ notification.sender }}</td>
-                        <td>{{ notification.recipient }}</td>
-                        <td>{{ notification.created_at|date:"M d, Y H:i" }}</td>
-                        <td class="actions-cell">
-                            <button class="btn-icon view-btn" data-id="{{ notification.notification_id }}" title="View">
-                                <i class="fas fa-eye"></i>
-                            </button>
-                            <button class="btn-icon edit-btn" data-id="{{ notification.notification_id }}" title="Edit">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button class="btn-icon delete-btn" data-id="{{ notification.notification_id }}" title="Delete">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="8" class="no-data">
-                            <i class="fas fa-bell-slash"></i>
-                            <p>No notifications found</p>
-                        </td>
-                    </tr>
-                    {% endfor %}
+                    <!-- Data will be populated by JavaScript -->
                 </tbody>
             </table>
         </div>
 
         <!-- Pagination -->
-        <div class="pagination" id="pagination">
-            <!-- Pagination will be populated by JavaScript -->
-        </div>
+        <div class="pagination" id="pagination"></div>
     </div>
 </div>
 
@@ -151,7 +150,7 @@
             <button class="close-btn" id="closeModal">&times;</button>
         </div>
         <form id="notificationForm">
-            {% csrf_token %}  <!-- CSRF Token Added -->
+            {% csrf_token %}
             <div class="modal-body">
                 <div class="form-group">
                     <label for="title">Title *</label>

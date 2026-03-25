@@ -7,6 +7,42 @@
 {% block extra_css %}
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <link rel="stylesheet" href="{% static 'css/selfstudylivecourse.css' %}">
+<style>
+    /* Pagination styles */
+    .pagination-controls {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: center;
+        margin-top: 20px;
+    }
+    .pagination-btn {
+        padding: 6px 12px;
+        border: 1px solid #ddd;
+        background: white;
+        cursor: pointer;
+        border-radius: 4px;
+        transition: all 0.2s;
+    }
+    .pagination-btn:hover:not(:disabled) {
+        background-color: #f0f0f0;
+        border-color: #aaa;
+    }
+    .pagination-btn.active {
+        background-color: #007bff;
+        color: white;
+        border-color: #007bff;
+    }
+    .pagination-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    .pagination-ellipsis {
+        padding: 6px 12px;
+        color: #666;
+    }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -99,13 +135,13 @@
                             <th>Teacher ID</th>
                             <th>Teacher Name</th>
                             <th>Actions</th>
-                        </tr>
-                    </thead>
+                         </thead>
                     <tbody id="teachersTableBody">
                         <!-- Dynamic content -->
                     </tbody>
-                </table>
+                 </table>
             </div>
+            <div id="teachersPagination" class="pagination"></div>
         </div>
     </div>
 
@@ -130,13 +166,13 @@
                             <th>Room URL</th>
                             <th>Created At</th>
                             <th>Actions</th>
-                        </tr>
-                    </thead>
+                         </thead>
                     <tbody id="roomsTableBody">
                         <!-- Dynamic content -->
                     </tbody>
-                </table>
+                 </table>
             </div>
+            <div id="roomsPagination" class="pagination"></div>
         </div>
     </div>
 </div>

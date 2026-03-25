@@ -1,11 +1,10 @@
-
 // SelfStudy All Auth Management JavaScript
 
 class SelfStudyAllAuthManager {
     constructor() {
         this.baseUrl = '/selfstudyallauth/api/';
         this.currentPage = 1;
-        this.pageSize = 50;
+        this.pageSize = 9;               // ← Changed from 50 to 9
         this.totalPages = 1;
         this.currentFilter = 'all';
         this.selectedToken = null;
@@ -115,7 +114,8 @@ class SelfStudyAllAuthManager {
     async loadTokens(page = 1) {
         try {
             const params = {
-                limit: this.pageSize
+                limit: this.pageSize,
+                offset: (page - 1) * this.pageSize
             };
             
             const result = await this.makeRequest('list_tokens', 'GET', params);
@@ -223,14 +223,20 @@ class SelfStudyAllAuthManager {
             const data = {
                 query: query,
                 field: 'user_id',
-                limit: 100
+                limit: 100   // Still fetch up to 100, but we'll paginate client‑side
             };
             
             const result = await this.makeRequest('search_tokens', 'POST', data);
             
             if (result.status_code === 200) {
-                this.renderTokens(result.data.results || []);
-                this.renderPagination(true);
+                const allResults = result.data.results || [];
+                // For simplicity, we just display all results (up to 100)
+                // You could also implement client‑side pagination here if needed
+                this.renderTokens(allResults);
+                this.totalPages = Math.ceil(allResults.length / this.pageSize);
+                this.renderPagination();
+                this.currentPage = 1;
+                this.loadUsernames();
             }
         } catch (error) {
             console.error('Search failed:', error);
@@ -358,10 +364,19 @@ class SelfStudyAllAuthManager {
         
         tbody.innerHTML = '';
         
-        tokens.forEach(token => {
+        // Client‑side pagination if we have more tokens than pageSize
+        const start = (this.currentPage - 1) * this.pageSize;
+        const end = start + this.pageSize;
+        const pageTokens = tokens.slice(start, end);
+        
+        pageTokens.forEach(token => {
             const row = this.createTokenRow(token);
             tbody.appendChild(row);
         });
+        
+        // Update totalPages based on tokens length
+        this.totalPages = Math.ceil(tokens.length / this.pageSize);
+        this.renderPagination();
     }
     
     createTokenRow(token) {

@@ -1,6 +1,8 @@
 /* 
  * SelfStudy User Lab Management - Cosmic Space Theme
  * Complete dark, glass-morphism interface. No white backgrounds.
+ * Enhanced with fully responsive design across all screen sizes (200px to 2560px+)
+ * following granular 50px breakpoint scaling system.
  */
 
 :root {
@@ -52,6 +54,11 @@
     --space-xl: 2rem;
     --space-2xl: 3rem;
     --space-3xl: 4rem;
+    
+    /* Responsive Variables (default for 1200px+) */
+    --container-max-width: 1400px;
+    --body-padding: 2rem;
+    --base-font-size: 19px;
 }
 
 /* Base Styles */
@@ -61,6 +68,10 @@
     padding: 0;
 }
 
+html {
+    font-size: var(--base-font-size);
+}
+
 body {
     background: #000;
     color: var(--text-light);
@@ -68,9 +79,10 @@ body {
     line-height: 1.6;
     text-shadow: var(--text-shadow-default);
     min-height: 100vh;
+    padding: var(--body-padding);
 }
 
-/* Ensure all major containers have dark backgrounds */
+/* Ensure all major containers have dark backgrounds and are centered */
 .dashboard-header,
 .stat-card,
 .replica-section,
@@ -88,6 +100,18 @@ body {
     backdrop-filter: var(--glass-blur);
     border: var(--glass-border);
     box-shadow: var(--glass-shadow);
+}
+
+/* Add container centering for main sections */
+.dashboard-header,
+.replica-section,
+.controls-section,
+.table-container,
+.pagination-container {
+    max-width: var(--container-max-width);
+    margin-left: auto;
+    margin-right: auto;
+    width: 100%;
 }
 
 /* Header */
@@ -1183,77 +1207,290 @@ select option {
     background: rgba(78, 205, 196, 0.6);
 }
 
-/* Responsive Design */
+/* ===== RESPONSIVE BREAKPOINT SYSTEM ===== */
+/* Granular media queries with progressive scaling from 200px to 2560px+ */
 
-@media (max-width: 1200px) {
-    .header-content h1 {
-        font-size: 2.5rem;
-    }
-    .replica-grid {
-        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    }
+/* ===== Breakpoint: 200px – 250px | Micro Screens ===== */
+@media only screen and (min-width: 200px) and (max-width: 250px) {
+    html { font-size: 8px; }
+    body { padding: 0.5rem; }
+    .dashboard-header { padding: 1rem; margin-bottom: 1rem; }
+    .header-content h1 { font-size: 1.5rem; }
+    .header-stats { gap: 0.5rem; }
+    .stat-card { flex-direction: column; text-align: center; padding: 0.75rem; }
+    .stat-icon { width: 48px; height: 48px; font-size: 1.25rem; }
+    .stat-number { font-size: 1.5rem; }
+    .replica-section { padding: 0.75rem; margin-bottom: 1rem; }
+    .replica-grid { grid-template-columns: 1fr; gap: 0.5rem; }
+    .controls-section { flex-direction: column; align-items: stretch; padding: 0.75rem; }
+    .controls-left, .controls-right { width: 100%; flex-direction: column; }
+    .btn { width: 100%; justify-content: center; min-height: 44px; padding: 0.75rem 1rem; font-size: 1rem; }
+    .search-box { min-width: 100%; }
+    .search-box input { padding: 0.75rem 1rem 0.75rem 2.5rem; font-size: 1rem; }
+    .filter-dropdown select { width: 100%; padding: 0.75rem 1rem; font-size: 1rem; }
+    .table-container { margin-bottom: 1rem; }
+    .students-table th, .students-table td { padding: 0.5rem; }
+    .action-btn { width: 44px; height: 44px; }
+    .modal-container { max-width: 95%; margin: 0 auto; }
+    .modal-header, .modal-body, .modal-footer { padding: 1rem; }
+    .pagination { gap: 0.5rem; flex-wrap: wrap; justify-content: center; }
+    .page-btn { padding: 0.5rem 0.75rem; font-size: 0.875rem; }
+    .toast-container { left: 0.5rem; right: 0.5rem; max-width: none; }
+    .toast { min-width: auto; width: 100%; }
 }
 
+/* ===== Breakpoint: 250px – 300px | Tiny Screens ===== */
+@media only screen and (min-width: 250px) and (max-width: 300px) {
+    html { font-size: 9px; }
+    body { padding: 0.625rem; }
+    .dashboard-header { padding: 1rem; margin-bottom: 1rem; }
+    .header-content h1 { font-size: 1.6rem; }
+    .header-stats { gap: 0.75rem; }
+    .stat-card { flex-direction: column; text-align: center; padding: 0.75rem; }
+    .stat-icon { width: 52px; height: 52px; font-size: 1.5rem; }
+    .stat-number { font-size: 1.6rem; }
+    .replica-section { padding: 1rem; margin-bottom: 1rem; }
+    .replica-grid { grid-template-columns: 1fr; gap: 0.75rem; }
+    .controls-section { flex-direction: column; align-items: stretch; padding: 1rem; }
+    .controls-left, .controls-right { width: 100%; flex-direction: column; }
+    .btn { width: 100%; justify-content: center; min-height: 44px; }
+    .search-box { min-width: 100%; }
+    .filter-dropdown select { width: 100%; }
+    .students-table th, .students-table td { padding: 0.625rem; }
+    .action-btn { width: 44px; height: 44px; }
+    .modal-container { max-width: 95%; }
+    .modal-header, .modal-body, .modal-footer { padding: 1rem; }
+    .toast-container { left: 0.625rem; right: 0.625rem; }
+}
+
+/* ===== Breakpoint: 300px – 350px | X-Small Screens ===== */
+@media only screen and (min-width: 300px) and (max-width: 350px) {
+    html { font-size: 10px; }
+    body { padding: 0.75rem; }
+    .dashboard-header { padding: 1rem 1.25rem; margin-bottom: 1.25rem; }
+    .header-content h1 { font-size: 1.75rem; }
+    .header-stats { gap: 0.875rem; }
+    .stat-card { flex-direction: column; text-align: center; padding: 0.875rem; }
+    .stat-icon { width: 56px; height: 56px; font-size: 1.75rem; }
+    .stat-number { font-size: 1.75rem; }
+    .replica-section { padding: 1.25rem; margin-bottom: 1.25rem; }
+    .replica-grid { grid-template-columns: 1fr; gap: 0.875rem; }
+    .controls-section { flex-direction: column; align-items: stretch; padding: 1rem; }
+    .controls-left, .controls-right { width: 100%; flex-direction: column; }
+    .btn { width: 100%; justify-content: center; min-height: 44px; }
+    .search-box { min-width: 100%; }
+    .filter-dropdown select { width: 100%; }
+    .students-table th, .students-table td { padding: 0.75rem; }
+    .action-btn { width: 44px; height: 44px; }
+    .modal-container { max-width: 95%; }
+    .toast-container { left: 0.75rem; right: 0.75rem; }
+}
+
+/* ===== Breakpoint: 350px – 400px | Small- Screens ===== */
+@media only screen and (min-width: 350px) and (max-width: 400px) {
+    html { font-size: 11px; }
+    body { padding: 0.875rem; }
+    .dashboard-header { padding: 1.25rem 1.5rem; margin-bottom: 1.5rem; }
+    .header-content h1 { font-size: 1.9rem; }
+    .stat-card { flex-direction: row; text-align: left; }
+    .replica-grid { grid-template-columns: 1fr; gap: 1rem; }
+    .controls-section { flex-direction: column; align-items: stretch; }
+    .controls-left, .controls-right { width: 100%; flex-direction: row; flex-wrap: wrap; }
+    .btn { width: auto; min-width: 120px; }
+    .search-box { min-width: 200px; }
+    .filter-dropdown select { width: auto; min-width: 120px; }
+    .students-table th, .students-table td { padding: 0.875rem; }
+    .action-btn { width: 40px; height: 40px; }
+    .modal-container { max-width: 90%; }
+    .toast-container { left: 0.875rem; right: 0.875rem; }
+}
+
+/* ===== Breakpoint: 400px – 450px | Small Screens ===== */
+@media only screen and (min-width: 400px) and (max-width: 450px) {
+    html { font-size: 12px; }
+    body { padding: 1rem; }
+    .dashboard-header { padding: 1.5rem; margin-bottom: 1.5rem; }
+    .header-content h1 { font-size: 2rem; }
+    .replica-grid { grid-template-columns: 1fr; gap: 1rem; }
+    .controls-section { flex-direction: column; align-items: stretch; }
+    .controls-left, .controls-right { width: 100%; flex-direction: row; flex-wrap: wrap; }
+    .btn { width: auto; min-width: 120px; }
+    .search-box { min-width: 220px; }
+    .filter-dropdown select { width: auto; min-width: 130px; }
+    .students-table th, .students-table td { padding: 1rem; }
+    .modal-container { max-width: 85%; }
+}
+
+/* ===== Breakpoint: 450px – 500px | Small+ Screens ===== */
+@media only screen and (min-width: 450px) and (max-width: 500px) {
+    html { font-size: 13px; }
+    body { padding: 1rem; }
+    .dashboard-header { padding: 1.5rem; margin-bottom: 1.5rem; }
+    .replica-grid { grid-template-columns: 1fr; gap: 1rem; }
+    .controls-section { flex-direction: row; flex-wrap: wrap; justify-content: space-between; }
+    .controls-left, .controls-right { width: auto; flex-direction: row; }
+    .btn { width: auto; }
+    .search-box { min-width: 240px; }
+    .filter-dropdown select { width: auto; }
+    .students-table th, .students-table td { padding: 1rem; }
+}
+
+/* ===== Breakpoint: 500px – 550px | Medium- Screens ===== */
+@media only screen and (min-width: 500px) and (max-width: 550px) {
+    html { font-size: 13.5px; }
+    body { padding: 1rem; }
+    .replica-grid { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; }
+    .controls-section { flex-direction: row; flex-wrap: wrap; justify-content: space-between; }
+    .btn { min-height: 44px; }
+    .search-box { min-width: 260px; }
+}
+
+/* ===== Breakpoint: 550px – 600px | Medium Screens ===== */
+@media only screen and (min-width: 550px) and (max-width: 600px) {
+    html { font-size: 14px; }
+    body { padding: 1.125rem; }
+    .replica-grid { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; }
+    .btn { min-height: 44px; }
+}
+
+/* ===== Breakpoint: 600px – 650px | Medium+ Screens ===== */
+@media only screen and (min-width: 600px) and (max-width: 650px) {
+    html { font-size: 14.5px; }
+    body { padding: 1.25rem; }
+    .replica-grid { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+    .btn { min-height: 44px; }
+}
+
+/* ===== Breakpoint: 650px – 700px | Large- Screens ===== */
+@media only screen and (min-width: 650px) and (max-width: 700px) {
+    html { font-size: 15px; }
+    body { padding: 1.25rem; }
+    .replica-grid { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+    .btn { min-height: 44px; }
+}
+
+/* ===== Breakpoint: 700px – 750px | Large Screens ===== */
+@media only screen and (min-width: 700px) and (max-width: 750px) {
+    html { font-size: 15.5px; }
+    body { padding: 1.5rem; }
+    .replica-grid { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+    .btn { min-height: 44px; }
+}
+
+/* ===== Breakpoint: 750px – 800px | Large+ Screens ===== */
+@media only screen and (min-width: 750px) and (max-width: 800px) {
+    html { font-size: 16px; }
+    body { padding: 1.5rem; }
+    .replica-grid { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+    .btn { min-height: 44px; }
+}
+
+/* ===== Breakpoint: 800px – 850px | XL- Screens ===== */
+@media only screen and (min-width: 800px) and (max-width: 850px) {
+    html { font-size: 16.5px; }
+    body { padding: 1.5rem; }
+    .replica-grid { grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); }
+    .btn { min-height: 44px; }
+}
+
+/* ===== Breakpoint: 850px – 900px | XL Screens ===== */
+@media only screen and (min-width: 850px) and (max-width: 900px) {
+    html { font-size: 17px; }
+    body { padding: 1.5rem; }
+    .replica-grid { grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); }
+    .btn { min-height: 44px; }
+}
+
+/* ===== Breakpoint: 900px – 950px | XL+ Screens ===== */
+@media only screen and (min-width: 900px) and (max-width: 950px) {
+    html { font-size: 17px; }
+    body { padding: 1.5rem; }
+    .replica-grid { grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); }
+}
+
+/* ===== Breakpoint: 950px – 1000px | 2XL- Screens ===== */
+@media only screen and (min-width: 950px) and (max-width: 1000px) {
+    html { font-size: 17.5px; }
+    body { padding: 1.5rem; }
+    .replica-grid { grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); }
+}
+
+/* ===== Breakpoint: 1000px – 1050px | 2XL Screens ===== */
+@media only screen and (min-width: 1000px) and (max-width: 1050px) {
+    html { font-size: 17.5px; }
+    body { padding: 1.75rem; }
+    .replica-grid { grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); }
+}
+
+/* ===== Breakpoint: 1050px – 1100px | 2XL+ Screens ===== */
+@media only screen and (min-width: 1050px) and (max-width: 1100px) {
+    html { font-size: 18px; }
+    body { padding: 1.75rem; }
+    .replica-grid { grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); }
+}
+
+/* ===== Breakpoint: 1100px – 1150px | 3XL- Screens ===== */
+@media only screen and (min-width: 1100px) and (max-width: 1150px) {
+    html { font-size: 18px; }
+    body { padding: 1.75rem; }
+    .replica-grid { grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); }
+}
+
+/* ===== Breakpoint: 1150px – 1200px | 3XL Screens ===== */
+@media only screen and (min-width: 1150px) and (max-width: 1200px) {
+    html { font-size: 18.5px; }
+    body { padding: 1.75rem; }
+    .replica-grid { grid-template-columns: repeat(auto-fit, minmax(440px, 1fr)); }
+}
+
+/* ===== Breakpoint: 1200px+ | 4XL Screens & Beyond ===== */
+@media only screen and (min-width: 1200px) {
+    html { font-size: 19px; }
+    body { padding: 2rem; }
+    .replica-grid { grid-template-columns: repeat(auto-fit, minmax(460px, 1fr)); }
+    .btn { min-height: 48px; padding: 1rem 1.75rem; font-size: 0.95rem; }
+    .stat-card { padding: 1.5rem; }
+    .stat-number { font-size: 2.75rem; }
+    .students-table th, .students-table td { padding: 1.25rem; }
+}
+
+/* Extra large screens (TVs) */
+@media only screen and (min-width: 1920px) {
+    html { font-size: 21px; }
+    body { padding: 2.5rem; }
+    :root {
+        --container-max-width: 1600px;
+    }
+    .dashboard-header { padding: 2.5rem 2rem; }
+    .header-content h1 { font-size: 3rem; }
+    .stat-number { font-size: 3rem; }
+    .replica-card { padding: 1.75rem; }
+    .btn { padding: 1.25rem 2rem; font-size: 1rem; }
+    .students-table th, .students-table td { padding: 1.5rem; font-size: 1rem; }
+}
+
+/* ===== Additional Responsive Adjustments ===== */
+/* Ensure content never overflows horizontally */
+body {
+    overflow-x: hidden;
+}
+
+/* Responsive table overflow handling */
 @media (max-width: 768px) {
-    .dashboard-header {
-        padding: var(--space-xl) var(--space-lg);
+    .table-responsive {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
     }
-    .header-content h1 {
-        font-size: 2rem;
-    }
-    .header-stats {
-        grid-template-columns: 1fr;
-        gap: var(--space-md);
-    }
-    .stat-card {
-        flex-direction: column;
-        text-align: center;
-    }
-    .controls-section {
-        flex-direction: column;
-        align-items: stretch;
-    }
-    .replica-grid {
-        grid-template-columns: 1fr;
-    }
-    .form-row {
-        grid-template-columns: 1fr;
-    }
-    .modal-container {
-        margin: var(--space-sm);
-        max-height: calc(100vh - var(--space-sm) * 2);
-    }
-    .toast-container {
-        left: var(--space-sm);
-        right: var(--space-sm);
-        max-width: none;
-    }
-    .toast {
-        min-width: auto;
-        width: 100%;
+    .students-table {
+        min-width: 600px;
     }
 }
 
-@media (max-width: 480px) {
-    .dashboard-header {
-        padding: var(--space-lg) var(--space-md);
-    }
-    .header-content h1 {
-        font-size: 1.75rem;
-    }
-    .btn {
-        width: 100%;
-        justify-content: center;
-    }
-    .controls-left, .controls-right {
-        width: 100%;
-    }
-    .search-box {
-        min-width: auto;
-    }
-    .action-buttons {
-        flex-direction: row;
-        justify-content: center;
+/* Improved touch targets for all interactive elements */
+@media (hover: none) and (pointer: coarse) {
+    .btn, .action-btn, .page-btn, .modal-close, .toast-close {
+        min-height: 44px;
+        min-width: 44px;
     }
 }
 
@@ -1269,7 +1506,8 @@ select option {
     .dashboard-header::before,
     .stat-card::before,
     .status-indicator::after,
-    .toast::before {
+    .toast::before,
+    .btn::before {
         display: none;
     }
 }
@@ -1293,12 +1531,14 @@ select option {
     .replica-section,
     .modal-overlay,
     .toast-container,
-    .btn {
+    .btn,
+    .action-btn {
         display: none !important;
     }
     body {
         background: white;
         color: black;
+        padding: 0;
     }
     .dashboard-header,
     .stat-card,

@@ -1,4 +1,4 @@
-// SelfStudy Payment Management JavaScript
+// SelfStudy Payment Management JavaScript with Pagination
 class PaymentManager {
     constructor() {
         this.payments = [];
@@ -7,11 +7,15 @@ class PaymentManager {
         this.filteredPayments = [];
         this.currentPayment = null;
         this.csrfToken = this.getCSRFToken();
+        
+        // Pagination settings
+        this.pageSize = 9;
+        this.currentPage = 1;
+        
         this.init();
     }
 
     getCSRFToken() {
-        // Try multiple ways to get CSRF token
         const tokenFromMeta = document.querySelector('meta[name="csrf-token"]')?.content;
         const tokenFromInput = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
         const tokenFromCookie = this.getCookie('csrftoken');
@@ -58,6 +62,7 @@ class PaymentManager {
             if (response.success) {
                 this.payments = response.data;
                 this.filteredPayments = [...this.payments];
+                this.currentPage = 1;               // Reset to first page
                 this.renderPayments();
                 this.updateStats();
                 this.hideLoading();
@@ -99,7 +104,6 @@ class PaymentManager {
                 this.subscriptions = response.data;
                 console.log(`Successfully loaded ${this.subscriptions.length} subscription types`);
                 
-                // Log subscription structure for debugging
                 if (this.subscriptions.length > 0) {
                     console.log('First subscription type:', this.subscriptions[0]);
                 }
@@ -115,7 +119,6 @@ class PaymentManager {
         const formData = new FormData();
         formData.append('action', action);
         
-        // Add additional data to formData
         Object.keys(additionalData).forEach(key => {
             if (additionalData[key] !== null && additionalData[key] !== undefined) {
                 formData.append(key, additionalData[key]);
@@ -136,7 +139,6 @@ class PaymentManager {
             
             console.log(`Response status: ${response.status}`);
             
-            // Check if response is HTML (error page) instead of JSON
             const contentType = response.headers.get('content-type');
             if (contentType && contentType.includes('text/html')) {
                 const text = await response.text();
@@ -167,16 +169,86 @@ class PaymentManager {
         }
     }
 
-    renderPayments() {
-        const tbody = document.getElementById('payments-tbody');
-        
-        if (this.filteredPayments.length === 0) {
-            this.showEmptyState();
+    // ========== PAGINATION METHODS ==========
+    renderPagination() {
+        const container = document.getElementById('pagination');
+        if (!container) return;
+
+        const totalItems = this.filteredPayments.length;
+        const totalPages = Math.ceil(totalItems / this.pageSize);
+
+        if (totalPages <= 1) {
+            container.innerHTML = '';
             return;
         }
-        
-        tbody.innerHTML = this.filteredPayments.map(payment => {
-            // Find subscription title for display
+
+        let currentPage = this.currentPage;
+        if (currentPage > totalPages) currentPage = totalPages;
+        if (currentPage < 1) currentPage = 1;
+        this.currentPage = currentPage;
+
+        let html = '<div class="pagination-controls">';
+        html += `<button class="pagination-btn" data-page="prev" ${currentPage === 1 ? 'disabled' : ''}>« Prev</button>`;
+
+        let start = Math.max(1, currentPage - 2);
+        let end = Math.min(totalPages, currentPage + 2);
+        if (start > 1) {
+            html += `<button class="pagination-btn" data-page="1">1</button>`;
+            if (start > 2) html += '<span class="pagination-ellipsis">...</span>';
+        }
+        for (let i = start; i <= end; i++) {
+            html += `<button class="pagination-btn ${i === currentPage ? 'active' : ''}" data-page="${i}">${i}</button>`;
+        }
+        if (end < totalPages) {
+            if (end < totalPages - 1) html += '<span class="pagination-ellipsis">...</span>';
+            html += `<button class="pagination-btn" data-page="${totalPages}">${totalPages}</button>`;
+        }
+        html += `<button class="pagination-btn" data-page="next" ${currentPage === totalPages ? 'disabled' : ''}>Next »</button>`;
+        html += '</div>';
+
+        container.innerHTML = html;
+
+        container.querySelectorAll('.pagination-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const page = btn.dataset.page;
+                if (page === 'prev') {
+                    this.changePage(currentPage - 1);
+                } else if (page === 'next') {
+                    this.changePage(currentPage + 1);
+                } else {
+                    this.changePage(parseInt(page, 10));
+                }
+            });
+        });
+    }
+
+    changePage(page) {
+        const totalPages = Math.ceil(this.filteredPayments.length / this.pageSize);
+        if (page < 1 || page > totalPages) return;
+        this.currentPage = page;
+        this.renderPayments();
+    }
+
+    getPageData() {
+        const start = (this.currentPage - 1) * this.pageSize;
+        const end = start + this.pageSize;
+        return this.filteredPayments.slice(start, end);
+    }
+
+    // ========== RENDERING (with pagination) ==========
+    renderPayments() {
+        const tbody = document.getElementById('payments-tbody');
+        if (!tbody) return;
+
+        const pageData = this.getPageData();
+
+        if (pageData.length === 0) {
+            this.showEmptyState();
+            this.renderPagination();
+            return;
+        }
+
+        tbody.innerHTML = pageData.map(payment => {
             const subscription = this.subscriptions.find(sub => this.normalizeId(sub.external_id) === this.normalizeId(payment.subscription_id));
             const subscriptionDisplay = subscription ? subscription.title : payment.subscription_id;
             
@@ -223,8 +295,9 @@ class PaymentManager {
                 </tr>
             `;
         }).join('');
-        
+
         this.hideEmptyState();
+        this.renderPagination();
     }
 
     getActionButtons(payment) {
@@ -286,6 +359,7 @@ class PaymentManager {
             return matchesStatus && matchesUser && matchesSearch;
         });
         
+        this.currentPage = 1;      // Reset to first page after filtering
         this.renderPayments();
     }
 
@@ -330,7 +404,6 @@ class PaymentManager {
         document.getElementById('reference').value = payment.reference || '';
         document.getElementById('notes').value = payment.notes || '';
         
-        // Show subscription type details if available
         const subscription = this.subscriptions.find(sub => this.normalizeId(sub.external_id) === this.normalizeId(payment.subscription_id));
         const detailsElement = document.getElementById('subscription-details');
         if (subscription) {
@@ -344,7 +417,6 @@ class PaymentManager {
                 detailsHtml += `<br><small>Duration: ${subscription.duration_days} days</small>`;
             }
             
-            // Handle features array properly
             const features = this.extractFeatureNames(subscription.features);
             if (features.length > 0) {
                 detailsHtml += `<br><small>Features: ${features.join(', ')}</small>`;
@@ -576,7 +648,6 @@ class PaymentManager {
         const userList = document.getElementById('user-list');
         let filteredUsers = this.users;
         
-        // Apply filter if provided
         if (filter) {
             filteredUsers = this.users.filter(user => 
                 (user.external_id && this.normalizeId(user.external_id).includes(filter.toLowerCase())) ||
@@ -588,7 +659,6 @@ class PaymentManager {
         }
         
         userList.innerHTML = filteredUsers.map(user => {
-            // Handle different user data formats
             const userId = user.external_id || user.user_id || user.id || 'N/A';
             const userName = user.username || user.email || 'Unknown User';
             const displayName = user.full_name || user.first_name || user.username || userId;
@@ -626,7 +696,6 @@ class PaymentManager {
         const subscriptionList = document.getElementById('subscription-list');
         let filteredSubscriptions = this.subscriptions;
         
-        // Apply filter if provided
         if (filter) {
             filteredSubscriptions = this.subscriptions.filter(subscription => {
                 const title = subscription.title || '';
@@ -674,7 +743,6 @@ class PaymentManager {
         if (subscription) {
             document.getElementById('subscription-id').value = subscription.external_id;
             
-            // Show subscription type details
             const detailsElement = document.getElementById('subscription-details');
             let detailsHtml = `<strong>${subscription.title}</strong> - ${subscription.price} JOD`;
             
@@ -686,7 +754,6 @@ class PaymentManager {
                 detailsHtml += `<br><small>Duration: ${subscription.duration_days} days</small>`;
             }
             
-            // Handle features array properly
             const features = this.extractFeatureNames(subscription.features);
             if (features.length > 0) {
                 detailsHtml += `<br><small>Features: ${features.join(', ')}</small>`;
@@ -695,7 +762,6 @@ class PaymentManager {
             detailsElement.innerHTML = detailsHtml;
             detailsElement.style.display = 'block';
             
-            // Auto-fill amount with subscription type price
             if (subscription.price) {
                 document.getElementById('amount').value = subscription.price;
                 this.showSuccess(`Amount auto-filled with subscription price: ${subscription.price} JOD`);
@@ -721,7 +787,6 @@ class PaymentManager {
 
     // Utility Methods
     normalizeId(id) {
-        // Convert ID to string and lowercase for comparison
         if (id === null || id === undefined) return '';
         return String(id).toLowerCase();
     }
@@ -733,7 +798,6 @@ class PaymentManager {
             if (typeof feature === 'string') {
                 return feature;
             } else if (feature && typeof feature === 'object') {
-                // Handle feature objects - try common property names
                 return feature.name || feature.title || feature.feature || JSON.stringify(feature);
             }
             return String(feature);
@@ -798,7 +862,6 @@ class PaymentManager {
     }
 
     showToast(message, type) {
-        // Remove existing toasts
         const existingToasts = document.querySelectorAll('.toast');
         existingToasts.forEach(toast => toast.remove());
         
@@ -808,7 +871,6 @@ class PaymentManager {
         
         document.body.appendChild(toast);
         
-        // Auto remove after 5 seconds
         setTimeout(() => {
             if (toast.parentNode) {
                 toast.parentNode.removeChild(toast);
@@ -817,7 +879,6 @@ class PaymentManager {
     }
 
     setupEventListeners() {
-        // Close modals when clicking outside
         window.onclick = (event) => {
             const modals = document.querySelectorAll('.modal');
             modals.forEach(modal => {
@@ -827,7 +888,6 @@ class PaymentManager {
             });
         };
         
-        // Escape key to close modals
         document.addEventListener('keydown', (event) => {
             if (event.key === 'Escape') {
                 const modals = document.querySelectorAll('.modal');
@@ -904,7 +964,6 @@ function toggleAccountFields() {
     // Add logic to show/hide IBAN or Cliq specific fields if needed
 }
 
-// Initialize Payment Manager when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM loaded, initializing Payment Manager...');
     window.paymentManager = new PaymentManager();

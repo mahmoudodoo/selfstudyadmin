@@ -6,6 +6,67 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/selfstudycertificate.css' %}">
+<style>
+    /* Pagination styles */
+    .pagination {
+        margin-top: 20px;
+        display: flex;
+        justify-content: center;
+    }
+    .pagination-controls {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+    .pagination-btn {
+        padding: 6px 12px;
+        border: 1px solid #ddd;
+        background: white;
+        cursor: pointer;
+        border-radius: 4px;
+        transition: all 0.2s;
+    }
+    .pagination-btn:hover:not(:disabled) {
+        background-color: #f0f0f0;
+        border-color: #aaa;
+    }
+    .pagination-btn.active {
+        background-color: #007bff;
+        color: white;
+        border-color: #007bff;
+    }
+    .pagination-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    .pagination-ellipsis {
+        padding: 6px 12px;
+        color: #666;
+    }
+
+    /* Search container */
+    .search-container {
+        margin-bottom: 20px;
+        display: flex;
+        gap: 10px;
+    }
+    .search-input {
+        flex: 1;
+        padding: 10px 15px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        font-size: 14px;
+    }
+    .search-btn {
+        padding: 10px 20px;
+        background: #007bff;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+    }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -56,6 +117,14 @@
         </div>
     </div>
 
+    <!-- Search Bar -->
+    <div class="search-container">
+        <input type="text" id="globalSearch" placeholder="Search by user, course/exam, certificate ID, or message..." class="search-input">
+        <button class="search-btn" onclick="document.getElementById('globalSearch').dispatchEvent(new Event('input'))">
+            🔍 Search
+        </button>
+    </div>
+
     <!-- Action Buttons -->
     <div class="action-bar">
         <button class="btn btn-primary" onclick="openCreateModal('course')">
@@ -96,6 +165,7 @@
                     </tbody>
                 </table>
             </div>
+            <div id="course-pagination" class="pagination"></div>
         </div>
 
         <!-- Exam Certificates Tab -->
@@ -118,6 +188,7 @@
                     </tbody>
                 </table>
             </div>
+            <div id="exam-pagination" class="pagination"></div>
         </div>
     </div>
 </div>

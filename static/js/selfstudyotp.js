@@ -7,6 +7,11 @@ class OTPManager {
     constructor() {
         this.baseUrl = window.location.origin;
         this.users = [];
+        this.allOtps = [];          // Store all OTPs
+        this.filteredOtps = [];     // Filtered OTPs after search
+        this.currentPage = 1;
+        this.pageSize = 9;
+        this.searchQuery = '';
         this.init();
     }
 
@@ -17,6 +22,7 @@ class OTPManager {
         this.setupTableActions();
         this.checkSystemStatus();
         this.loadUsers();
+        this.loadOTPs();
     }
 
     setupEventListeners() {
@@ -50,6 +56,18 @@ class OTPManager {
         document.getElementById('refreshOtpListBtn')?.addEventListener('click', () => {
             this.refreshOtpList();
         });
+
+        // Search input for OTP table
+        const searchInput = document.getElementById('searchOtpInput');
+        if (searchInput) {
+            let searchTimeout;
+            searchInput.addEventListener('input', (e) => {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => {
+                    this.handleSearch(e.target.value);
+                }, 300);
+            });
+        }
 
         // User selection in modals
         const generateUsername = document.getElementById('generateUsername');
@@ -140,29 +158,25 @@ class OTPManager {
     }
 
     setupTableActions() {
-        // Copy OTP code
-        document.querySelectorAll('.action-btn[data-code]').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const code = e.currentTarget.dataset.code;
+        // Copy OTP code (using event delegation for dynamic elements)
+        document.getElementById('otpTableBody')?.addEventListener('click', (e) => {
+            const copyBtn = e.target.closest('.copy-otp-btn');
+            if (copyBtn) {
+                const code = copyBtn.dataset.code;
                 this.copyToClipboard(code);
                 this.showToast('Copied!', 'OTP code copied to clipboard', 'success');
-            });
-        });
+                return;
+            }
 
-        // Delete OTP
-        document.querySelectorAll('.action-btn[data-user-id]').forEach(btn => {
-            btn.addEventListener('click', async (e) => {
-                const userId = e.currentTarget.dataset.userId;
-                const row = e.currentTarget.closest('tr');
-                
+            const deleteBtn = e.target.closest('.delete-otp-btn');
+            if (deleteBtn) {
+                const userId = deleteBtn.dataset.userId;
+                const row = deleteBtn.closest('tr');
                 if (confirm(`Are you sure you want to delete OTP for user ${userId}?`)) {
-                    await this.deleteOTP(userId);
-                    if (row) {
-                        row.remove();
-                        this.updateStats();
-                    }
+                    this.deleteOTP(userId);
                 }
-            });
+                return;
+            }
         });
     }
 
@@ -685,7 +699,7 @@ class OTPManager {
             if (data.success) {
                 this.showToast('Success', data.message, 'success');
                 // Refresh the OTP list to reflect deletion
-                await this.loadOTPs();
+                await this.loadOTPs(true);
             } else {
                 this.showToast('Error', data.message, 'error');
             }
@@ -722,15 +736,232 @@ class OTPManager {
         this.showToast('Success', 'Domains refreshed successfully', 'success');
     }
 
+    // ========== OTP TABLE WITH PAGINATION & SEARCH ==========
+
+    async loadOTPs(forceRefresh = false) {
+        this.showLoading(true);
+
+        try {
+            const formData = new FormData();
+            formData.append('action', 'fetch_otps');
+
+            const response = await fetch(this.baseUrl + '/selfstudyotp/', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': this.getCSRFToken()
+                }
+            });
+
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                throw new Error('Server returned non-JSON response');
+            }
+
+            const data = await response.json();
+
+            if (data.success) {
+                this.allOtps = data.otps || [];
+                this.filteredOtps = [...this.allOtps];
+                this.currentPage = 1;
+                this.searchQuery = '';
+                const searchInput = document.getElementById('searchOtpInput');
+                if (searchInput) searchInput.value = '';
+                this.renderOTPTable();
+                
+                // Update stats
+                const activeOtpsElement = document.getElementById('activeOtpsCount');
+                if (activeOtpsElement) {
+                    activeOtpsElement.textContent = this.allOtps.length;
+                }
+                
+                if (forceRefresh) {
+                    this.showToast('Success', `Loaded ${this.allOtps.length} OTPs`, 'success');
+                }
+            } else {
+                this.showToast('Error', data.message || 'Failed to load OTPs', 'error');
+            }
+        } catch (error) {
+            console.error('Load OTPs error:', error);
+            this.showToast('Error', 'Failed to load OTPs from server', 'error');
+        } finally {
+            this.showLoading(false);
+        }
+    }
+
+    handleSearch(query) {
+        this.searchQuery = query.trim().toLowerCase();
+        this.applyFilter();
+        this.currentPage = 1;
+        this.renderOTPTable();
+    }
+
+    applyFilter() {
+        if (!this.searchQuery) {
+            this.filteredOtps = [...this.allOtps];
+            return;
+        }
+
+        this.filteredOtps = this.allOtps.filter(otp => {
+            return (
+                (otp.user_id && otp.user_id.toLowerCase().includes(this.searchQuery)) ||
+                (otp.username && otp.username.toLowerCase().includes(this.searchQuery)) ||
+                (otp.email && otp.email.toLowerCase().includes(this.searchQuery)) ||
+                (otp.code && otp.code.toLowerCase().includes(this.searchQuery))
+            );
+        });
+    }
+
+    renderPagination() {
+        const container = document.getElementById('otpPagination');
+        if (!container) return;
+
+        const totalItems = this.filteredOtps.length;
+        const totalPages = Math.ceil(totalItems / this.pageSize);
+
+        if (totalPages <= 1) {
+            container.innerHTML = '';
+            return;
+        }
+
+        let currentPage = this.currentPage;
+        if (currentPage > totalPages) currentPage = totalPages;
+        if (currentPage < 1) currentPage = 1;
+        this.currentPage = currentPage;
+
+        let html = '<div class="pagination-controls">';
+        html += `<button class="pagination-btn" data-page="prev" ${currentPage === 1 ? 'disabled' : ''}>« Prev</button>`;
+
+        let start = Math.max(1, currentPage - 2);
+        let end = Math.min(totalPages, currentPage + 2);
+        if (start > 1) {
+            html += `<button class="pagination-btn" data-page="1">1</button>`;
+            if (start > 2) html += '<span class="pagination-ellipsis">...</span>';
+        }
+        for (let i = start; i <= end; i++) {
+            html += `<button class="pagination-btn ${i === currentPage ? 'active' : ''}" data-page="${i}">${i}</button>`;
+        }
+        if (end < totalPages) {
+            if (end < totalPages - 1) html += '<span class="pagination-ellipsis">...</span>';
+            html += `<button class="pagination-btn" data-page="${totalPages}">${totalPages}</button>`;
+        }
+        html += `<button class="pagination-btn" data-page="next" ${currentPage === totalPages ? 'disabled' : ''}>Next »</button>`;
+        html += '</div>';
+
+        container.innerHTML = html;
+
+        container.querySelectorAll('.pagination-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const page = btn.dataset.page;
+                if (page === 'prev') {
+                    this.changePage(currentPage - 1);
+                } else if (page === 'next') {
+                    this.changePage(currentPage + 1);
+                } else {
+                    this.changePage(parseInt(page, 10));
+                }
+            });
+        });
+    }
+
+    changePage(page) {
+        const totalPages = Math.ceil(this.filteredOtps.length / this.pageSize);
+        if (page < 1 || page > totalPages) return;
+        this.currentPage = page;
+        this.renderOTPTable();
+    }
+
+    renderOTPTable() {
+        const tableBody = document.getElementById('otpTableBody');
+        if (!tableBody) return;
+
+        const start = (this.currentPage - 1) * this.pageSize;
+        const end = start + this.pageSize;
+        const pageOtps = this.filteredOtps.slice(start, end);
+
+        if (pageOtps.length === 0) {
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="7" class="empty-table">
+                        <div class="empty-state">
+                            <svg viewBox="0 0 24 24" width="48" height="48">
+                                <path fill="currentColor" d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M12,6A6,6 0 0,0 6,12A6,6 0 0,0 12,18A6,6 0 0,0 18,12A6,6 0 0,0 12,6Z" />
+                            </svg>
+                            <p>No OTP records found</p>
+                            <p class="empty-subtext">Generate your first OTP to see records here</p>
+                        </div>
+                    </td>
+                </tr>
+            `;
+            this.renderPagination();
+            return;
+        }
+
+        let html = '';
+        pageOtps.forEach(otp => {
+            const createdDate = new Date(otp.created_at);
+            const formattedDate = createdDate.toLocaleString('en-US', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            
+            const statusClass = otp.is_used ? 'status-used' : 'status-active';
+            const statusText = otp.is_used ? 'Used' : 'Active';
+            
+            // Truncate user_id for display
+            const displayUserId = otp.user_id.length > 12 ? 
+                otp.user_id.substring(0, 12) + '...' : 
+                otp.user_id;
+            
+            html += `
+                <tr data-user-id="${otp.user_id}">
+                    <td><span class="text-monospace" title="${otp.user_id}">${displayUserId}</span></td>
+                    <td>${otp.username || '-'}</td>
+                    <td>${otp.email}</td>
+                    <td><span class="otp-code">${otp.code}</span></td>
+                    <td>${formattedDate}</td>
+                    <td>
+                        <span class="status-badge ${statusClass}">
+                            ${statusText}
+                        </span>
+                    </td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="btn btn-icon btn-sm action-btn copy-otp-btn" 
+                                    title="Copy OTP" 
+                                    data-code="${otp.code}">
+                                <svg viewBox="0 0 24 24" width="14" height="14">
+                                    <path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z" />
+                                </svg>
+                            </button>
+                            <button class="btn btn-icon btn-sm action-btn delete-otp-btn" 
+                                    title="Delete OTP" 
+                                    data-user-id="${otp.user_id}">
+                                <svg viewBox="0 0 24 24" width="14" height="14">
+                                    <path fill="currentColor" d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z" />
+                                </svg>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        });
+
+        tableBody.innerHTML = html;
+        this.renderPagination();
+    }
+
     async refreshOtpList() {
-        // In a real app, this would fetch fresh OTP list
-        // For now, just update the stats
-        this.updateStats();
+        await this.loadOTPs(true);
         this.showToast('Success', 'OTP list refreshed', 'success');
     }
 
     updateStats() {
-        const otpCount = document.querySelectorAll('#otpTableBody tr:not(.empty-table)').length;
+        const otpCount = this.allOtps.length;
         const activeOtpsElement = document.getElementById('activeOtpsCount');
         if (activeOtpsElement) {
             activeOtpsElement.textContent = otpCount;
@@ -774,181 +1005,6 @@ class OTPManager {
             document.body.removeChild(textArea);
         }
     }
-
-
-    // Add this method to the OTPManager class
-async loadOTPs(forceRefresh = false) {
-    this.showLoading(true);
-
-    try {
-        const formData = new FormData();
-        formData.append('action', 'fetch_otps');
-
-        const response = await fetch(this.baseUrl + '/selfstudyotp/', {
-            method: 'POST',
-            body: formData,
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRFToken': this.getCSRFToken()
-            }
-        });
-
-        // Check if response is JSON
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-            throw new Error('Server returned non-JSON response');
-        }
-
-        const data = await response.json();
-
-        if (data.success) {
-            this.renderOTPTable(data.otps || []);
-            
-            // Update stats
-            const activeOtpsElement = document.getElementById('activeOtpsCount');
-            if (activeOtpsElement) {
-                activeOtpsElement.textContent = data.otps.length;
-            }
-            
-            if (forceRefresh) {
-                this.showToast('Success', `Loaded ${data.otps.length} OTPs`, 'success');
-            }
-        } else {
-            this.showToast('Error', data.message || 'Failed to load OTPs', 'error');
-        }
-    } catch (error) {
-        console.error('Load OTPs error:', error);
-        this.showToast('Error', 'Failed to load OTPs from server', 'error');
-    } finally {
-        this.showLoading(false);
-    }
-}
-
-// Add this method to render OTP table
-renderOTPTable(otps) {
-    const tableBody = document.getElementById('otpTableBody');
-    if (!tableBody) return;
-
-    if (otps.length === 0) {
-        tableBody.innerHTML = `
-            <tr>
-                <td colspan="7" class="empty-table">
-                    <div class="empty-state">
-                        <svg viewBox="0 0 24 24" width="48" height="48">
-                            <path fill="currentColor" d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M12,6A6,6 0 0,0 6,12A6,6 0 0,0 12,18A6,6 0 0,0 18,12A6,6 0 0,0 12,6Z" />
-                        </svg>
-                        <p>No OTP records found</p>
-                        <p class="empty-subtext">Generate your first OTP to see records here</p>
-                    </div>
-                </td>
-            </tr>
-        `;
-        return;
-    }
-
-    let html = '';
-    otps.forEach(otp => {
-        const createdDate = new Date(otp.created_at);
-        const formattedDate = createdDate.toLocaleString('en-US', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-        
-        const statusClass = otp.is_used ? 'status-used' : 'status-active';
-        const statusText = otp.is_used ? 'Used' : 'Active';
-        
-        // Truncate user_id for display
-        const displayUserId = otp.user_id.length > 12 ? 
-            otp.user_id.substring(0, 12) + '...' : 
-            otp.user_id;
-        
-        html += `
-            <tr data-user-id="${otp.user_id}">
-                <td><span class="text-monospace" title="${otp.user_id}">${displayUserId}</span></td>
-                <td>${otp.username || '-'}</td>
-                <td>${otp.email}</td>
-                <td><span class="otp-code">${otp.code}</span></td>
-                <td>${formattedDate}</td>
-                <td>
-                    <span class="status-badge ${statusClass}">
-                        ${statusText}
-                    </span>
-                </td>
-                <td>
-                    <div class="action-buttons">
-                        <button class="btn btn-icon btn-sm action-btn copy-otp-btn" 
-                                title="Copy OTP" 
-                                data-code="${otp.code}">
-                            <svg viewBox="0 0 24 24" width="14" height="14">
-                                <path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z" />
-                            </svg>
-                        </button>
-                        <button class="btn btn-icon btn-sm action-btn delete-otp-btn" 
-                                title="Delete OTP" 
-                                data-user-id="${otp.user_id}">
-                            <svg viewBox="0 0 24 24" width="14" height="14">
-                                <path fill="currentColor" d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z" />
-                            </svg>
-                        </button>
-                    </div>
-                </td>
-            </tr>
-        `;
-    });
-
-    tableBody.innerHTML = html;
-    
-    // No need to reattach event listeners since we're using event delegation
-}
-
-// Update the refreshOtpList method
-async refreshOtpList() {
-    await this.loadOTPs(true);
-    this.showToast('Success', 'OTP list refreshed', 'success');
-}
-
-// Update the init method to load OTPs
-init() {
-    this.setupEventListeners();
-    this.setupModals();
-    this.setupToast();
-    this.setupTableActions();
-    this.checkSystemStatus();
-    this.loadUsers();
-    this.loadOTPs();  // Load OTPs on init
-}
-
-// Update the setupTableActions method
-setupTableActions() {
-    // Copy OTP code
-    document.querySelectorAll('.copy-otp-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const code = e.currentTarget.dataset.code;
-            this.copyToClipboard(code);
-            this.showToast('Copied!', 'OTP code copied to clipboard', 'success');
-        });
-    });
-
-    // Delete OTP - IMPORTANT: Use event delegation for dynamically added buttons
-    document.getElementById('otpTableBody')?.addEventListener('click', async (e) => {
-        const deleteBtn = e.target.closest('.delete-otp-btn');
-        if (deleteBtn) {
-            e.preventDefault();
-            e.stopPropagation();
-            
-            const userId = deleteBtn.dataset.userId;
-            const row = deleteBtn.closest('tr');
-            
-            if (confirm(`Are you sure you want to delete OTP for user ${userId}?`)) {
-                await this.deleteOTP(userId);
-            }
-        }
-    });
-}
-
 }
 
 // Initialize when DOM is loaded
