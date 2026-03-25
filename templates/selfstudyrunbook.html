@@ -20,6 +20,9 @@
             <button class="btn btn-primary" onclick="showCreateRunbookModal()">
                 <i class="icon-add"></i> New Runbook
             </button>
+            <button class="btn btn-primary" onclick="runbookManager.openImportModal()">
+                <i class="icon-add"></i> Import Runbook
+            </button>
             <button class="btn btn-secondary" onclick="runbookManager.refreshData()">
                 <i class="icon-refresh"></i> Refresh
             </button>
@@ -121,7 +124,7 @@
     </div>
 </div>
 
-<!-- Modals -->
+<!-- Modals (existing) -->
 <div id="createRunbookModal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
@@ -278,6 +281,51 @@
                         onclick="closeModal('deleteConfirmModal')">Cancel</button>
                 <button type="button" class="btn btn-danger" 
                         onclick="confirmDelete()">Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- New Import Runbook Modal -->
+<div id="importRunbookModal" class="modal">
+    <div class="modal-content" style="max-width: 700px;">
+        <div class="modal-header">
+            <h2>Import Runbook from JSON</h2>
+            <button class="close-btn" onclick="closeModal('importRunbookModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>Choose input method:</label>
+                <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+                    <label><input type="radio" name="importMethod" value="file" checked> Upload JSON file</label>
+                    <label><input type="radio" name="importMethod" value="text"> Paste JSON text</label>
+                </div>
+            </div>
+
+            <div id="fileImportArea">
+                <div class="form-group">
+                    <label for="importFile">Select JSON file:</label>
+                    <input type="file" id="importFile" accept=".json">
+                </div>
+            </div>
+
+            <div id="textImportArea" style="display: none;">
+                <div class="form-group">
+                    <label for="importText">Paste JSON:</label>
+                    <textarea id="importText" rows="8" placeholder='{"title": "Example", "sections": [...]}'></textarea>
+                </div>
+            </div>
+
+            <div class="form-actions" style="margin-top: 1rem;">
+                <button type="button" class="btn btn-secondary" onclick="runbookManager.validateImportData()">Validate</button>
+                <button type="button" class="btn btn-primary" id="importSubmitBtn" onclick="runbookManager.importRunbook()" disabled>Import</button>
+            </div>
+
+            <div id="validationResult" style="margin-top: 1rem; display: none;">
+                <div class="status-item">
+                    <span class="label">Validation Result:</span>
+                    <span id="validationMessage"></span>
+                </div>
             </div>
         </div>
     </div>

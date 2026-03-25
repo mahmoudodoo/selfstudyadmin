@@ -8,6 +8,7 @@ class RunbookManager {
         this.draggingSection = null;
         this.authToken = authToken;
         this.deletePending = null;
+        this.importData = null;
         
         // Initialize
         this.init();
@@ -17,6 +18,7 @@ class RunbookManager {
         this.loadDomains();
         this.setupEventListeners();
         this.updateStatus();
+        this.setupImportMethodToggle();
     }
 
     loadDomains() {
@@ -282,13 +284,15 @@ class RunbookManager {
             this.showToast('Runbook created successfully', 'success');
             this.loadRunbooks();
             this.closeModal('createRunbookModal');
+            return response; // Return created runbook data
         }
+        return null;
     }
 
     async updateRunbook(id, syncId, title) {
         const data = {
             title: title,
-            sync_id: syncId  // IMPORTANT: Include sync_id for sync to work
+            sync_id: syncId
         };
 
         const response = await this.makeRequest(`/runbooks/${id}/`, 'PUT', data);
@@ -317,21 +321,25 @@ class RunbookManager {
         }
     }
 
-    async createSection(runbookId, data) {
-        // Get runbook sync_id for the section
-        const runbookElement = document.querySelector(`[data-runbook-id="${runbookId}"]`);
-        const runbookSyncId = runbookElement?.dataset.runbookSyncId;
+    // Modified createSection to accept runbookSyncId optionally
+    async createSection(runbookId, data, runbookSyncId = null) {
+        // If runbookSyncId is not provided, try to get it from DOM
+        let syncId = runbookSyncId;
+        if (!syncId) {
+            const runbookElement = document.querySelector(`[data-runbook-id="${runbookId}"]`);
+            syncId = runbookElement?.dataset.runbookSyncId;
+        }
         
-        if (!runbookSyncId) {
+        if (!syncId) {
             this.showToast('Runbook sync ID not found', 'error');
             return;
         }
 
         const sectionData = {
             ...data,
-            runbook: runbookId,  // Runbook ID (required by serializer)
+            runbook: runbookId,
             sync_id: this.generateUUID(),
-            runbook_sync_id: runbookSyncId  // Important for section sync
+            runbook_sync_id: syncId
         };
 
         console.log('Creating section with data:', sectionData);
@@ -342,19 +350,20 @@ class RunbookManager {
             this.showToast('Section created successfully - Syncing to all replicas', 'success');
             await this.selectRunbook(runbookId);
             this.closeModal('createSectionModal');
+            return response;
         }
+        return null;
     }
 
     async updateSection(id, syncId, data) {
-        // Get runbook sync_id for the section
         const runbookElement = document.querySelector(`[data-runbook-id="${this.selectedRunbook.id}"]`);
         const runbookSyncId = runbookElement?.dataset.runbookSyncId;
         
         const sectionData = {
             ...data,
-            runbook: this.selectedRunbook.id,  // CRITICAL: Runbook ID (required by serializer)
-            sync_id: syncId,  // IMPORTANT: Include sync_id for sync to work
-            runbook_sync_id: runbookSyncId  // Important for section sync
+            runbook: this.selectedRunbook.id,
+            sync_id: syncId,
+            runbook_sync_id: runbookSyncId
         };
 
         console.log('Updating section with data:', sectionData);
@@ -380,7 +389,6 @@ class RunbookManager {
 
     // Section Reordering
     async updateSectionPositions(updates) {
-        // Get sync_ids for each section
         const sectionsData = [];
         
         updates.forEach(update => {
@@ -447,7 +455,6 @@ class RunbookManager {
             return;
         }
 
-        // Get all sections in current order
         const sections = Array.from(document.querySelectorAll('.section-item'));
         const sourceIndex = sections.findIndex(s => parseInt(s.dataset.sectionId) === sourceSectionId);
         const targetIndex = sections.findIndex(s => parseInt(s.dataset.sectionId) === targetSectionId);
@@ -457,7 +464,6 @@ class RunbookManager {
             return;
         }
 
-        // Move in DOM
         const container = document.getElementById('sectionsList');
         const sourceElement = sections[sourceIndex];
         const targetElement = sections[targetIndex];
@@ -468,28 +474,22 @@ class RunbookManager {
             container.insertBefore(sourceElement, targetElement);
         }
 
-        // Update positions in DOM
         const updatedSections = [];
         container.querySelectorAll('.section-item').forEach((item, index) => {
             const sectionId = parseInt(item.dataset.sectionId);
             item.dataset.position = index;
-            
-            // Update position display
             const positionSpan = item.querySelector('.section-position span');
             if (positionSpan) {
                 positionSpan.textContent = `Position: ${index + 1}`;
             }
-            
             updatedSections.push({
                 id: sectionId,
                 position: index
             });
         });
 
-        // Update positions on server
         const success = await this.updateSectionPositions(updatedSections);
         if (!success) {
-            // Revert if update failed
             this.renderSections(this.selectedRunbook.sections || []);
             this.showToast('Failed to save new positions', 'error');
         }
@@ -531,7 +531,6 @@ class RunbookManager {
         modal.classList.remove('show');
         document.body.style.overflow = '';
         
-        // Reset form
         const form = modal.querySelector('form');
         if (form) {
             form.reset();
@@ -555,7 +554,6 @@ class RunbookManager {
     }
 
     setupEventListeners() {
-        // Close modals when clicking outside
         document.addEventListener('click', (event) => {
             if (event.target.classList.contains('modal')) {
                 event.target.classList.remove('show');
@@ -563,7 +561,6 @@ class RunbookManager {
             }
         });
 
-        // Escape key to close modals
         document.addEventListener('keydown', (event) => {
             if (event.key === 'Escape') {
                 document.querySelectorAll('.modal.show').forEach(modal => {
@@ -573,7 +570,6 @@ class RunbookManager {
             }
         });
 
-        // Search functionality
         const searchInput = document.getElementById('searchRunbooks');
         if (searchInput) {
             searchInput.addEventListener('input', () => this.filterRunbooks());
@@ -594,7 +590,6 @@ class RunbookManager {
         });
     }
 
-    // Public Methods for HTML onclick handlers
     refreshData() {
         this.loadRunbooks();
         if (this.selectedRunbook) {
@@ -639,20 +634,16 @@ class RunbookManager {
     }
 
     async editSection(sectionId) {
-        // First, make sure we have the latest runbook data
         await this.selectRunbook(this.selectedRunbook.id);
         
-        // Find the section in the selected runbook
         const section = this.selectedRunbook.sections?.find(s => s.id === sectionId);
         if (!section) {
             this.showToast('Section not found', 'error');
             return;
         }
         
-        // Store section data
         this.selectedSection = section;
         
-        // Fill form
         document.getElementById('editSectionId').value = section.id;
         document.getElementById('editSectionSyncId').value = section.sync_id || '';
         document.getElementById('editSectionTitle').value = section.title || '';
@@ -716,6 +707,189 @@ class RunbookManager {
         
         this.deletePending = null;
     }
+
+    // Import functionality
+    setupImportMethodToggle() {
+        const radioFile = document.querySelector('input[name="importMethod"][value="file"]');
+        const radioText = document.querySelector('input[name="importMethod"][value="text"]');
+        const fileArea = document.getElementById('fileImportArea');
+        const textArea = document.getElementById('textImportArea');
+        
+        if (radioFile && radioText) {
+            radioFile.addEventListener('change', () => {
+                fileArea.style.display = 'block';
+                textArea.style.display = 'none';
+                this.clearImportValidation();
+            });
+            radioText.addEventListener('change', () => {
+                fileArea.style.display = 'none';
+                textArea.style.display = 'block';
+                this.clearImportValidation();
+            });
+        }
+    }
+
+    openImportModal() {
+        document.getElementById('importFile').value = '';
+        document.getElementById('importText').value = '';
+        document.getElementById('validationResult').style.display = 'none';
+        document.getElementById('importSubmitBtn').disabled = true;
+        this.importData = null;
+        
+        const radioFile = document.querySelector('input[name="importMethod"][value="file"]');
+        if (radioFile) radioFile.checked = true;
+        document.getElementById('fileImportArea').style.display = 'block';
+        document.getElementById('textImportArea').style.display = 'none';
+        
+        this.showModal('importRunbookModal');
+    }
+
+    clearImportValidation() {
+        const validationDiv = document.getElementById('validationResult');
+        validationDiv.style.display = 'none';
+        document.getElementById('validationMessage').textContent = '';
+        document.getElementById('importSubmitBtn').disabled = true;
+        this.importData = null;
+    }
+
+    async validateImportData() {
+        let jsonData = null;
+        const method = document.querySelector('input[name="importMethod"]:checked').value;
+        
+        if (method === 'file') {
+            const fileInput = document.getElementById('importFile');
+            if (!fileInput.files || fileInput.files.length === 0) {
+                this.showValidationResult(false, 'Please select a JSON file.');
+                return;
+            }
+            const file = fileInput.files[0];
+            try {
+                const text = await file.text();
+                jsonData = JSON.parse(text);
+            } catch (e) {
+                this.showValidationResult(false, `Invalid JSON file: ${e.message}`);
+                return;
+            }
+        } else {
+            const textarea = document.getElementById('importText');
+            const text = textarea.value.trim();
+            if (!text) {
+                this.showValidationResult(false, 'Please paste JSON data.');
+                return;
+            }
+            try {
+                jsonData = JSON.parse(text);
+            } catch (e) {
+                this.showValidationResult(false, `Invalid JSON: ${e.message}`);
+                return;
+            }
+        }
+        
+        const validation = this.validateImportJson(jsonData);
+        if (validation.valid) {
+            this.importData = jsonData;
+            this.showValidationResult(true, validation.message);
+            document.getElementById('importSubmitBtn').disabled = false;
+        } else {
+            this.showValidationResult(false, validation.message);
+        }
+    }
+
+    validateImportJson(data) {
+        if (!data.title || typeof data.title !== 'string') {
+            return { valid: false, message: 'Missing or invalid "title" (must be a non-empty string).' };
+        }
+        if (!data.sections || !Array.isArray(data.sections)) {
+            return { valid: false, message: 'Missing or invalid "sections" (must be an array).' };
+        }
+        
+        for (let i = 0; i < data.sections.length; i++) {
+            const sec = data.sections[i];
+            if (typeof sec.content !== 'string' || !sec.content.trim()) {
+                return { valid: false, message: `Section at index ${i} is missing required "content" (non-empty string).` };
+            }
+            if (sec.title !== undefined && typeof sec.title !== 'string') {
+                return { valid: false, message: `Section at index ${i} has invalid "title" (must be string).` };
+            }
+            if (sec.is_code_block !== undefined && typeof sec.is_code_block !== 'boolean') {
+                return { valid: false, message: `Section at index ${i} has invalid "is_code_block" (must be boolean).` };
+            }
+            if (sec.bg_color !== undefined && !/^#[0-9A-Fa-f]{6}$/.test(sec.bg_color)) {
+                return { valid: false, message: `Section at index ${i} has invalid "bg_color" (must be hex color like #RRGGBB).` };
+            }
+            if (sec.text_color !== undefined && !/^#[0-9A-Fa-f]{6}$/.test(sec.text_color)) {
+                return { valid: false, message: `Section at index ${i} has invalid "text_color" (must be hex color like #RRGGBB).` };
+            }
+            if (sec.position !== undefined && (typeof sec.position !== 'number' || sec.position < 0)) {
+                return { valid: false, message: `Section at index ${i} has invalid "position" (must be a non-negative number).` };
+            }
+        }
+        
+        return { valid: true, message: `Valid JSON with ${data.sections.length} sections.` };
+    }
+
+    showValidationResult(valid, message) {
+        const validationDiv = document.getElementById('validationResult');
+        const messageSpan = document.getElementById('validationMessage');
+        messageSpan.textContent = message;
+        validationDiv.style.display = 'block';
+        if (valid) {
+            messageSpan.style.color = '#10b981';
+            messageSpan.style.textShadow = '0 0 5px #10b981';
+        } else {
+            messageSpan.style.color = '#ef4444';
+            messageSpan.style.textShadow = '0 0 5px #ef4444';
+        }
+    }
+
+    async importRunbook() {
+        if (!this.importData) {
+            this.showToast('No valid data to import. Please validate first.', 'error');
+            return;
+        }
+        
+        this.showLoading('Importing runbook...');
+        try {
+            // Create runbook and capture its sync_id
+            const runbookResponse = await this.createRunbook(this.importData.title);
+            if (!runbookResponse) {
+                throw new Error('Failed to create runbook.');
+            }
+            const runbookId = runbookResponse.id;
+            const runbookSyncId = runbookResponse.sync_id;
+            
+            // Create sections in order, passing the runbook's sync_id directly
+            const sections = this.importData.sections;
+            for (let i = 0; i < sections.length; i++) {
+                const sec = sections[i];
+                const sectionData = {
+                    title: sec.title || '',
+                    content: sec.content,
+                    is_code_block: sec.is_code_block || false,
+                    bg_color: sec.bg_color || '#ffffff',
+                    text_color: sec.text_color || '#000000',
+                    position: sec.position !== undefined ? sec.position : i
+                };
+                await this.createSection(runbookId, sectionData, runbookSyncId);
+            }
+            
+            this.showToast(`Successfully imported runbook "${this.importData.title}" with ${sections.length} sections.`, 'success');
+            this.closeModal('importRunbookModal');
+            this.refreshData();
+            // Optionally select the new runbook
+            setTimeout(() => {
+                const newRunbookItem = document.querySelector(`.runbook-item[data-runbook-id="${runbookId}"]`);
+                if (newRunbookItem) {
+                    newRunbookItem.click();
+                }
+            }, 500);
+        } catch (error) {
+            console.error('Import failed:', error);
+            this.showToast(`Import failed: ${error.message}`, 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
 }
 
 // Global functions for HTML onclick handlers
@@ -739,7 +913,6 @@ function showCreateSectionModal() {
 function editSelectedRunbook() {
     if (!runbookManager.selectedRunbook) return;
     
-    // Get sync_id from DOM element
     const runbookElement = document.querySelector(`[data-runbook-id="${runbookManager.selectedRunbook.id}"]`);
     const syncId = runbookElement?.dataset.runbookSyncId;
     
@@ -813,7 +986,6 @@ function updateSection(event) {
     const textColor = document.getElementById('editSectionTextColor').value;
     
     if (content && id && syncId && runbookManager.selectedRunbook) {
-        // Get current position from the selected section
         const currentSection = runbookManager.selectedRunbook.sections?.find(s => s.id == id);
         const position = currentSection?.position || 0;
         
@@ -842,7 +1014,6 @@ function closeModal(modalId) {
 let runbookManager;
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Get auth token from template
     const authToken = document.getElementById('authToken')?.value || '';
     if (!authToken) {
         console.error('No auth token found');
