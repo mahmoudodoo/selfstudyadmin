@@ -16,3 +16,4 @@ from .selfstudyotp import *
 from .selfstudyproctor import *
 from .selfstudyrunbook import *
 from .selfstudyallauth import *
+from .selfstudyresearchflow import *

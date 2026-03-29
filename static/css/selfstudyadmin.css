@@ -2,58 +2,59 @@
    SPACE COMMAND CENTER THEME – USER MANAGEMENT
    Dark, transparent, glass‑morphic UI with cosmic glows.
    Supports list, create, update, and delete pages.
-   Enhanced with granular 50px-increment responsive breakpoints.
+   Fully fluid – uses clamp() for perfect scaling across all devices.
    ============================================================ */
 
 /* ----------------------------------------
-   CSS CUSTOM PROPERTIES (shared with admin dashboard)
+   CSS CUSTOM PROPERTIES – FLUID SCALE SYSTEM
    ---------------------------------------- */
 :root {
-  /* Transparent space backgrounds */
+  /* Original cosmic color palette – untouched */
   --space-dark: rgba(5, 5, 20, 0.85);
   --space-medium: rgba(10, 10, 30, 0.8);
   --space-light: rgba(20, 20, 50, 0.7);
   --glass-bg: rgba(8, 8, 25, 0.6);
   --table-header-bg: rgba(15, 15, 40, 0.9);
-
-  /* Cosmic accent colors */
   --cosmic-cyan: #4ECDC4;
   --nebula-purple: #8A2BE2;
   --star-white: #FFFFFF;
   --cosmic-blue: #3b82f6;
   --cosmic-orange: #f39c12;
   --cosmic-red: #e74c3c;
-
-  /* Text – always light */
   --text-primary: #FFFFFF;
   --text-secondary: #E0E0E0;
   --text-soft: #B0B0B0;
-
-  /* Glows and shadows */
   --glow-cyan: 0 0 20px rgba(78, 205, 196, 0.3);
   --glow-purple: 0 0 20px rgba(138, 43, 226, 0.3);
   --glow-white: 0 0 15px rgba(255, 255, 255, 0.2);
   --border-glow: 1px solid rgba(255, 255, 255, 0.15);
   --inner-glow: inset 0 0 30px rgba(78, 205, 196, 0.1);
-
-  /* Typography – will be overridden in breakpoints */
-  --fs-xs: 0.7rem;
-  --fs-sm: 0.8rem;
-  --fs-base: 0.9rem;
-  --fs-md: 1rem;
-  --fs-lg: 1.2rem;
-  --fs-xl: 1.5rem;
-
-  /* Spacing */
-  --space-xs: 0.5rem;
-  --space-sm: 0.75rem;
-  --space-md: 1rem;
-  --space-lg: 1.5rem;
-  --space-xl: 2rem;
-
-  /* Transitions */
   --transition-fast: 0.2s ease;
   --transition-base: 0.3s ease;
+
+  /* ===== FLUID TYPOGRAPHY SCALE =====
+     Uses clamp(min, preferred, max) with vw as the fluid middle.
+     Minimum values ensure readability on smallest screens.
+  */
+  --font-display: clamp(28px, 4vw, 56px);
+  --font-h1:      clamp(24px, 3vw, 42px);
+  --font-h2:      clamp(20px, 2.5vw, 34px);
+  --font-h3:      clamp(18px, 2vw, 28px);
+  --font-body:    clamp(14px, 1.2vw, 18px);
+  --font-small:   clamp(11px, 1vw, 14px);
+
+  /* ===== FLUID SPACING SCALE =====
+     Consistent spacing rhythm across breakpoints.
+  */
+  --space-xs: clamp(4px,  0.5vw, 8px);
+  --space-sm: clamp(8px,  1vw,   16px);
+  --space-md: clamp(16px, 2vw,   32px);
+  --space-lg: clamp(24px, 3vw,   48px);
+  --space-xl: clamp(32px, 4vw,   64px);
+
+  /* Fluid container and card dimensions */
+  --card-radius: clamp(12px, 2vw, 24px);
+  --container-max-width: min(1600px, 92vw);
 }
 
 /* ----------------------------------------
@@ -61,7 +62,7 @@
    ---------------------------------------- */
 .page-content {
   padding: var(--space-xl);
-  max-width: 1600px;
+  max-width: var(--container-max-width);
   margin: 0 auto;
   position: relative;
   z-index: 2;
@@ -90,7 +91,7 @@ h1, h2, h3, h4, p, label, span, a, button, input, select, textarea,
 .dashboard-header h2 {
   margin: 0;
   color: var(--text-primary);
-  font-size: var(--fs-xl);
+  font-size: var(--font-h1);
   font-weight: 600;
   letter-spacing: 1px;
   text-transform: uppercase;
@@ -110,8 +111,8 @@ h1, h2, h3, h4, p, label, span, a, button, input, select, textarea,
   gap: var(--space-xs);
   padding: var(--space-sm) var(--space-lg);
   border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 1rem;
-  font-size: var(--fs-sm);
+  border-radius: var(--card-radius);
+  font-size: var(--font-body);
   font-weight: 600;
   text-decoration: none;
   cursor: pointer;
@@ -120,10 +121,12 @@ h1, h2, h3, h4, p, label, span, a, button, input, select, textarea,
   box-shadow: var(--inner-glow);
   letter-spacing: 0.5px;
   text-transform: uppercase;
+  min-height: 44px; /* Touch target compliance */
 }
 
 .btn i {
   filter: drop-shadow(0 0 5px currentColor);
+  font-size: clamp(16px, 2vw, 20px);
 }
 
 /* Primary button (Add New User, Save) */
@@ -168,8 +171,8 @@ h1, h2, h3, h4, p, label, span, a, button, input, select, textarea,
   color: var(--star-white);
   border-color: rgba(243, 156, 18, 0.5);
   padding: var(--space-xs) var(--space-sm);
-  font-size: var(--fs-xs);
-  border-radius: 0.75rem;
+  font-size: var(--font-small);
+  border-radius: calc(var(--card-radius) * 0.75);
 }
 
 .btn-edit:hover {
@@ -186,8 +189,8 @@ h1, h2, h3, h4, p, label, span, a, button, input, select, textarea,
   color: var(--star-white);
   border-color: rgba(231, 76, 60, 0.5);
   padding: var(--space-xs) var(--space-sm);
-  font-size: var(--fs-xs);
-  border-radius: 0.75rem;
+  font-size: var(--font-small);
+  border-radius: calc(var(--card-radius) * 0.75);
   border: 1px solid rgba(231, 76, 60, 0.5);
 }
 
@@ -205,7 +208,7 @@ h1, h2, h3, h4, p, label, span, a, button, input, select, textarea,
   background: var(--space-dark);
   backdrop-filter: blur(12px) saturate(180%);
   -webkit-backdrop-filter: blur(12px) saturate(180%);
-  border-radius: 1.5rem;
+  border-radius: var(--card-radius);
   border: var(--border-glow);
   box-shadow: 0 15px 25px -15px rgba(0, 0, 0, 0.7), var(--inner-glow);
   overflow: hidden;
@@ -224,7 +227,6 @@ h1, h2, h3, h4, p, label, span, a, button, input, select, textarea,
   scrollbar-color: rgba(100, 100, 150, 0.5) rgba(0, 0, 0, 0.3);
 }
 
-/* Custom scrollbar for webkit */
 .table-responsive::-webkit-scrollbar {
   height: 8px;
 }
@@ -249,7 +251,7 @@ h1, h2, h3, h4, p, label, span, a, button, input, select, textarea,
 .users-table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 900px;
+  min-width: 600px; /* ensure readability on small screens, but scrollable */
   color: var(--text-secondary);
 }
 
@@ -265,7 +267,7 @@ h1, h2, h3, h4, p, label, span, a, button, input, select, textarea,
   backdrop-filter: blur(5px);
   color: var(--cosmic-cyan);
   font-weight: 600;
-  font-size: var(--fs-sm);
+  font-size: var(--font-small);
   text-transform: uppercase;
   letter-spacing: 1px;
   border-bottom: 2px solid rgba(78, 205, 196, 0.3);
@@ -283,7 +285,7 @@ h1, h2, h3, h4, p, label, span, a, button, input, select, textarea,
 }
 
 .users-table td {
-  font-size: var(--fs-sm);
+  font-size: var(--font-body);
   color: var(--text-secondary);
 }
 
@@ -292,9 +294,9 @@ h1, h2, h3, h4, p, label, span, a, button, input, select, textarea,
    ---------------------------------------- */
 .status-badge {
   display: inline-block;
-  padding: 0.2rem 1rem;
+  padding: var(--space-xs) var(--space-sm);
   border-radius: 2rem;
-  font-size: var(--fs-xs);
+  font-size: var(--font-small);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -324,10 +326,25 @@ h1, h2, h3, h4, p, label, span, a, button, input, select, textarea,
   gap: var(--space-xs);
   white-space: nowrap;
   align-items: center;
+  flex-wrap: wrap; /* allow wrapping on very small screens */
 }
 
 .delete-form {
   display: inline;
+}
+
+/* Small screen: stack action buttons */
+@media (max-width: 480px) {
+  .actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-xs);
+  }
+  .btn-edit,
+  .btn-delete {
+    width: 100%;
+    justify-content: center;
+  }
 }
 
 /* ----------------------------------------
@@ -350,7 +367,7 @@ h1, h2, h3, h4, p, label, span, a, button, input, select, textarea,
 
 .alert {
   padding: var(--space-sm) var(--space-lg);
-  border-radius: 1rem;
+  border-radius: var(--card-radius);
   margin-bottom: var(--space-xs);
   display: flex;
   justify-content: space-between;
@@ -359,6 +376,7 @@ h1, h2, h3, h4, p, label, span, a, button, input, select, textarea,
   border: var(--border-glow);
   color: var(--text-primary);
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  font-size: var(--font-body);
 }
 
 .alert-success {
@@ -378,7 +396,7 @@ h1, h2, h3, h4, p, label, span, a, button, input, select, textarea,
 
 .close-btn {
   cursor: pointer;
-  font-size: var(--fs-lg);
+  font-size: var(--font-h3);
   font-weight: bold;
   color: var(--text-primary);
   opacity: 0.8;
@@ -392,11 +410,11 @@ h1, h2, h3, h4, p, label, span, a, button, input, select, textarea,
 }
 
 /* ----------------------------------------
-   STATISTICS CARDS
+   STATISTICS CARDS – Fluid grid
    ---------------------------------------- */
 .stats-container {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
   gap: var(--space-lg);
   margin-bottom: var(--space-xl);
 }
@@ -406,13 +424,14 @@ h1, h2, h3, h4, p, label, span, a, button, input, select, textarea,
   backdrop-filter: blur(12px) saturate(180%);
   -webkit-backdrop-filter: blur(12px) saturate(180%);
   padding: var(--space-lg);
-  border-radius: 1.5rem;
+  border-radius: var(--card-radius);
   border: var(--border-glow);
   box-shadow: 0 15px 25px -15px rgba(0, 0, 0, 0.7), var(--inner-glow);
   display: flex;
   align-items: center;
   gap: var(--space-lg);
   transition: var(--transition-base);
+  flex-wrap: wrap; /* allow wrap on tiny screens */
 }
 
 .stat-card:hover {
@@ -423,13 +442,13 @@ h1, h2, h3, h4, p, label, span, a, button, input, select, textarea,
 }
 
 .stat-icon {
-  width: 60px;
-  height: 60px;
+  width: clamp(50px, 5vw, 70px);
+  height: clamp(50px, 5vw, 70px);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 28px;
+  font-size: clamp(24px, 3vw, 32px);
   background: rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(5px);
   border: 1px solid rgba(255, 255, 255, 0.2);
@@ -450,14 +469,14 @@ h1, h2, h3, h4, p, label, span, a, button, input, select, textarea,
 .stat-info h3 {
   margin: 0 0 var(--space-xs) 0;
   color: var(--text-soft);
-  font-size: var(--fs-sm);
+  font-size: var(--font-small);
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 1px;
 }
 
 .stat-number {
-  font-size: var(--fs-xl);
+  font-size: var(--font-h1);
   font-weight: 700;
   background: linear-gradient(135deg, var(--cosmic-cyan), var(--nebula-purple));
   -webkit-background-clip: text;
@@ -467,7 +486,7 @@ h1, h2, h3, h4, p, label, span, a, button, input, select, textarea,
 }
 
 /* ----------------------------------------
-   PAGINATION
+   PAGINATION – Fluid
    ---------------------------------------- */
 .pagination {
   display: flex;
@@ -482,14 +501,17 @@ h1, h2, h3, h4, p, label, span, a, button, input, select, textarea,
 .page-link {
   padding: var(--space-xs) var(--space-md);
   border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 0.75rem;
+  border-radius: calc(var(--card-radius) * 0.75);
   text-decoration: none;
   color: var(--text-secondary);
-  font-size: var(--fs-sm);
+  font-size: var(--font-body);
   font-weight: 500;
   transition: var(--transition-base);
   backdrop-filter: blur(5px);
   background: rgba(0, 0, 0, 0.2);
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
 }
 
 .page-link:hover {
@@ -510,12 +532,15 @@ h1, h2, h3, h4, p, label, span, a, button, input, select, textarea,
 .current {
   padding: var(--space-xs) var(--space-md);
   color: var(--text-primary);
-  font-size: var(--fs-sm);
+  font-size: var(--font-body);
   font-weight: 600;
   background: rgba(78, 205, 196, 0.2);
-  border-radius: 0.75rem;
+  border-radius: calc(var(--card-radius) * 0.75);
   border: 1px solid var(--cosmic-cyan);
   backdrop-filter: blur(5px);
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
 }
 
 /* ----------------------------------------
@@ -526,7 +551,7 @@ h1, h2, h3, h4, p, label, span, a, button, input, select, textarea,
   backdrop-filter: blur(12px) saturate(180%);
   -webkit-backdrop-filter: blur(12px) saturate(180%);
   padding: var(--space-xl);
-  border-radius: 1.5rem;
+  border-radius: var(--card-radius);
   border: var(--border-glow);
   box-shadow: 0 15px 25px -15px rgba(0, 0, 0, 0.7), var(--inner-glow);
   max-width: 800px;
@@ -535,7 +560,7 @@ h1, h2, h3, h4, p, label, span, a, button, input, select, textarea,
 
 .form-container h2 {
   color: var(--text-primary);
-  font-size: var(--fs-lg);
+  font-size: var(--font-h2);
   margin-bottom: var(--space-lg);
   text-align: center;
   background: linear-gradient(135deg, var(--star-white), var(--cosmic-cyan));
@@ -547,7 +572,7 @@ h1, h2, h3, h4, p, label, span, a, button, input, select, textarea,
 
 .form-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(250px, 100%), 1fr));
   gap: var(--space-lg);
   margin-bottom: var(--space-lg);
 }
@@ -561,7 +586,7 @@ h1, h2, h3, h4, p, label, span, a, button, input, select, textarea,
   margin-bottom: var(--space-xs);
   font-weight: 600;
   color: var(--cosmic-cyan);
-  font-size: var(--fs-sm);
+  font-size: var(--font-small);
   text-transform: uppercase;
   letter-spacing: 1px;
 }
@@ -573,9 +598,9 @@ h1, h2, h3, h4, p, label, span, a, button, input, select, textarea,
   background: rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(5px);
   border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 0.75rem;
+  border-radius: calc(var(--card-radius) * 0.75);
   color: var(--text-primary);
-  font-size: var(--fs-sm);
+  font-size: var(--font-body);
   transition: var(--transition-fast);
   font-family: inherit;
 }
@@ -605,7 +630,7 @@ h1, h2, h3, h4, p, label, span, a, button, input, select, textarea,
 
 .form-help {
   color: var(--text-soft);
-  font-size: var(--fs-xs);
+  font-size: var(--font-small);
   margin-top: var(--space-xs);
 }
 
@@ -621,9 +646,10 @@ h1, h2, h3, h4, p, label, span, a, button, input, select, textarea,
   display: flex;
   align-items: center;
   cursor: pointer;
-  font-size: var(--fs-sm);
+  font-size: var(--font-body);
   color: var(--text-secondary);
   gap: var(--space-xs);
+  min-height: 44px;
 }
 
 .checkbox-container input[type="checkbox"] {
@@ -639,7 +665,7 @@ h1, h2, h3, h4, p, label, span, a, button, input, select, textarea,
   margin: var(--space-xs) 0 0 0;
   padding: 0;
   color: #ff8a8a;
-  font-size: var(--fs-xs);
+  font-size: var(--font-small);
   text-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
 }
 
@@ -704,586 +730,4 @@ h1, h2, h3, h4, p, label, span, a, button, input, select, textarea,
 
 i.fas, i.far, i.fab {
   filter: drop-shadow(0 0 5px currentColor);
-}
-
-/* ============================================================
-   GRANULAR RESPONSIVE BREAKPOINTS (50px increments)
-   Progressive scaling from micro to 4K.
-   ============================================================ */
-
-/* ===== Breakpoint: 200px – 250px | Micro Screens ===== */
-@media only screen and (min-width: 200px) and (max-width: 250px) {
-  html {
-    font-size: 8px;
-  }
-  :root {
-    --fs-xs: 0.7rem;
-    --fs-sm: 0.8rem;
-    --fs-base: 0.9rem;
-    --fs-md: 1rem;
-    --fs-lg: 1.2rem;
-    --fs-xl: 1.5rem;
-    --space-xs: 0.4rem;
-    --space-sm: 0.6rem;
-    --space-md: 0.8rem;
-    --space-lg: 1rem;
-    --space-xl: 1.2rem;
-  }
-  .page-content {
-    padding: 0.8rem;
-  }
-  .dashboard-header {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.8rem;
-    margin-bottom: 1rem;
-  }
-  .dashboard-header h2 {
-    text-align: center;
-  }
-  .btn {
-    width: 100%;
-    justify-content: center;
-    min-height: 32px;
-    padding: 0.4rem 1rem;
-  }
-  .stats-container {
-    grid-template-columns: 1fr;
-    gap: 0.8rem;
-  }
-  .stat-card {
-    padding: 0.8rem;
-    flex-direction: column;
-    text-align: center;
-    gap: 0.5rem;
-  }
-  .stat-icon {
-    width: 40px;
-    height: 40px;
-    font-size: 20px;
-  }
-  .table-responsive {
-    overflow-x: auto;
-  }
-  .users-table {
-    min-width: 600px;
-  }
-  .users-table th,
-  .users-table td {
-    padding: 0.5rem 0.4rem;
-  }
-  .actions {
-    flex-direction: column;
-    gap: 0.4rem;
-  }
-  .btn-edit,
-  .btn-delete {
-    width: 100%;
-    justify-content: center;
-    padding: 0.3rem 0.6rem;
-  }
-  .pagination {
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-  .page-link,
-  .current {
-    width: 100%;
-    text-align: center;
-    padding: 0.4rem 0.8rem;
-  }
-  .form-container {
-    padding: 1rem;
-  }
-  .form-grid {
-    grid-template-columns: 1fr;
-    gap: 0.8rem;
-  }
-  .form-actions {
-    flex-direction: column;
-  }
-  .form-actions .btn {
-    width: 100%;
-  }
-}
-
-/* ===== Breakpoint: 250px – 300px | Tiny Screens ===== */
-@media only screen and (min-width: 250px) and (max-width: 300px) {
-  html {
-    font-size: 9px;
-  }
-  :root {
-    --fs-xs: 0.7rem;
-    --fs-sm: 0.8rem;
-    --fs-base: 0.9rem;
-    --fs-md: 1rem;
-    --fs-lg: 1.2rem;
-    --fs-xl: 1.5rem;
-    --space-xs: 0.5rem;
-    --space-sm: 0.7rem;
-    --space-md: 0.9rem;
-    --space-lg: 1.2rem;
-    --space-xl: 1.5rem;
-  }
-  .page-content {
-    padding: 1rem;
-  }
-  .dashboard-header {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .btn {
-    min-height: 36px;
-  }
-  .stats-container {
-    grid-template-columns: 1fr;
-  }
-  .stat-card {
-    flex-direction: column;
-    text-align: center;
-  }
-  .actions {
-    flex-direction: column;
-  }
-  .pagination {
-    flex-direction: column;
-  }
-  .form-grid {
-    grid-template-columns: 1fr;
-  }
-  .form-actions {
-    flex-direction: column;
-  }
-}
-
-/* ===== Breakpoint: 300px – 350px | X-Small ===== */
-@media only screen and (min-width: 300px) and (max-width: 350px) {
-  html {
-    font-size: 10px;
-  }
-  :root {
-    --fs-xs: 0.7rem;
-    --fs-sm: 0.8rem;
-    --fs-base: 0.9rem;
-    --fs-md: 1rem;
-    --fs-lg: 1.2rem;
-    --fs-xl: 1.5rem;
-    --space-xs: 0.5rem;
-    --space-sm: 0.75rem;
-    --space-md: 1rem;
-    --space-lg: 1.3rem;
-    --space-xl: 1.6rem;
-  }
-  .page-content {
-    padding: 1rem;
-  }
-  .dashboard-header {
-    flex-direction: column;
-  }
-  .btn {
-    min-height: 40px;
-  }
-  .stats-container {
-    grid-template-columns: 1fr;
-  }
-  .stat-card {
-    flex-direction: column;
-    text-align: center;
-  }
-  .actions {
-    flex-direction: column;
-  }
-  .pagination {
-    flex-direction: column;
-  }
-  .form-grid {
-    grid-template-columns: 1fr;
-  }
-  .form-actions {
-    flex-direction: column;
-  }
-}
-
-/* ===== Breakpoint: 350px – 400px | Small- ===== */
-@media only screen and (min-width: 350px) and (max-width: 400px) {
-  html {
-    font-size: 11px;
-  }
-  :root {
-    --fs-xs: 0.7rem;
-    --fs-sm: 0.8rem;
-    --fs-base: 0.9rem;
-    --fs-md: 1rem;
-    --fs-lg: 1.2rem;
-    --fs-xl: 1.5rem;
-  }
-  .page-content {
-    padding: 1rem;
-  }
-  .dashboard-header {
-    flex-direction: column;
-  }
-  .btn {
-    min-height: 42px;
-  }
-  .stats-container {
-    grid-template-columns: 1fr;
-  }
-  .stat-card {
-    flex-direction: column;
-    text-align: center;
-  }
-  .actions {
-    flex-direction: column;
-  }
-  .pagination {
-    flex-direction: column;
-  }
-  .form-grid {
-    grid-template-columns: 1fr;
-  }
-  .form-actions {
-    flex-direction: column;
-  }
-}
-
-/* ===== Breakpoint: 400px – 450px | Small ===== */
-@media only screen and (min-width: 400px) and (max-width: 450px) {
-  html {
-    font-size: 12px;
-  }
-  .page-content {
-    padding: 1rem;
-  }
-  .dashboard-header {
-    flex-direction: column;
-  }
-  .btn {
-    min-height: 44px;
-  }
-  .stats-container {
-    grid-template-columns: 1fr;
-  }
-  .stat-card {
-    flex-direction: column;
-    text-align: center;
-  }
-  .actions {
-    flex-direction: column;
-  }
-  .pagination {
-    flex-direction: column;
-  }
-  .form-grid {
-    grid-template-columns: 1fr;
-  }
-  .form-actions {
-    flex-direction: column;
-  }
-}
-
-/* ===== Breakpoint: 450px – 500px | Small+ ===== */
-@media only screen and (min-width: 450px) and (max-width: 500px) {
-  html {
-    font-size: 13px;
-  }
-  .page-content {
-    padding: 1.2rem;
-  }
-  .dashboard-header {
-    flex-direction: column;
-  }
-  .stats-container {
-    grid-template-columns: 1fr;
-  }
-  .stat-card {
-    flex-direction: row;
-    text-align: left;
-  }
-  .actions {
-    flex-direction: row;
-  }
-  .pagination {
-    flex-direction: row;
-    flex-wrap: wrap;
-  }
-  .form-grid {
-    grid-template-columns: 1fr;
-  }
-  .form-actions {
-    flex-direction: row;
-    flex-wrap: wrap;
-  }
-}
-
-/* ===== Breakpoint: 500px – 550px | Medium- ===== */
-@media only screen and (min-width: 500px) and (max-width: 550px) {
-  html {
-    font-size: 13.5px;
-  }
-  .page-content {
-    padding: 1.3rem;
-  }
-  .stats-container {
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  }
-  .actions {
-    flex-direction: row;
-  }
-  .pagination {
-    flex-direction: row;
-  }
-  .form-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* ===== Breakpoint: 550px – 600px | Medium ===== */
-@media only screen and (min-width: 550px) and (max-width: 600px) {
-  html {
-    font-size: 14px;
-  }
-  .page-content {
-    padding: 1.4rem;
-  }
-  .stats-container {
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  }
-  .form-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* ===== Breakpoint: 600px – 650px | Medium+ ===== */
-@media only screen and (min-width: 600px) and (max-width: 650px) {
-  html {
-    font-size: 14.5px;
-  }
-  .page-content {
-    padding: 1.5rem;
-  }
-  .stats-container {
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  }
-  .form-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
-/* ===== Breakpoint: 650px – 700px | Large- ===== */
-@media only screen and (min-width: 650px) and (max-width: 700px) {
-  html {
-    font-size: 15px;
-  }
-  .page-content {
-    padding: 1.6rem;
-  }
-  .form-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
-/* ===== Breakpoint: 700px – 750px | Large ===== */
-@media only screen and (min-width: 700px) and (max-width: 750px) {
-  html {
-    font-size: 15.5px;
-  }
-  .page-content {
-    padding: 1.8rem;
-  }
-  .form-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
-/* ===== Breakpoint: 750px – 800px | Large+ ===== */
-@media only screen and (min-width: 750px) and (max-width: 800px) {
-  html {
-    font-size: 16px;
-  }
-  .page-content {
-    padding: 1.9rem;
-  }
-  .form-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
-/* ===== Breakpoint: 800px – 850px | XL- ===== */
-@media only screen and (min-width: 800px) and (max-width: 850px) {
-  html {
-    font-size: 16.5px;
-  }
-  .page-content {
-    padding: 2rem;
-  }
-  .form-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
-/* ===== Breakpoint: 850px – 900px | XL ===== */
-@media only screen and (min-width: 850px) and (max-width: 900px) {
-  html {
-    font-size: 17px;
-  }
-  .page-content {
-    padding: 2.1rem;
-  }
-  .form-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
-/* ===== Breakpoint: 900px – 950px | XL+ ===== */
-@media only screen and (min-width: 900px) and (max-width: 950px) {
-  html {
-    font-size: 17.2px;
-  }
-  .page-content {
-    padding: 2.2rem;
-  }
-  .form-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
-/* ===== Breakpoint: 950px – 1000px | 2XL- ===== */
-@media only screen and (min-width: 950px) and (max-width: 1000px) {
-  html {
-    font-size: 17.5px;
-  }
-  .page-content {
-    padding: 2.3rem;
-  }
-  .form-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
-/* ===== Breakpoint: 1000px – 1050px | 2XL ===== */
-@media only screen and (min-width: 1000px) and (max-width: 1050px) {
-  html {
-    font-size: 17.8px;
-  }
-  .page-content {
-    padding: 2.4rem;
-  }
-  .form-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
-/* ===== Breakpoint: 1050px – 1100px | 2XL+ ===== */
-@media only screen and (min-width: 1050px) and (max-width: 1100px) {
-  html {
-    font-size: 18px;
-  }
-  .page-content {
-    padding: 2.5rem;
-  }
-  .form-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
-/* ===== Breakpoint: 1100px – 1150px | 3XL- ===== */
-@media only screen and (min-width: 1100px) and (max-width: 1150px) {
-  html {
-    font-size: 18.2px;
-  }
-  .page-content {
-    padding: 2.6rem;
-  }
-  .form-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
-/* ===== Breakpoint: 1150px – 1200px | 3XL ===== */
-@media only screen and (min-width: 1150px) and (max-width: 1200px) {
-  html {
-    font-size: 18.5px;
-  }
-  .page-content {
-    padding: 2.8rem;
-  }
-  .form-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
-/* ===== Breakpoint: 1200px+ | 4XL / Full-width Desktops ===== */
-@media only screen and (min-width: 1200px) {
-  html {
-    font-size: 19px;
-  }
-  .page-content {
-    max-width: 1600px;
-    padding: 3rem;
-  }
-  .stats-container {
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  }
-  .stat-card {
-    padding: 2rem;
-  }
-  .stat-icon {
-    width: 70px;
-    height: 70px;
-    font-size: 32px;
-  }
-  .form-container {
-    max-width: 900px;
-    padding: 3rem;
-  }
-  .form-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-  .users-table {
-    min-width: 100%;
-  }
-  .users-table th,
-  .users-table td {
-    padding: 1rem 1rem;
-  }
-}
-
-/* ===== TV / 4K (1920px+) – extra scaling ===== */
-@media only screen and (min-width: 1920px) {
-  html {
-    font-size: 22px;
-  }
-  .page-content {
-    max-width: 85%;
-    padding: 4rem;
-  }
-  .dashboard-header h2 {
-    font-size: calc(var(--fs-xl) * 1.2);
-  }
-  .stat-number {
-    font-size: calc(var(--fs-xl) * 1.2);
-  }
-  .stat-icon {
-    width: 85px;
-    height: 85px;
-    font-size: 40px;
-  }
-  .form-container {
-    max-width: 1100px;
-    padding: 4rem;
-  }
-  .btn {
-    font-size: var(--fs-base);
-    padding: 0.9rem 2rem;
-  }
-  .btn-edit,
-  .btn-delete {
-    font-size: var(--fs-sm);
-    padding: 0.5rem 1rem;
-  }
-  .users-table th,
-  .users-table td {
-    padding: 1.2rem 1.2rem;
-  }
 }

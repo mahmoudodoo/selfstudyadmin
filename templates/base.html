@@ -113,6 +113,12 @@
                 <i class="fas fa-sign-in-alt"></i>
                 <span class="menu-text">All Auth</span>
             </a>
+
+            <a href="{% url 'selfstudyresearchflow' %}" class="menu-item {% if request.resolver_match.url_name == 'selfstudyresearchflow' %}active{% endif %}">
+                <i class="fas fa-flask"></i>
+                <span class="menu-text">Research Flow</span>
+            </a>
+
         </div>
         
         <button class="collapse-toggle" id="collapseToggle">

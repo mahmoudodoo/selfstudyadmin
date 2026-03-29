@@ -1,0 +1,463 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Research Flow \u2014 Admin</title>
+<link rel="stylesheet" href="{% static 'css/selfstudyresearchflow.css' %}"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+</head>
+<body>
+
+<!-- \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 SIDEBAR \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 -->
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-brand">
+    <i class="fa-solid fa-flask-vial"></i>
+    <span>ResearchFlow</span>
+  </div>
+  <ul class="sidebar-nav">
+    <li>
+      <a href="{% url 'admin_dashboard' %}" class="nav-link">
+        <i class="fa-solid fa-gauge-high"></i><span>Dashboard</span>
+      </a>
+    </li>
+    <li><a href="#" class="nav-link active" data-tab="projects"><i class="fa-solid fa-folder-open"></i><span>Projects</span></a></li>
+    <li><a href="#" class="nav-link" data-tab="files"><i class="fa-solid fa-file-lines"></i><span>Files</span></a></li>
+    <li><a href="#" class="nav-link" data-tab="teams"><i class="fa-solid fa-users"></i><span>Teams</span></a></li>
+    <li><a href="#" class="nav-link" data-tab="collaborations"><i class="fa-solid fa-handshake"></i><span>Collaborations</span></a></li>
+    <li><a href="#" class="nav-link" data-tab="comments"><i class="fa-solid fa-comments"></i><span>Comments</span></a></li>
+    <li><a href="#" class="nav-link" data-tab="notifications"><i class="fa-solid fa-bell"></i><span>Notifications</span></a></li>
+    <li><a href="#" class="nav-link" data-tab="activities"><i class="fa-solid fa-chart-line"></i><span>Activities</span></a></li>
+    <li><a href="#" class="nav-link" data-tab="papers"><i class="fa-solid fa-book"></i><span>Imported Papers</span></a></li>
+    <li><a href="#" class="nav-link" data-tab="search"><i class="fa-solid fa-magnifying-glass"></i><span>Search</span></a></li>
+    <li><a href="#" class="nav-link" data-tab="replicas"><i class="fa-solid fa-server"></i><span>Replicas</span></a></li>
+  </ul>
+</nav>
+
+<!-- \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 MAIN \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 -->
+<div class="main-wrapper">
+
+  <!-- topbar -->
+  <header class="topbar">
+    <button class="sidebar-toggle" id="sidebarToggle"><i class="fa-solid fa-bars"></i></button>
+    <div class="topbar-title" id="topbarTitle">Projects</div>
+    <div class="topbar-actions">
+      <div class="user-context-bar" id="userContextBar">
+        <span class="user-context-label">
+          <i class="fa-solid fa-user-gear"></i>
+          Context User:
+        </span>
+        <span class="user-context-id" id="activeUserId">None</span>
+        <button class="btn btn-secondary btn-sm" id="btnChangeUser" title="Change context user">
+          <i class="fa-solid fa-arrows-rotate"></i>
+        </button>
+      </div>
+      <span class="replica-badge">
+        <i class="fa-solid fa-circle-dot"></i>
+        <span id="replicaCount">\u2014</span> replicas
+      </span>
+      <button class="btn btn-primary btn-sm" id="btnRefresh" title="Refresh">
+        <i class="fa-solid fa-rotate-right"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- content -->
+  <main class="content">
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- \u2500\u2500\u2500 PROJECTS TAB (default) \u2500\u2500\u2500 -->
+    <section class="tab-pane active" id="tab-projects">
+      <div class="pane-header">
+        <h2>Projects</h2>
+        <button class="btn btn-primary" id="btnNewProject">
+          <i class="fa-solid fa-plus"></i> New Project
+        </button>
+      </div>
+      <div class="filter-bar">
+        <input type="text" id="projectSearch" class="form-input" placeholder="Search projects\u2026"/>
+        <select id="projectAccessFilter" class="form-select">
+          <option value="">All Access</option>
+          <option value="public">Public</option>
+          <option value="private">Private</option>
+        </select>
+        <select id="projectStatusFilter" class="form-select">
+          <option value="">All Status</option>
+          <option value="draft">Draft</option>
+          <option value="active">Active</option>
+          <option value="completed">Completed</option>
+        </select>
+      </div>
+      <div class="table-wrapper">
+        <table class="data-table" id="projectsTable">
+          <thead>
+            <tr>
+              <th>Title</th><th>Owner</th><th>Access</th><th>Status</th>
+              <th>Views</th><th>Downloads</th><th>Created</th><th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="projectsBody">
+            <tr><td colspan="8" class="loading-row">
+              <i class="fa-solid fa-circle-notch fa-spin"></i> Loading\u2026
+            </td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- \u2500\u2500\u2500 FILES TAB \u2500\u2500\u2500 -->
+    <section class="tab-pane" id="tab-files">
+      <div class="pane-header">
+        <h2>Files</h2>
+        <div class="pane-header-sub">
+          <select id="fileProjectSelect" class="form-select" style="min-width:220px">
+            <option value="">Select a project\u2026</option>
+          </select>
+        </div>
+      </div>
+      <div class="table-wrapper">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Filename</th><th>Type</th><th>Size</th><th>Version</th>
+              <th>Uploaded By</th><th>Uploaded At</th><th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="filesBody">
+            <tr><td colspan="7" class="loading-row">Select a project to view files.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- \u2500\u2500\u2500 TEAMS TAB \u2500\u2500\u2500 -->
+    <section class="tab-pane" id="tab-teams">
+      <div class="pane-header">
+        <h2>Team Members</h2>
+        <div class="pane-header-sub">
+          <select id="teamProjectSelect" class="form-select" style="min-width:220px">
+            <option value="">Select a project\u2026</option>
+          </select>
+        </div>
+      </div>
+      <div class="table-wrapper">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>User ID</th><th>Role</th><th>Can Edit</th>
+              <th>Can Manage</th><th>Joined At</th>
+            </tr>
+          </thead>
+          <tbody id="teamsBody">
+            <tr><td colspan="5" class="loading-row">Select a project to view team.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- \u2500\u2500\u2500 COLLABORATIONS TAB \u2500\u2500\u2500 -->
+    <section class="tab-pane" id="tab-collaborations">
+      <div class="pane-header">
+        <h2>Collaboration Requests</h2>
+        <select id="collabStatusFilter" class="form-select">
+          <option value="">All Status</option>
+          <option value="pending">Pending</option>
+          <option value="approved">Approved</option>
+          <option value="rejected">Rejected</option>
+        </select>
+      </div>
+      <div class="table-wrapper">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Project</th><th>Requester</th><th>Recipient</th>
+              <th>Message</th><th>Status</th><th>Created</th><th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="collabBody">
+            <tr><td colspan="7" class="loading-row">
+              <i class="fa-solid fa-circle-notch fa-spin"></i> Loading\u2026
+            </td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- \u2500\u2500\u2500 COMMENTS TAB \u2500\u2500\u2500 -->
+    <section class="tab-pane" id="tab-comments">
+      <div class="pane-header">
+        <h2>Comments</h2>
+        <div class="pane-header-sub">
+          <select id="commentProjectSelect" class="form-select" style="min-width:220px">
+            <option value="">Select a project\u2026</option>
+          </select>
+        </div>
+      </div>
+      <div class="table-wrapper">
+        <table class="data-table">
+          <thead>
+            <tr><th>Author</th><th>Content</th><th>Created</th><th>Actions</th></tr>
+          </thead>
+          <tbody id="commentsBody">
+            <tr><td colspan="4" class="loading-row">Select a project to view comments.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- \u2500\u2500\u2500 NOTIFICATIONS TAB \u2500\u2500\u2500 -->
+    <section class="tab-pane" id="tab-notifications">
+      <div class="pane-header">
+        <h2>Notifications</h2>
+        <div class="pane-header-actions">
+          <button class="btn btn-secondary btn-sm" id="btnMarkAllRead">
+            <i class="fa-solid fa-check-double"></i> Mark All Read
+          </button>
+          <button class="btn btn-danger btn-sm" id="btnDeleteAllNotif">
+            <i class="fa-solid fa-trash"></i> Delete All
+          </button>
+        </div>
+      </div>
+      <div class="table-wrapper">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Type</th><th>Title</th><th>Message</th>
+              <th>User</th><th>Read</th><th>Created</th><th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="notifBody">
+            <tr><td colspan="7" class="loading-row">
+              <i class="fa-solid fa-circle-notch fa-spin"></i> Loading\u2026
+            </td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- \u2500\u2500\u2500 ACTIVITIES TAB \u2500\u2500\u2500 -->
+    <section class="tab-pane" id="tab-activities">
+      <div class="pane-header"><h2>User Activities</h2></div>
+      <div class="table-wrapper">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>User</th><th>Action</th><th>Description</th>
+              <th>IP</th><th>Created</th>
+            </tr>
+          </thead>
+          <tbody id="activitiesBody">
+            <tr><td colspan="5" class="loading-row">
+              <i class="fa-solid fa-circle-notch fa-spin"></i> Loading\u2026
+            </td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- \u2500\u2500\u2500 IMPORTED PAPERS TAB \u2500\u2500\u2500 -->
+    <section class="tab-pane" id="tab-papers">
+      <div class="pane-header"><h2>Imported Papers</h2></div>
+      <div class="table-wrapper">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Title</th><th>Authors</th><th>Year</th>
+              <th>DOI</th><th>Citations</th><th>Open Access</th><th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="papersBody">
+            <tr><td colspan="7" class="loading-row">
+              <i class="fa-solid fa-circle-notch fa-spin"></i> Loading\u2026
+            </td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- \u2500\u2500\u2500 SEARCH TAB \u2500\u2500\u2500 -->
+    <section class="tab-pane" id="tab-search">
+      <div class="pane-header"><h2>Project Search</h2></div>
+      <div class="search-hero">
+        <div class="search-hero-inner">
+          <input type="text" id="globalSearchInput" class="search-hero-input"
+                 placeholder="Search projects by title, description, keywords\u2026"/>
+          <button class="btn btn-primary" id="btnGlobalSearch">
+            <i class="fa-solid fa-magnifying-glass"></i> Search
+          </button>
+        </div>
+      </div>
+      <div id="searchResults" class="results-grid"></div>
+    </section>
+
+    <!-- \u2500\u2500\u2500 REPLICAS TAB \u2500\u2500\u2500 -->
+    <section class="tab-pane" id="tab-replicas">
+      <div class="pane-header"><h2>Service Replicas</h2></div>
+      <div class="replicas-grid" id="replicasGrid">
+        <div class="empty-state">
+          <i class="fa-solid fa-circle-notch fa-spin"></i> Loading\u2026
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 MODALS \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 -->
+
+<!-- Project Create/Edit Modal -->
+<div class="modal-overlay" id="modalProject">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modalProjectTitle">New Project</h3>
+      <button class="modal-close" data-close="modalProject">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="projectEditId"/>
+      <div class="form-group">
+        <label>Owner User ID <span class="req">*</span></label>
+        <div class="user-picker-row">
+          <input type="text" id="projectOwnerId" class="form-input"
+                 placeholder="Paste user ID or pick\u2026" required/>
+          <button class="btn btn-secondary btn-sm" data-open-picker="projectOwnerId">
+            <i class="fa-solid fa-user-magnifying-glass"></i>
+          </button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Title <span class="req">*</span></label>
+        <input type="text" id="projectTitle" class="form-input"
+               placeholder="Project title" required/>
+      </div>
+      <div class="form-group">
+        <label>Description</label>
+        <textarea id="projectDesc" class="form-textarea" rows="3"
+                  placeholder="Short description\u2026"></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Access Level</label>
+          <select id="projectAccess" class="form-select">
+            <option value="private">Private</option>
+            <option value="public">Public</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Status</label>
+          <select id="projectStatus" class="form-select">
+            <option value="draft">Draft</option>
+            <option value="active">Active</option>
+            <option value="completed">Completed</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Keywords (comma-separated)</label>
+        <input type="text" id="projectKeywords" class="form-input"
+               placeholder="AI, ML, research\u2026"/>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-close="modalProject">Cancel</button>
+      <button class="btn btn-primary" id="btnSaveProject">
+        <i class="fa-solid fa-floppy-disk"></i> Save
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm Delete Modal -->
+<div class="modal-overlay" id="modalConfirm">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <h3 id="confirmTitle">Confirm</h3>
+      <button class="modal-close" data-close="modalConfirm">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+    <div class="modal-body">
+      <p id="confirmMsg">Are you sure?</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-close="modalConfirm">Cancel</button>
+      <button class="btn btn-danger" id="btnConfirmOk">
+        <i class="fa-solid fa-check"></i> Confirm
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- User Picker Modal -->
+<div class="modal-overlay" id="modalUserPicker">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h3>Pick a User</h3>
+      <button class="modal-close" data-close="modalUserPicker">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+    <div class="modal-body">
+      <input type="text" id="userPickerSearch" class="form-input"
+             placeholder="Search by username or email\u2026"/>
+      <div class="user-picker-list" id="userPickerList">
+        <div class="empty-state">
+          <i class="fa-solid fa-circle-notch fa-spin"></i> Loading users\u2026
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Project Detail Modal -->
+<div class="modal-overlay" id="modalProjectDetail">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h3 id="detailProjectTitle">Project Detail</h3>
+      <button class="modal-close" data-close="modalProjectDetail">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+    <div class="modal-body" id="detailProjectBody">
+      <div class="empty-state">
+        <i class="fa-solid fa-circle-notch fa-spin"></i>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Context User Modal -->
+<div class="modal-overlay" id="modalSetUser">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h3>Set Context User</h3>
+      <button class="modal-close" data-close="modalSetUser">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:.85rem;color:var(--clr-txt-muted);margin-bottom:1rem">
+        The context user is used as <code>X-User-ID</code> when making requests
+        to the Research Flow API. Pick a user whose data you want to view/manage.
+      </p>
+      <input type="text" id="setUserSearch" class="form-input"
+             placeholder="Search by username or email\u2026"/>
+      <div class="user-picker-list" id="setUserList">
+        <div class="empty-state">
+          <i class="fa-solid fa-circle-notch fa-spin"></i> Loading users\u2026
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  window.RF_API_URL  = "{% url 'selfstudyresearchflow_api' %}";
+  window.RF_USER_API = "{% url 'selfstudyresearchflow_user_api' %}";
+</script>
+<script src="{% static 'js/selfstudyresearchflow.js' %}"></script>
+</body>
+</html>

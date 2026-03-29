@@ -10,8 +10,11 @@ from .views.selfstudymedia import (
 from .views.selfstudychat import SelfStudyChatView, ChatRoomAPIView
 from .views.selfstudyotp import SelfStudyOTPView
 from .views.selfstudyrunbook import SelfStudyRunbookView
-from .views.selfstudyallauth import (
-    SelfStudyAllAuthView,
+from .views.selfstudyallauth import SelfStudyAllAuthView
+from .views.selfstudyresearchflow import (
+    SelfStudyResearchFlowView,
+    ResearchFlowAPIView,
+    ResearchFlowUserAPIView,
 )
 
 urlpatterns = [
@@ -103,10 +106,14 @@ urlpatterns = [
     path('selfstudyallauth/api/', views.SelfStudyAllAuthAPIView.as_view(), name='selfstudyallauth_api'),
 
     # User Lab URLs
-    path('selfstudyuserlab/', views.SelfStudyUserLabView.as_view(), name='selfstudyuserlab'),
     path('selfstudyuserlab/api/', views.SelfStudyUserLabAPIView.as_view(), name='selfstudyuserlab_api'),
 
     # ========= NEW DASHBOARD API ENDPOINTS =========
     path('api/dashboard/apps/', views.DashboardAppsAPIView.as_view(), name='dashboard_apps'),
     path('api/dashboard/metrics/', views.ReplicaMetricsAPIView.as_view(), name='dashboard_metrics'),
+
+    # ========= SELFSTUDYRESEARCHFLOW URLs =========
+    path('selfstudyresearchflow/', SelfStudyResearchFlowView.as_view(), name='selfstudyresearchflow'),
+    path('selfstudyresearchflow/api/', ResearchFlowAPIView.as_view(), name='selfstudyresearchflow_api'),
+    path('selfstudyresearchflow/api/users/', ResearchFlowUserAPIView.as_view(), name='selfstudyresearchflow_user_api'),
 ]
