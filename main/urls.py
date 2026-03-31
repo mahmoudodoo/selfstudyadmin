@@ -11,10 +11,20 @@ from .views.selfstudychat import SelfStudyChatView, ChatRoomAPIView
 from .views.selfstudyotp import SelfStudyOTPView
 from .views.selfstudyrunbook import SelfStudyRunbookView
 from .views.selfstudyallauth import SelfStudyAllAuthView
+
+# ResearchFlow views
 from .views.selfstudyresearchflow import (
     SelfStudyResearchFlowView,
-    ResearchFlowAPIView,
-    ResearchFlowUserAPIView,
+    DiagnosticAPIView,
+    UserProfileListAPIView,
+    ResearcherProfilesListAPIView,
+    ResearchersAPIView,
+    ProjectsAPIView,
+    OpenAlexLibrariesAPIView,
+    LocalProjectsLibrariesAPIView,
+    UserActivitiesAPIView,
+    TeamsAPIView,
+    CollaborationsAPIView,
 )
 
 urlpatterns = [
@@ -108,12 +118,26 @@ urlpatterns = [
     # User Lab URLs
     path('selfstudyuserlab/api/', views.SelfStudyUserLabAPIView.as_view(), name='selfstudyuserlab_api'),
 
-    # ========= NEW DASHBOARD API ENDPOINTS =========
+    # Dashboard API endpoints
     path('api/dashboard/apps/', views.DashboardAppsAPIView.as_view(), name='dashboard_apps'),
     path('api/dashboard/metrics/', views.ReplicaMetricsAPIView.as_view(), name='dashboard_metrics'),
 
-    # ========= SELFSTUDYRESEARCHFLOW URLs =========
+    # ========= SELFSTUDY RESEARCH FLOW MANAGEMENT =========
     path('selfstudyresearchflow/', SelfStudyResearchFlowView.as_view(), name='selfstudyresearchflow'),
-    path('selfstudyresearchflow/api/', ResearchFlowAPIView.as_view(), name='selfstudyresearchflow_api'),
-    path('selfstudyresearchflow/api/users/', ResearchFlowUserAPIView.as_view(), name='selfstudyresearchflow_user_api'),
+    path('selfstudyresearchflow/api/diagnostic/', DiagnosticAPIView.as_view(), name='rf_api_diagnostic'),
+    path('selfstudyresearchflow/api/users/', UserProfileListAPIView.as_view(), name='rf_api_users'),
+    path('selfstudyresearchflow/api/researcher-profiles-list/', ResearcherProfilesListAPIView.as_view(), name='rf_api_researcher_profiles_list'),
+    path('selfstudyresearchflow/api/researchers/', ResearchersAPIView.as_view(), name='rf_api_researchers'),
+    path('selfstudyresearchflow/api/researchers/<str:profile_id>/', ResearchersAPIView.as_view(), name='rf_api_researcher_detail'),
+    path('selfstudyresearchflow/api/projects/', ProjectsAPIView.as_view(), name='rf_api_projects'),
+    path('selfstudyresearchflow/api/projects/<str:project_id>/', ProjectsAPIView.as_view(), name='rf_api_project_detail'),
+    path('selfstudyresearchflow/api/openalex-libraries/', OpenAlexLibrariesAPIView.as_view(), name='rf_api_openalex'),
+    path('selfstudyresearchflow/api/openalex-libraries/<str:paper_id>/', OpenAlexLibrariesAPIView.as_view(), name='rf_api_openalex_detail'),
+    path('selfstudyresearchflow/api/local-libraries/', LocalProjectsLibrariesAPIView.as_view(), name='rf_api_locallibs'),
+    path('selfstudyresearchflow/api/local-libraries/<str:project_id>/', LocalProjectsLibrariesAPIView.as_view(), name='rf_api_locallib_detail'),
+    path('selfstudyresearchflow/api/activities/', UserActivitiesAPIView.as_view(), name='rf_api_activities'),
+    path('selfstudyresearchflow/api/activities/<str:activity_id>/', UserActivitiesAPIView.as_view(), name='rf_api_activity_detail'),
+    path('selfstudyresearchflow/api/teams/', TeamsAPIView.as_view(), name='rf_api_teams'),
+    path('selfstudyresearchflow/api/collaborations/', CollaborationsAPIView.as_view(), name='rf_api_collaborations'),
+    path('selfstudyresearchflow/api/collaborations/<str:request_id>/', CollaborationsAPIView.as_view(), name='rf_api_collaboration_detail'),
 ]

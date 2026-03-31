@@ -1,541 +1,494 @@
-import os
-import time
-import random
+import json
 import logging
+import os
+import random
+import time
+import traceback
+from urllib.parse import urljoin
+
 import requests
-from django.views import View
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import JsonResponse
-from django.shortcuts import render
-from django.utils.decorators import method_decorator
-from django.views.decorators.csrf import csrf_exempt
-from functools import wraps
+from django.views import View
+from django.views.generic import TemplateView
 
 logger = logging.getLogger(__name__)
 
-_NO_PROXY = {'http': None, 'https': None}
-
-# \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-# Domain / Registry helpers
-# \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-
-REGISTRY_INSTANCES = [
+DOMAINS_REGISTRY = [
     "https://sfsdomains1.pythonanywhere.com",
-    "https://sfsdomains2.pythonanywhere.com",
+    "https://sfsdomains2.pythonanywhere.com"
 ]
+CACHE_DURATION = 300
+_replicas_cache = {}
 
-RESEARCH_FLOW_APP_ID = 28
-USERPROFILE_APP_ID   = 13
+def get_auth_token():
+    return os.environ.get("AUTH_TOKEN")
 
-_domain_cache = {}
-CACHE_TTL     = 300
-
-
-def _get_auth_token():
-    return os.environ.get('AUTH_TOKEN', '')
-
-
-def _build_headers(user_id=None):
-    """Build headers with Authorization and optional X-User-ID."""
-    h = {
-        'Authorization': f'Token {_get_auth_token()}',
-        'Content-Type':  'application/json',
+def make_request(method, url, json_data=None, headers=None, timeout=30, user_id_for_header=None):
+    token = get_auth_token()
+    if not token:
+        raise Exception("AUTH_TOKEN environment variable not set")
+    default_headers = {
+        "Authorization": f"Token {token}",
+        "Content-Type": "application/json",
     }
-    if user_id:
-        h['X-User-ID'] = str(user_id).strip()
-    return h
+    if user_id_for_header:
+        default_headers["X-User-ID"] = user_id_for_header
+    if headers:
+        default_headers.update(headers)
+    resp = requests.request(method, url, json=json_data, headers=default_headers, timeout=timeout)
+    if resp.status_code >= 400:
+        raise Exception(f"HTTP {resp.status_code}: {resp.text[:500]}")
+    return resp.json() if resp.content else {}
 
-
-def _make_request(method, url, **kwargs):
-    """Try without proxy first, fall back to system proxy."""
-    token   = _get_auth_token()
-    headers = kwargs.pop('headers', {})
-    if token and 'Authorization' not in headers:
-        headers['Authorization'] = f'Token {token}'
-    timeout = kwargs.pop('timeout', 15)
-
-    for attempt, proxies in enumerate([_NO_PROXY, None]):
-        try:
-            kw = dict(kwargs, headers=headers, timeout=timeout)
-            if proxies is not None:
-                kw['proxies'] = proxies
-            resp = requests.request(method, url, **kw)
-            logger.debug(f"[attempt {attempt+1}] {method} {url} -> {resp.status_code}")
-            return resp
-        except requests.RequestException as exc:
-            logger.warning(f"[attempt {attempt+1}] {method} {url} failed: {exc}")
-    return None
-
-
-def _fetch_replicas_from_registry(registry_url, app_id):
-    url  = f"{registry_url.rstrip('/')}/apps/{app_id}/"
-    resp = _make_request('GET', url, timeout=10)
-    if resp and resp.status_code == 200:
-        data = resp.json()
-        return [r['replica_url'].rstrip('/') for r in data.get('replicas', [])]
-    return None
-
-
-def _get_replica_urls(app_id):
-    now    = time.time()
-    cached = _domain_cache.get(app_id)
-    if cached and (now - cached[0]) < CACHE_TTL:
-        return cached[1]
-
-    instances = REGISTRY_INSTANCES[:]
-    random.shuffle(instances)
-    for registry in instances:
-        urls = _fetch_replicas_from_registry(registry, app_id)
-        if urls is not None:
-            _domain_cache[app_id] = (now, urls)
-            logger.info(f"app_id={app_id}: fetched {len(urls)} replicas from {registry}")
-            return urls
-
-    logger.warning(f"app_id={app_id}: all registries failed")
-    return []
-
-
-def _pick_working_replica(urls):
-    if not urls:
-        return None
-    shuffled = urls[:]
-    random.shuffle(shuffled)
-    for url in shuffled:
-        resp = _make_request('GET', f"{url}/api/projects/", timeout=8)
-        if resp and resp.status_code in (200, 401, 403):
-            return url
-    return shuffled[0] if shuffled else None
-
-
-def _rf_request(method, path, user_id=None, json_body=None, timeout=15):
-    """Make a request to a working research-flow replica."""
-    urls = _get_replica_urls(RESEARCH_FLOW_APP_ID)
-    base = _pick_working_replica(urls)
-    if not base:
-        logger.error("No working research-flow replica found")
-        return None
-    headers = _build_headers(user_id=user_id)
-    url     = f"{base}{path}"
-    kwargs  = {'headers': headers, 'timeout': timeout}
-    if json_body is not None:
-        kwargs['json'] = json_body
-    return _make_request(method, url, **kwargs)
-
-
-def _up_request(method, path, user_id=None, timeout=10):
-    """Make a request to a working userprofile replica."""
-    urls = _get_replica_urls(USERPROFILE_APP_ID)
-    if not urls:
-        return None
-    base    = random.choice(urls)
-    headers = _build_headers(user_id=user_id)
-    return _make_request(method, f"{base}{path}", headers=headers, timeout=timeout)
-
-
-# \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-# Auth decorator
-# \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-
-def require_admin(view_func):
-    @wraps(view_func)
-    def wrapper(request, *args, **kwargs):
-        if not request.user.is_authenticated:
-            from django.shortcuts import redirect
-            return redirect('login')
-        return view_func(request, *args, **kwargs)
-    return wrapper
-
-
-# \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-# Page view
-# \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-
-class SelfStudyResearchFlowView(View):
-    @method_decorator(require_admin)
-    def get(self, request):
-        rf_urls = _get_replica_urls(RESEARCH_FLOW_APP_ID)
-        up_urls = _get_replica_urls(USERPROFILE_APP_ID)
-        context = {
-            'rf_replicas':      rf_urls,
-            'up_replicas':      up_urls,
-            'rf_replica_count': len(rf_urls),
-            'up_replica_count': len(up_urls),
-        }
-        return render(request, 'selfstudyresearchflow.html', context)
-
-
-# \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-# API proxy view
-# \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-
-@method_decorator(csrf_exempt, name='dispatch')
-class ResearchFlowAPIView(View):
-
-    @method_decorator(require_admin)
-    def dispatch(self, request, *args, **kwargs):
-        return super().dispatch(request, *args, **kwargs)
-
-    # \u2500\u2500 helpers \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-
-    def _resolve_user_id(self, request, body=None):
-        """
-        Priority order for X-User-ID:
-        1. user_id in POST body
-        2. user_id in GET params
-        3. session stored rf_user_id
-        4. owner_id in POST body
-        Returns empty string if none found.
-        """
-        # 1. body
-        if body and body.get('user_id'):
-            uid = str(body['user_id']).strip()
-            if uid:
-                return uid
-
-        # 2. query param
-        uid = request.GET.get('user_id', '').strip()
-        if uid:
-            return uid
-
-        # 3. session
-        uid = request.session.get('rf_user_id', '').strip()
-        if uid:
-            return uid
-
-        # 4. owner_id fallback
-        if body and body.get('owner_id'):
-            uid = str(body['owner_id']).strip()
-            if uid:
-                return uid
-
-        return ''
-
-    def _json_response(self, resp):
-        """Convert requests.Response to JsonResponse."""
-        if resp is None:
-            return JsonResponse({'error': 'No research-flow replica available'}, status=503)
-        try:
+def fetch_app_replicas_from_registry(registry_url, app_id):
+    try:
+        url = f"{registry_url.rstrip('/')}/apps/{app_id}/"
+        token = get_auth_token()
+        headers = {"Authorization": f"Token {token}"} if token else {}
+        resp = requests.get(url, headers=headers, timeout=10)
+        if resp.status_code == 200:
             data = resp.json()
-        except Exception:
-            data = {'raw': resp.text}
-        return JsonResponse(data, status=resp.status_code, safe=False)
+            return [r["replica_url"].rstrip("/") for r in data.get("replicas", [])]
+        return None
+    except Exception:
+        return None
 
-    # \u2500\u2500 GET \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+def health_check_replica(base_url, app_type):
+    token = get_auth_token()
+    headers = {"Authorization": f"Token {token}"} if token else {}
+    try:
+        if app_type == "rf":
+            url = urljoin(base_url, "/api/projects/?limit=1")
+        else:
+            url = urljoin(base_url, "/metrics/")
+        resp = requests.get(url, headers=headers, timeout=5)
+        return resp.status_code in (200, 401)
+    except Exception:
+        return False
 
-    def get(self, request, *args, **kwargs):
-        action  = request.GET.get('action', 'projects')
-        user_id = self._resolve_user_id(request)
+def get_healthy_replicas(app_id, app_type, force_refresh=False):
+    global _replicas_cache
+    now = time.time()
+    cache_key = f"{app_id}_{app_type}"
+    if not force_refresh and cache_key in _replicas_cache:
+        ts, urls = _replicas_cache[cache_key]
+        if now - ts < CACHE_DURATION:
+            return urls
+    all_replicas = set()
+    for registry in DOMAINS_REGISTRY:
+        reps = fetch_app_replicas_from_registry(registry, app_id)
+        if reps:
+            all_replicas.update(reps)
+    if not all_replicas:
+        return []
+    healthy = [u for u in all_replicas if health_check_replica(u, app_type)]
+    if not healthy:
+        healthy = list(all_replicas)
+    _replicas_cache[cache_key] = (now, healthy)
+    return healthy
 
-        # \u2500\u2500 Replicas info (no user needed) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-        if action == 'replicas':
-            rf_urls = _get_replica_urls(RESEARCH_FLOW_APP_ID)
-            up_urls = _get_replica_urls(USERPROFILE_APP_ID)
-            return JsonResponse({
-                'research_flow_replicas': rf_urls,
-                'userprofile_replicas':   up_urls,
-            })
-
-        # \u2500\u2500 Projects \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-        if action == 'projects':
-            resp = _rf_request('GET', '/api/projects/', user_id=user_id)
-            return self._json_response(resp)
-
-        if action == 'project':
-            pid  = request.GET.get('project_id', '')
-            resp = _rf_request('GET', f'/api/projects/{pid}', user_id=user_id)
-            return self._json_response(resp)
-
-        # \u2500\u2500 Files \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-        if action == 'files':
-            pid  = request.GET.get('project_id', '')
-            resp = _rf_request('GET', f'/api/projects/{pid}/files/', user_id=user_id)
-            return self._json_response(resp)
-
-        # \u2500\u2500 Team \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-        if action == 'team':
-            pid  = request.GET.get('project_id', '')
-            resp = _rf_request('GET', f'/api/projects/{pid}/team/', user_id=user_id)
-            return self._json_response(resp)
-
-        # \u2500\u2500 Comments \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-        if action == 'comments':
-            pid  = request.GET.get('project_id', '')
-            resp = _rf_request('GET', f'/api/projects/{pid}/comments/', user_id=user_id)
-            return self._json_response(resp)
-
-        # \u2500\u2500 Collaborations \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-        if action == 'collaborations':
-            status_f = request.GET.get('status', '')
-            path     = '/api/collaboration-requests/'
-            if status_f:
-                path += f'?status={status_f}'
-            resp = _rf_request('GET', path, user_id=user_id)
-            return self._json_response(resp)
-
-        # \u2500\u2500 Notifications \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-        if action == 'notifications':
-            resp = _rf_request('GET', '/api/notifications/', user_id=user_id)
-            return self._json_response(resp)
-
-        # \u2500\u2500 Activities \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-        if action == 'activities':
-            resp = _rf_request('GET', '/api/activities/', user_id=user_id)
-            return self._json_response(resp)
-
-        # \u2500\u2500 Stats (aggregated, no /dashboard/ endpoint needed) \u2500\u2500\u2500\u2500\u2500\u2500\u2500
-        if action == 'stats':
-            return self._get_stats(user_id)
-
-        # \u2500\u2500 Imported Papers \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-        if action == 'imported_papers':
-            resp = _rf_request('GET', '/api/imported-papers/', user_id=user_id)
-            return self._json_response(resp)
-
-        # \u2500\u2500 Search \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-        if action == 'search':
-            q    = request.GET.get('q', '')
-            pg   = request.GET.get('page', '1')
-            resp = _rf_request('GET', f'/api/search/?q={q}&page={pg}', user_id=user_id)
-            return self._json_response(resp)
-
-        # \u2500\u2500 OpenAlex search \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-        if action == 'openalex_search':
-            q    = request.GET.get('q', '')
-            resp = _rf_request('GET', f'/api/openalex/search/?q={q}', user_id=user_id)
-            return self._json_response(resp)
-
-        return JsonResponse({'error': 'Unknown action'}, status=400)
-
-    # \u2500\u2500 aggregated stats \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-
-    def _get_stats(self, user_id):
+def call_replica_api(app_id, app_type, endpoint, method="GET", data=None, user_id_for_header=None, retries=3):
+    """
+    Call API with retry across different replicas.
+    Each retry picks a random replica from the healthy list.
+    If all fail, refresh the list and try once more.
+    """
+    tried = set()
+    for attempt in range(retries):
+        replicas = get_healthy_replicas(app_id, app_type)
+        # Filter out replicas we already tried
+        available = [r for r in replicas if r not in tried]
+        if not available:
+            # If all tried, refresh the list and try again
+            if attempt < retries - 1:
+                replicas = get_healthy_replicas(app_id, app_type, force_refresh=True)
+                available = [r for r in replicas if r not in tried]
+            if not available:
+                break
+        base = random.choice(available)
+        tried.add(base)
+        url = urljoin(base, endpoint)
         try:
-            # projects
-            r_proj   = _rf_request('GET', '/api/projects/', user_id=user_id)
-            projects = []
-            if r_proj and r_proj.status_code == 200:
-                d        = r_proj.json()
-                projects = d if isinstance(d, list) else d.get('results', [])
+            # Increase timeout for write operations
+            timeout = 30 if method in ["POST", "PUT", "DELETE"] else 10
+            return make_request(method, url, json_data=data, timeout=timeout, user_id_for_header=user_id_for_header)
+        except Exception as e:
+            logger.warning(f"Attempt {attempt+1} on {base} failed: {e}")
+            if attempt == retries - 1:
+                raise
+    raise Exception(f"All {retries} attempts failed for {endpoint}")
 
-            total_views     = sum(p.get('views',     0) for p in projects)
-            total_downloads = sum(p.get('downloads', 0) for p in projects)
+def parse_json_body(request):
+    try:
+        return json.loads(request.body)
+    except json.JSONDecodeError as e:
+        raise Exception(f"Invalid JSON: {str(e)}")
 
-            # files \u2014 first 5 projects only for performance
-            total_files  = 0
-            recent_files = []
-            for p in projects[:5]:
-                rf = _rf_request('GET', f"/api/projects/{p['id']}/files/", user_id=user_id)
-                if rf and rf.status_code == 200:
-                    fd = rf.json()
-                    fl = fd if isinstance(fd, list) else fd.get('results', [])
-                    total_files  += len(fl)
-                    recent_files += fl
-            recent_files = sorted(
-                recent_files, key=lambda f: f.get('uploaded_at', ''), reverse=True
-            )[:5]
+def get_any_researcher_user_id():
+    """Fetch any existing researcher's user_id as fallback for X-User-ID."""
+    try:
+        data = call_replica_api(28, "rf", "/api/researcher-profiles/")
+        if data and len(data) > 0:
+            return data[0].get("user_id")
+    except Exception as e:
+        logger.warning(f"Could not fetch researcher user_id: {e}")
+    return None
 
-            # collaborations
-            total_collabs    = 0
-            pending_requests = []
-            r_col = _rf_request('GET', '/api/collaboration-requests/', user_id=user_id)
-            if r_col and r_col.status_code == 200:
-                cd = r_col.json()
-                cl = cd if isinstance(cd, list) else cd.get('results', [])
-                total_collabs    = len([c for c in cl if c.get('status') == 'approved'])
-                pending_requests = sorted(
-                    [c for c in cl if c.get('status') == 'pending'],
-                    key=lambda c: c.get('created_at', ''), reverse=True
-                )[:5]
+# ----------------------------------------------------------------------
+# Main view
+# ----------------------------------------------------------------------
 
-            # activities
-            recent_activity = []
-            r_act = _rf_request('GET', '/api/activities/', user_id=user_id)
-            if r_act and r_act.status_code == 200:
-                ad = r_act.json()
-                al = ad if isinstance(ad, list) else ad.get('results', [])
-                recent_activity = sorted(
-                    al, key=lambda a: a.get('created_at', ''), reverse=True
-                )[:10]
+class SelfStudyResearchFlowView(LoginRequiredMixin, TemplateView):
+    template_name = "selfstudyresearchflow.html"
+    login_url = '/login/'
 
-            recent_projects = sorted(
-                projects, key=lambda p: p.get('created_at', ''), reverse=True
-            )[:5]
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["page_title"] = "Research Flow Management"
+        context["auth_token"] = get_auth_token()
+        return context
 
-            return JsonResponse({
-                'stats': {
-                    'total_projects': len(projects),
-                    'research_files': total_files,
-                    'collaborations': total_collabs,
-                    'total_views':    total_views,
-                    'downloads':      total_downloads,
-                },
-                'recent_projects':        recent_projects,
-                'recent_files':           recent_files,
-                'collaboration_requests': pending_requests,
-                'recent_activity':        recent_activity,
-            })
-        except Exception as exc:
-            logger.exception("Stats aggregation failed")
-            return JsonResponse({'error': str(exc)}, status=500)
+# ----------------------------------------------------------------------
+# Diagnostic API
+# ----------------------------------------------------------------------
 
-    # \u2500\u2500 POST \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-
-    def post(self, request, *args, **kwargs):
-        import json as _json
-        action = request.GET.get('action', '')
-
-        # parse body
+class DiagnosticAPIView(LoginRequiredMixin, View):
+    def get(self, request):
         try:
-            body = _json.loads(request.body)
-        except Exception:
-            body = {}
+            replicas = get_healthy_replicas(28, "rf")
+            result = {"replicas": replicas}
+            if replicas:
+                # Test each replica's basic availability
+                statuses = {}
+                for r in replicas:
+                    test_url = urljoin(r, "/api/researcher-profiles/")
+                    token = get_auth_token()
+                    headers = {"Authorization": f"Token {token}"}
+                    try:
+                        resp = requests.get(test_url, headers=headers, timeout=5)
+                        statuses[r] = resp.status_code
+                    except Exception as e:
+                        statuses[r] = str(e)
+                result["replica_statuses"] = statuses
+            return JsonResponse(result)
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
 
-        # resolve user_id \u2014 this is the key fix
-        user_id = self._resolve_user_id(request, body)
+# ----------------------------------------------------------------------
+# Base API
+# ----------------------------------------------------------------------
 
-        # store in session for subsequent requests
-        if user_id:
-            request.session['rf_user_id'] = user_id
+class BaseAPIView(LoginRequiredMixin, View):
+    login_url = '/login/'
 
-        logger.info(f"POST action={action} user_id={user_id}")
+# ---------- Get users from userprofile (for researcher dropdown) ----------
+class UserProfileListAPIView(BaseAPIView):
+    def get(self, request):
+        try:
+            base = get_random_replica(13, "up")  # we still need this helper; define it below
+            url = urljoin(base, "/profiles/")
+            users = make_request("GET", url)
+            simplified = [{
+                "user_id": u["user_id"],
+                "username": u["username"],
+                "first_name": u.get("first_name", ""),
+                "last_name": u.get("last_name", ""),
+                "email": u.get("email", "")
+            } for u in users]
+            return JsonResponse(simplified, safe=False)
+        except Exception as e:
+            return JsonResponse({"error": str(e), "trace": traceback.format_exc()}, status=500)
 
-        # \u2500\u2500 Set context user \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-        if action == 'set_user_id':
-            uid = body.get('user_id', '').strip()
-            if uid:
-                request.session['rf_user_id'] = uid
-            return JsonResponse({'ok': True, 'user_id': uid})
+# Helper for userprofile replicas (app_id=13)
+def get_random_replica(app_id, app_type):
+    replicas = get_healthy_replicas(app_id, app_type)
+    if not replicas:
+        raise Exception(f"No available replica for app_id={app_id}")
+    return random.choice(replicas)
 
-        # \u2500\u2500 Guard: user_id required for most write operations \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-        NEEDS_USER = [
-            'create_project', 'update_project', 'delete_project',
-            'mark_notification_read', 'mark_all_notifications_read',
-            'delete_all_notifications', 'respond_collaboration',
-            'add_comment', 'delete_comment', 'delete_file',
-            'delete_imported_paper', 'openalex_save',
-        ]
-        if action in NEEDS_USER and not user_id:
-            return JsonResponse(
-                {'error': 'No context user set. Please pick a user first.'},
-                status=400
-            )
+# ---------- Researcher profiles ----------
+class ResearchersAPIView(BaseAPIView):
+    def get(self, request, profile_id=None):
+        try:
+            if profile_id:
+                data = call_replica_api(28, "rf", f"/api/researcher-profiles/{profile_id}/")
+                return JsonResponse(data)
+            else:
+                data = call_replica_api(28, "rf", "/api/researcher-profiles/")
+                # Enrich with userprofile details
+                for p in data:
+                    uid = p.get("user_id")
+                    if uid:
+                        try:
+                            base_up = get_random_replica(13, "up")
+                            url = urljoin(base_up, f"/profiles/{uid}/")
+                            ud = make_request("GET", url)
+                            p["username"] = ud.get("username", "")
+                            p["first_name"] = ud.get("first_name", "")
+                            p["last_name"] = ud.get("last_name", "")
+                            p["email"] = ud.get("email", "")
+                        except:
+                            pass
+                return JsonResponse(data, safe=False)
+        except Exception as e:
+            return JsonResponse({"error": str(e), "trace": traceback.format_exc()}, status=500)
 
-        # \u2500\u2500 Projects \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-        if action == 'create_project':
-            # strip owner_id / user_id from payload sent to RF
-            # RF uses X-User-ID header as the owner
-            payload = {k: v for k, v in body.items()
-                       if k not in ('user_id', 'owner_id')}
-            resp = _rf_request('POST', '/api/projects/',
-                               user_id=user_id, json_body=payload)
-            return self._json_response(resp)
+    def post(self, request):
+        try:
+            body = parse_json_body(request)
+            user_id = body.get("user_id")
+            if not user_id:
+                return JsonResponse({"error": "user_id is required"}, status=400)
+            payload = {
+                "user_id": user_id,
+                "username": body.get("username"),
+                "first_name": body.get("first_name"),
+                "last_name": body.get("last_name"),
+                "email": body.get("email"),
+                "university": body.get("university", ""),
+                "institution": body.get("institution", ""),
+                "department": body.get("department", ""),
+                "bio": body.get("bio", ""),
+                "research_interests": body.get("research_interests", []),
+                "orcid_id": body.get("orcid_id", ""),
+                "google_scholar_id": body.get("google_scholar_id", ""),
+                "website": body.get("website", "")
+            }
+            payload = {k: v for k, v in payload.items() if v is not None}
+            result = call_replica_api(28, "rf", "/api/researcher-profiles/", "POST", data=payload, user_id_for_header=user_id)
+            return JsonResponse(result, status=201)
+        except Exception as e:
+            return JsonResponse({"error": str(e), "trace": traceback.format_exc()}, status=500)
 
-        if action == 'update_project':
-            pid     = body.get('project_id', '').strip()
-            payload = {k: v for k, v in body.items()
-                       if k not in ('project_id', 'user_id', 'owner_id')}
-            resp = _rf_request('PUT', f'/api/projects/{pid}',
-                               user_id=user_id, json_body=payload)
-            return self._json_response(resp)
+    def put(self, request, profile_id):
+        try:
+            body = parse_json_body(request)
+            user_id = body.get("user_id")
+            if not user_id:
+                return JsonResponse({"error": "user_id is required"}, status=400)
+            payload = {
+                "user_id": user_id,
+                "username": body.get("username"),
+                "first_name": body.get("first_name"),
+                "last_name": body.get("last_name"),
+                "email": body.get("email"),
+                "university": body.get("university", ""),
+                "institution": body.get("institution", ""),
+                "department": body.get("department", ""),
+                "bio": body.get("bio", ""),
+                "research_interests": body.get("research_interests", []),
+                "orcid_id": body.get("orcid_id", ""),
+                "google_scholar_id": body.get("google_scholar_id", ""),
+                "website": body.get("website", "")
+            }
+            payload = {k: v for k, v in payload.items() if v is not None}
+            result = call_replica_api(28, "rf", f"/api/researcher-profiles/{profile_id}/", "PUT", data=payload, user_id_for_header=user_id)
+            return JsonResponse(result)
+        except Exception as e:
+            return JsonResponse({"error": str(e), "trace": traceback.format_exc()}, status=500)
 
-        if action == 'delete_project':
-            pid  = body.get('project_id', '').strip()
-            resp = _rf_request('DELETE', f'/api/projects/{pid}', user_id=user_id)
-            return self._json_response(resp)
+    def delete(self, request, profile_id):
+        try:
+            profile = call_replica_api(28, "rf", f"/api/researcher-profiles/{profile_id}/")
+            user_id = profile.get("user_id")
+            if not user_id:
+                user_id = get_any_researcher_user_id()
+            call_replica_api(28, "rf", f"/api/researcher-profiles/{profile_id}/", "DELETE", user_id_for_header=user_id)
+            return JsonResponse({"success": True})
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
 
-        # \u2500\u2500 Notifications \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-        if action == 'mark_notification_read':
-            nid  = body.get('notification_id', '').strip()
-            resp = _rf_request('POST', f'/api/notifications/{nid}/mark_read/',
-                               user_id=user_id)
-            return self._json_response(resp)
+class ResearcherProfilesListAPIView(BaseAPIView):
+    def get(self, request):
+        try:
+            data = call_replica_api(28, "rf", "/api/researcher-profiles/")
+            simplified = [{
+                "user_id": p.get("user_id"),
+                "name": f"{p.get('first_name', '')} {p.get('last_name', '')}".strip() or p.get("username", "")
+            } for p in data]
+            return JsonResponse(simplified, safe=False)
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
 
-        if action == 'mark_all_notifications_read':
-            resp = _rf_request('POST', '/api/notifications/mark_all_read/',
-                               user_id=user_id)
-            return self._json_response(resp)
+# ---------- Projects ----------
+class ProjectsAPIView(BaseAPIView):
+    def get(self, request, project_id=None):
+        try:
+            if project_id:
+                data = call_replica_api(28, "rf", f"/api/projects/{project_id}")
+                return JsonResponse(data)
+            else:
+                data = call_replica_api(28, "rf", "/api/projects/")
+                return JsonResponse(data, safe=False)
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
 
-        if action == 'delete_all_notifications':
-            resp = _rf_request('DELETE', '/api/notifications/delete_all/',
-                               user_id=user_id)
-            return self._json_response(resp)
+    def post(self, request):
+        try:
+            body = parse_json_body(request)
+            owner_id = body.get("owner_id")
+            if not owner_id:
+                return JsonResponse({"error": "owner_id is required"}, status=400)
+            payload = {
+                "title": body.get("title", ""),
+                "description": body.get("description", ""),
+                "access_level": body.get("access_level", "private"),
+                "status": body.get("status", "draft"),
+                "keywords": body.get("keywords", []),
+                "owner_id": owner_id
+            }
+            result = call_replica_api(28, "rf", "/api/projects/", "POST", data=payload, user_id_for_header=owner_id)
+            return JsonResponse(result, status=201)
+        except Exception as e:
+            return JsonResponse({"error": str(e), "trace": traceback.format_exc()}, status=500)
 
-        # \u2500\u2500 Collaborations \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-        if action == 'respond_collaboration':
-            rid      = body.get('request_id', '').strip()
-            act_type = body.get('action_type', 'approve')
-            resp = _rf_request('POST',
-                               f'/api/collaboration-requests/{rid}/respond/',
-                               user_id=user_id,
-                               json_body={'action': act_type})
-            return self._json_response(resp)
+    def put(self, request, project_id):
+        try:
+            body = parse_json_body(request)
+            project = call_replica_api(28, "rf", f"/api/projects/{project_id}")
+            owner_id = project.get("owner_id")
+            if not owner_id:
+                owner_id = get_any_researcher_user_id()
+            payload = {
+                "title": body.get("title"),
+                "description": body.get("description"),
+                "access_level": body.get("access_level"),
+                "status": body.get("status"),
+                "keywords": body.get("keywords")
+            }
+            payload = {k: v for k, v in payload.items() if v is not None}
+            result = call_replica_api(28, "rf", f"/api/projects/{project_id}", "PUT", data=payload, user_id_for_header=owner_id)
+            return JsonResponse(result)
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
 
-        # \u2500\u2500 Comments \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-        if action == 'add_comment':
-            pid     = body.get('project_id', '').strip()
-            content = body.get('content', '')
-            resp = _rf_request('POST', f'/api/projects/{pid}/comments/',
-                               user_id=user_id, json_body={'content': content})
-            return self._json_response(resp)
+    def delete(self, request, project_id):
+        try:
+            project = call_replica_api(28, "rf", f"/api/projects/{project_id}")
+            owner_id = project.get("owner_id")
+            if not owner_id:
+                owner_id = get_any_researcher_user_id()
+            call_replica_api(28, "rf", f"/api/projects/{project_id}", "DELETE", user_id_for_header=owner_id)
+            return JsonResponse({"success": True})
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
 
-        if action == 'delete_comment':
-            cid  = body.get('comment_id', '').strip()
-            resp = _rf_request('DELETE', f'/api/comments/{cid}/', user_id=user_id)
-            return self._json_response(resp)
+# ---------- OpenAlex libraries ----------
+class OpenAlexLibrariesAPIView(BaseAPIView):
+    def get(self, request, paper_id=None):
+        try:
+            if paper_id:
+                data = call_replica_api(28, "rf", f"/api/imported-papers/{paper_id}")
+                return JsonResponse(data)
+            else:
+                data = call_replica_api(28, "rf", "/api/imported-papers/")
+                return JsonResponse(data, safe=False)
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
 
-        # \u2500\u2500 Files \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-        if action == 'delete_file':
-            fid  = body.get('file_id', '').strip()
-            resp = _rf_request('DELETE', f'/api/files/{fid}/', user_id=user_id)
-            return self._json_response(resp)
+    def post(self, request):
+        try:
+            body = parse_json_body(request)
+            user_id = body.get("user_id")
+            if not user_id:
+                return JsonResponse({"error": "user_id is required"}, status=400)
+            payload = {
+                "title": body.get("title"),
+                "doi": body.get("doi"),
+                "user_id": user_id,
+                "openalex_id": body.get("openalex_id"),
+                "authors": body.get("authors", []),
+                "abstract": body.get("abstract", "")
+            }
+            result = call_replica_api(28, "rf", "/api/imported-papers/", "POST", data=payload, user_id_for_header=user_id)
+            return JsonResponse(result, status=201)
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
 
-        # \u2500\u2500 Imported Papers \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-        if action == 'delete_imported_paper':
-            paper_id = body.get('paper_id', '').strip()
-            resp = _rf_request('DELETE', f'/api/imported-papers/{paper_id}',
-                               user_id=user_id)
-            return self._json_response(resp)
+    def delete(self, request, paper_id):
+        try:
+            paper = call_replica_api(28, "rf", f"/api/imported-papers/{paper_id}")
+            user_id = paper.get("user_id")
+            if not user_id:
+                user_id = get_any_researcher_user_id()
+            call_replica_api(28, "rf", f"/api/imported-papers/{paper_id}", "DELETE", user_id_for_header=user_id)
+            return JsonResponse({"success": True})
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
 
-        if action == 'openalex_save':
-            resp = _rf_request('POST', '/api/openalex/save-to-library/',
-                               user_id=user_id, json_body=body)
-            return self._json_response(resp)
+class LocalProjectsLibrariesAPIView(ProjectsAPIView):
+    pass
 
-        return JsonResponse({'error': 'Unknown action'}, status=400)
+class UserActivitiesAPIView(BaseAPIView):
+    def get(self, request, activity_id=None):
+        try:
+            if activity_id:
+                data = call_replica_api(28, "rf", "/api/activities/")
+                activity = next((a for a in data if a.get("id") == activity_id), None)
+                return JsonResponse(activity if activity else {})
+            else:
+                data = call_replica_api(28, "rf", "/api/activities/")
+                return JsonResponse(data, safe=False)
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
 
+    def post(self, request):
+        try:
+            body = parse_json_body(request)
+            user_id = body.get("user_id")
+            if not user_id:
+                return JsonResponse({"error": "user_id is required"}, status=400)
+            result = call_replica_api(28, "rf", "/api/activities/", "POST", data=body, user_id_for_header=user_id)
+            return JsonResponse(result, status=201)
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
 
-# \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-# UserProfile lookup
-# \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+    def delete(self, request, activity_id):
+        return JsonResponse({"error": "Delete not supported"}, status=501)
 
-@method_decorator(csrf_exempt, name='dispatch')
-class ResearchFlowUserAPIView(View):
+class TeamsAPIView(BaseAPIView):
+    def get(self, request):
+        return JsonResponse({"error": "Teams list not available", "results": []}, status=501)
 
-    @method_decorator(require_admin)
-    def dispatch(self, request, *args, **kwargs):
-        return super().dispatch(request, *args, **kwargs)
+class CollaborationsAPIView(BaseAPIView):
+    def get(self, request, request_id=None):
+        try:
+            if request_id:
+                data = call_replica_api(28, "rf", f"/api/collaboration-requests/{request_id}")
+                return JsonResponse(data)
+            else:
+                data = call_replica_api(28, "rf", "/api/collaboration-requests/")
+                return JsonResponse(data, safe=False)
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
 
-    def get(self, request, *args, **kwargs):
-        action = request.GET.get('action', 'list')
+    def post(self, request):
+        try:
+            body = parse_json_body(request)
+            project_id = body.get("project_id")
+            if not project_id:
+                return JsonResponse({"error": "project_id is required"}, status=400)
+            project = call_replica_api(28, "rf", f"/api/projects/{project_id}")
+            requester_id = project.get("owner_id")
+            if not requester_id:
+                requester_id = get_any_researcher_user_id()
+            payload = {
+                "project": project_id,
+                "message": body.get("message", "")
+            }
+            result = call_replica_api(28, "rf", "/api/collaboration-requests/", "POST", data=payload, user_id_for_header=requester_id)
+            return JsonResponse(result, status=201)
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
 
-        if action == 'list':
-            resp = _up_request('GET', '/profiles/')
-            if resp is None:
-                return JsonResponse(
-                    {'error': 'Userprofile service unavailable'}, status=503)
-            try:
-                return JsonResponse(resp.json(), status=resp.status_code, safe=False)
-            except Exception:
-                return JsonResponse({'error': resp.text}, status=500)
-
-        if action == 'lookup':
-            uid  = request.GET.get('user_id', '').strip()
-            resp = _up_request('GET', f'/profiles/{uid}/')
-            if resp is None:
-                return JsonResponse(
-                    {'error': 'Userprofile service unavailable'}, status=503)
-            try:
-                return JsonResponse(resp.json(), status=resp.status_code, safe=False)
-            except Exception:
-                return JsonResponse({'error': resp.text}, status=500)
-
-        return JsonResponse({'error': 'Unknown action'}, status=400)
+    def delete(self, request, request_id):
+        try:
+            req = call_replica_api(28, "rf", f"/api/collaboration-requests/{request_id}")
+            requester_id = req.get("requester_id")
+            if not requester_id:
+                requester_id = get_any_researcher_user_id()
+            call_replica_api(28, "rf", f"/api/collaboration-requests/{request_id}", "DELETE", user_id_for_header=requester_id)
+            return JsonResponse({"success": True})
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
