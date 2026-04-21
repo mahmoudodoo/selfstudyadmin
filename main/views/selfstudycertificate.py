@@ -8,7 +8,6 @@ from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from django.utils.decorators import method_decorator
 import json
 import uuid
 from datetime import datetime
@@ -34,16 +33,16 @@ APP_IDS = {
 
 class CertificateService:
     """Service class for handling certificate operations"""
-    
+
     def __init__(self):
         self.auth_token = AUTH_TOKEN
         self.cache = {}
-        
+
     def get_working_domains_registry(self):
         """Get a working SelfStudy Domains registry instance"""
         shuffled_domains = DOMAINS_REGISTRY.copy()
         random.shuffle(shuffled_domains)
-        
+
         for domain in shuffled_domains:
             try:
                 response = requests.get(f"{domain}/health/", timeout=5)
@@ -52,25 +51,25 @@ class CertificateService:
             except requests.RequestException:
                 logger.warning(f"Domains registry {domain} is not responding")
                 continue
-                
+
         return DOMAINS_REGISTRY[0]
-    
+
     def get_app_domains(self, app_id):
         """Get domains for a specific app"""
         cache_key = f"app_domains_{app_id}"
         if cache_key in self.cache:
             return self.cache[cache_key]
-            
+
         working_registry = self.get_working_domains_registry()
         url = f"{working_registry}/apps/{app_id}/"
-        
+
         try:
             headers = {
                 'Authorization': f'Token {self.auth_token}',
                 'Content-Type': 'application/json'
             }
             response = requests.get(url, headers=headers, timeout=10)
-            
+
             if response.status_code == 200:
                 app_data = response.json()
                 replica_urls = [replica['replica_url'].rstrip('/') for replica in app_data['replicas']]
@@ -80,9 +79,9 @@ class CertificateService:
                 logger.error(f"Failed to fetch app data: {response.status_code}")
         except requests.RequestException as e:
             logger.error(f"Error fetching domains: {str(e)}")
-            
+
         return []
-    
+
     def get_random_domain(self, app_id):
         """Get a random domain for the specified app"""
         domains = self.get_app_domains(app_id)
@@ -99,7 +98,7 @@ class CertificateService:
             elif app_id == APP_IDS['exam']:
                 return "https://sfsexam1.pythonanywhere.com"
         return None
-    
+
     def make_authenticated_request(self, method, app_id, endpoint, data=None, timeout=15):
         """Make authenticated request to certificate service"""
         try:
@@ -107,16 +106,16 @@ class CertificateService:
             if not domain:
                 logger.error(f"No domains available for app {app_id}")
                 return None
-                
+
             url = f"{domain}/{endpoint}"
             headers = {
                 'Authorization': f'Token {self.auth_token}',
                 'Content-Type': 'application/json'
             }
-            
+
             logger.info(f"Making {method} request to {url}")
             logger.info(f"Request data: {json.dumps(data, indent=2) if data else 'No data'}")
-            
+
             if method.upper() == 'GET':
                 response = requests.get(url, headers=headers, params=data, timeout=timeout)
             elif method.upper() == 'POST':
@@ -127,7 +126,7 @@ class CertificateService:
                 response = requests.delete(url, headers=headers, timeout=timeout)
             else:
                 return None
-                
+
             logger.info(f"Response status: {response.status_code}")
             if response.status_code != 200:
                 logger.info(f"Response content: {response.text}")
@@ -139,11 +138,11 @@ class CertificateService:
 @method_decorator(login_required, name='dispatch')
 class SelfStudyCertificateView(View):
     """Main certificate management view"""
-    
+
     def __init__(self):
         super().__init__()
         self.service = CertificateService()
-    
+
     def get(self, request):
         """Render the main certificate management page"""
         context = {
@@ -155,20 +154,19 @@ class SelfStudyCertificateView(View):
 @method_decorator(login_required, name='dispatch')
 class CertificateAPIView(View):
     """API view for certificate operations"""
-    
+
     def __init__(self):
         super().__init__()
         self.service = CertificateService()
-    
+
     def get(self, request, certificate_type):
         """Get certificates"""
         try:
             endpoint = f"{certificate_type}-certificates/"
             response = self.service.make_authenticated_request('GET', APP_IDS['certificate'], endpoint)
-            
+
             if response and response.status_code == 200:
                 certificates = response.json()
-                # Handle both list response and paginated response
                 if isinstance(certificates, list):
                     return JsonResponse({'success': True, 'data': certificates})
                 elif isinstance(certificates, dict) and 'results' in certificates:
@@ -176,181 +174,174 @@ class CertificateAPIView(View):
                 else:
                     return JsonResponse({'success': True, 'data': []})
             else:
-                # For development, return some mock data
                 mock_data = self._get_mock_certificates(certificate_type)
                 return JsonResponse({'success': True, 'data': mock_data})
-                
+
         except Exception as e:
             logger.error(f"Error fetching certificates: {str(e)}")
-            # Return mock data for development
             mock_data = self._get_mock_certificates(certificate_type)
             return JsonResponse({'success': True, 'data': mock_data})
-    
+
     def post(self, request, certificate_type):
         """Create certificate"""
         try:
             data = json.loads(request.body)
             logger.info(f"Creating {certificate_type} certificate with data: {json.dumps(data, indent=2)}")
-            
-            # Prepare the certificate data according to the certificate service model
+
             certificate_data = {}
-            
+
             # Generate certificate_id if not provided
             if 'certificate_id' not in data or not data['certificate_id']:
                 certificate_data['certificate_id'] = str(uuid.uuid4())
             else:
                 certificate_data['certificate_id'] = data['certificate_id']
-            
+
             if certificate_type == 'course':
-                # Course certificate fields - use external IDs directly
                 required_fields = ['user_id', 'course_external_id', 'date', 'hours']
                 for field in required_fields:
                     if field not in data or not data[field]:
                         return JsonResponse({
-                            'success': False, 
+                            'success': False,
                             'error': f'Missing required field: {field}'
                         }, status=400)
-                
+
                 certificate_data.update({
-                    'user_id': str(data['user_id']),  # User external ID
-                    'course_id': str(data['course_external_id']),  # Course external ID (directly)
+                    'user_id': str(data['user_id']),
+                    'user_full_name': data.get('user_full_name', ''),
+                    'user_image_url': data.get('user_image_url', ''),
+                    'course_id': str(data['course_external_id']),
+                    'course_name': data.get('course_name', ''),
                     'date': data['date'],
                     'hours': int(data['hours']),
                     'message': data.get('message', '')
                 })
             else:
-                # Exam certificate fields - use external IDs directly
                 required_fields = ['user_id', 'exam_external_id', 'taken_date', 'expire_date']
                 for field in required_fields:
                     if field not in data or not data[field]:
                         return JsonResponse({
-                            'success': False, 
+                            'success': False,
                             'error': f'Missing required field: {field}'
                         }, status=400)
-                
+
                 certificate_data.update({
-                    'user_id': str(data['user_id']),  # User external ID
-                    'exam_id': str(data['exam_external_id']),  # Exam external ID (directly)
+                    'user_id': str(data['user_id']),
+                    'user_full_name': data.get('user_full_name', ''),
+                    'user_image_url': data.get('user_image_url', ''),
+                    'exam_id': str(data['exam_external_id']),
+                    'exam_name': data.get('exam_name', ''),
+                    'course_name': data.get('course_name', ''),
                     'taken_date': data['taken_date'],
                     'expire_date': data['expire_date'],
                     'message': data.get('message', '')
                 })
-            
-            logger.info(f"Final certificate data with external IDs: {json.dumps(certificate_data, indent=2)}")
-            
+
+            logger.info(f"Final certificate data: {json.dumps(certificate_data, indent=2)}")
+
             endpoint = f"{certificate_type}-certificates/"
             response = self.service.make_authenticated_request('POST', APP_IDS['certificate'], endpoint, certificate_data)
-            
+
             if response and response.status_code in [200, 201]:
                 result = response.json()
                 logger.info(f"Successfully created certificate: {result}")
                 return JsonResponse({'success': True, 'data': result})
             else:
-                # For development, simulate success if external service is down
                 logger.warning("External certificate service unavailable, simulating success for development")
-                simulated_response = {
-                    'certificate_id': certificate_data['certificate_id'],
-                    'user_id': certificate_data['user_id'],
-                    'course_id' if certificate_type == 'course' else 'exam_id': certificate_data['course_id' if certificate_type == 'course' else 'exam_id'],
-                    'date' if certificate_type == 'course' else 'taken_date': certificate_data['date' if certificate_type == 'course' else 'taken_date'],
-                    'hours' if certificate_type == 'course' else 'expire_date': certificate_data['hours' if certificate_type == 'course' else 'expire_date'],
-                    'message': certificate_data.get('message', ''),
-                    'created_at': datetime.now().isoformat()
-                }
-                if certificate_type == 'exam':
-                    simulated_response['expire_date'] = certificate_data['expire_date']
-                
+                simulated_response = certificate_data.copy()
+                simulated_response['created_at'] = datetime.now().isoformat()
                 return JsonResponse({'success': True, 'data': simulated_response})
-                
+
         except Exception as e:
             logger.error(f"Error creating certificate: {str(e)}")
             return JsonResponse({'success': False, 'error': str(e)}, status=400)
-    
+
     def put(self, request, certificate_type, certificate_id):
         """Update certificate"""
         try:
             data = json.loads(request.body)
             logger.info(f"Updating {certificate_type} certificate {certificate_id} with data: {json.dumps(data, indent=2)}")
-            
-            # Prepare the certificate data according to the certificate service model
+
             certificate_data = {}
             certificate_data['certificate_id'] = certificate_id
-            
+
             if certificate_type == 'course':
-                # Course certificate fields - use external IDs directly
                 required_fields = ['user_id', 'course_external_id', 'date', 'hours']
                 for field in required_fields:
                     if field not in data or not data[field]:
                         return JsonResponse({
-                            'success': False, 
+                            'success': False,
                             'error': f'Missing required field: {field}'
                         }, status=400)
-                
+
                 certificate_data.update({
-                    'user_id': str(data['user_id']),  # User external ID
-                    'course_id': str(data['course_external_id']),  # Course external ID (directly)
+                    'user_id': str(data['user_id']),
+                    'user_full_name': data.get('user_full_name', ''),
+                    'user_image_url': data.get('user_image_url', ''),
+                    'course_id': str(data['course_external_id']),
+                    'course_name': data.get('course_name', ''),
                     'date': data['date'],
                     'hours': int(data['hours']),
                     'message': data.get('message', '')
                 })
             else:
-                # Exam certificate fields - use external IDs directly
                 required_fields = ['user_id', 'exam_external_id', 'taken_date', 'expire_date']
                 for field in required_fields:
                     if field not in data or not data[field]:
                         return JsonResponse({
-                            'success': False, 
+                            'success': False,
                             'error': f'Missing required field: {field}'
                         }, status=400)
-                
+
                 certificate_data.update({
-                    'user_id': str(data['user_id']),  # User external ID
-                    'exam_id': str(data['exam_external_id']),  # Exam external ID (directly)
+                    'user_id': str(data['user_id']),
+                    'user_full_name': data.get('user_full_name', ''),
+                    'user_image_url': data.get('user_image_url', ''),
+                    'exam_id': str(data['exam_external_id']),
+                    'exam_name': data.get('exam_name', ''),
+                    'course_name': data.get('course_name', ''),
                     'taken_date': data['taken_date'],
                     'expire_date': data['expire_date'],
                     'message': data.get('message', '')
                 })
-            
-            logger.info(f"Final certificate data for update with external IDs: {json.dumps(certificate_data, indent=2)}")
-            
+
+            logger.info(f"Final certificate data for update: {json.dumps(certificate_data, indent=2)}")
+
             endpoint = f"{certificate_type}-certificates/{certificate_id}/"
             response = self.service.make_authenticated_request('PUT', APP_IDS['certificate'], endpoint, certificate_data)
-            
+
             if response and response.status_code == 200:
                 result = response.json()
                 logger.info(f"Successfully updated certificate: {result}")
                 return JsonResponse({'success': True, 'data': result})
             else:
-                # For development, simulate success if external service is down
                 logger.warning("External certificate service unavailable, simulating success for development")
                 simulated_response = certificate_data.copy()
                 simulated_response['updated_at'] = datetime.now().isoformat()
                 return JsonResponse({'success': True, 'data': simulated_response})
-                
+
         except Exception as e:
             logger.error(f"Error updating certificate: {str(e)}")
             return JsonResponse({'success': False, 'error': str(e)}, status=400)
-    
+
     def delete(self, request, certificate_type, certificate_id):
         """Delete certificate"""
         try:
             logger.info(f"Deleting {certificate_type} certificate {certificate_id}")
-            
+
             endpoint = f"{certificate_type}-certificates/{certificate_id}/"
             response = self.service.make_authenticated_request('DELETE', APP_IDS['certificate'], endpoint)
-            
+
             if response and response.status_code in [200, 204]:
                 logger.info(f"Successfully deleted certificate {certificate_id}")
                 return JsonResponse({'success': True})
             else:
-                # For development, simulate success if external service is down
                 logger.warning("External certificate service unavailable, simulating success for development")
                 return JsonResponse({'success': True})
-                
+
         except Exception as e:
             logger.error(f"Error deleting certificate: {str(e)}")
             return JsonResponse({'success': False, 'error': str(e)}, status=400)
-    
+
     def _get_mock_certificates(self, certificate_type):
         """Return mock certificates for development"""
         if certificate_type == 'course':
@@ -358,20 +349,14 @@ class CertificateAPIView(View):
                 {
                     'certificate_id': str(uuid.uuid4()),
                     'user_id': 'user-1',
+                    'user_full_name': 'John Doe',
+                    'user_image_url': '',
                     'course_id': 'course-1',
+                    'course_name': 'Demo Course',
                     'date': '2025-11-28',
                     'hours': 10,
                     'message': 'Completed course successfully',
                     'created_at': '2025-11-28T10:00:00Z'
-                },
-                {
-                    'certificate_id': str(uuid.uuid4()),
-                    'user_id': 'user-2',
-                    'course_id': 'course-2', 
-                    'date': '2025-11-27',
-                    'hours': 8,
-                    'message': 'Excellent performance',
-                    'created_at': '2025-11-27T14:30:00Z'
                 }
             ]
         else:
@@ -379,7 +364,11 @@ class CertificateAPIView(View):
                 {
                     'certificate_id': str(uuid.uuid4()),
                     'user_id': 'user-1',
+                    'user_full_name': 'John Doe',
+                    'user_image_url': '',
                     'exam_id': 'exam-1',
+                    'exam_name': 'Demo Exam',
+                    'course_name': '',
                     'taken_date': '2025-11-28',
                     'expire_date': '2026-11-28',
                     'message': 'Passed with distinction',
@@ -390,11 +379,11 @@ class CertificateAPIView(View):
 @method_decorator(login_required, name='dispatch')
 class LookupAPIView(View):
     """API for lookup operations"""
-    
+
     def __init__(self):
         super().__init__()
         self.service = CertificateService()
-    
+
     def get(self, request, resource_type):
         """Get resources for lookup (users, courses, exams)"""
         try:
@@ -406,10 +395,9 @@ class LookupAPIView(View):
                 response = self.service.make_authenticated_request('GET', APP_IDS['exam'], 'exams/')
             else:
                 return JsonResponse({'success': False, 'error': 'Invalid resource type'}, status=400)
-            
+
             if response and response.status_code == 200:
                 data = response.json()
-                # Handle both list response and paginated response
                 if isinstance(data, list):
                     return JsonResponse({'success': True, 'data': data})
                 elif isinstance(data, dict) and 'results' in data:
@@ -417,16 +405,14 @@ class LookupAPIView(View):
                 else:
                     return JsonResponse({'success': True, 'data': []})
             else:
-                # Return mock data for development
                 mock_data = self._get_mock_data(resource_type)
                 return JsonResponse({'success': True, 'data': mock_data})
-                
+
         except Exception as e:
             logger.error(f"Error fetching {resource_type}: {str(e)}")
-            # Return mock data for development
             mock_data = self._get_mock_data(resource_type)
             return JsonResponse({'success': True, 'data': mock_data})
-    
+
     def _get_mock_data(self, resource_type):
         """Return mock data for development"""
         if resource_type == 'users':
@@ -437,15 +423,17 @@ class LookupAPIView(View):
                     'username': 'john_doe',
                     'email': 'john@example.com',
                     'first_name': 'John',
-                    'last_name': 'Doe'
+                    'last_name': 'Doe',
+                    'image_url': ''
                 },
                 {
-                    'external_id': '223e4567-e89b-12d3-a456-426614174333', 
+                    'external_id': '223e4567-e89b-12d3-a456-426614174333',
                     'user_id': '223e4567-e89b-12d3-a456-426614174333',
                     'username': 'jane_smith',
                     'email': 'jane@example.com',
                     'first_name': 'Jane',
-                    'last_name': 'Smith'
+                    'last_name': 'Smith',
+                    'image_url': ''
                 }
             ]
         elif resource_type == 'courses':

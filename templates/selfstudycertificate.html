@@ -7,109 +7,100 @@
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/selfstudycertificate.css' %}">
 <style>
-    /* Pagination styles */
-    .pagination {
-        margin-top: 20px;
+    .pagination { margin-top: 20px; display: flex; justify-content: center; }
+    .pagination-controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .pagination-btn { padding: 6px 12px; border: 1px solid #ddd; background: white; cursor: pointer; border-radius: 4px; transition: all 0.2s; }
+    .pagination-btn:hover:not(:disabled) { background-color: #f0f0f0; border-color: #aaa; }
+    .pagination-btn.active { background-color: #007bff; color: white; border-color: #007bff; }
+    .pagination-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .pagination-ellipsis { padding: 6px 12px; color: #666; }
+    .search-container { margin-bottom: 20px; display: flex; gap: 10px; }
+    .search-input { flex: 1; padding: 10px 15px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; }
+    .search-btn { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 8px; cursor: pointer; }
+
+    /* Preview cards */
+    .preview-card {
         display: flex;
-        justify-content: center;
-    }
-    .pagination-controls {
-        display: flex;
-        gap: 8px;
-        flex-wrap: wrap;
         align-items: center;
+        gap: 12px;
+        padding: 10px 14px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        margin-top: 6px;
     }
-    .pagination-btn {
-        padding: 6px 12px;
-        border: 1px solid #ddd;
-        background: white;
-        cursor: pointer;
-        border-radius: 4px;
-        transition: all 0.2s;
+    .preview-image {
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 2px solid #e2e8f0;
     }
-    .pagination-btn:hover:not(:disabled) {
-        background-color: #f0f0f0;
-        border-color: #aaa;
-    }
-    .pagination-btn.active {
-        background-color: #007bff;
+    .preview-placeholder {
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
-        border-color: #007bff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
     }
-    .pagination-btn:disabled {
-        opacity: 0.5;
+    .preview-info {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+    .preview-info strong { color: #1f2937; font-size: 14px; }
+    .preview-info small { color: #6b7280; font-size: 12px; }
+
+    .readonly-field {
+        background: #f9fafb !important;
+        color: #6b7280 !important;
         cursor: not-allowed;
     }
-    .pagination-ellipsis {
-        padding: 6px 12px;
-        color: #666;
-    }
 
-    /* Search container */
-    .search-container {
-        margin-bottom: 20px;
-        display: flex;
-        gap: 10px;
-    }
-    .search-input {
-        flex: 1;
-        padding: 10px 15px;
-        border: 1px solid #ddd;
-        border-radius: 8px;
-        font-size: 14px;
-    }
-    .search-btn {
-        padding: 10px 20px;
-        background: #007bff;
-        color: white;
-        border: none;
-        border-radius: 8px;
-        cursor: pointer;
+    .field-hint {
+        display: block;
+        font-size: 12px;
+        color: #6b7280;
+        margin-top: 4px;
     }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="page-content">
-    <!-- Header Section -->
     <div class="header-section">
         <h1>Certificates Management</h1>
         <p>Manage course and exam certificates across all domains</p>
     </div>
 
-    <!-- Stats Cards -->
     <div class="stats-grid">
         <div class="stat-card">
-            <div class="stat-icon">
-                <i class="fas fa-certificate"></i>
-            </div>
+            <div class="stat-icon"><i class="fas fa-certificate"></i></div>
             <div class="stat-info">
                 <h3 id="course-cert-count">0</h3>
                 <span>Course Certificates</span>
             </div>
         </div>
         <div class="stat-card">
-            <div class="stat-icon">
-                <i class="fas fa-file-certificate"></i>
-            </div>
+            <div class="stat-icon"><i class="fas fa-file-certificate"></i></div>
             <div class="stat-info">
                 <h3 id="exam-cert-count">0</h3>
                 <span>Exam Certificates</span>
             </div>
         </div>
         <div class="stat-card">
-            <div class="stat-icon">
-                <i class="fas fa-users"></i>
-            </div>
+            <div class="stat-icon"><i class="fas fa-users"></i></div>
             <div class="stat-info">
                 <h3 id="user-count">0</h3>
                 <span>Total Users</span>
             </div>
         </div>
         <div class="stat-card">
-            <div class="stat-icon">
-                <i class="fas fa-globe"></i>
-            </div>
+            <div class="stat-icon"><i class="fas fa-globe"></i></div>
             <div class="stat-info">
                 <h3 id="domain-count">0</h3>
                 <span>Active Domains</span>
@@ -117,7 +108,6 @@
         </div>
     </div>
 
-    <!-- Search Bar -->
     <div class="search-container">
         <input type="text" id="globalSearch" placeholder="Search by user, course/exam, certificate ID, or message..." class="search-input">
         <button class="search-btn" onclick="document.getElementById('globalSearch').dispatchEvent(new Event('input'))">
@@ -125,7 +115,6 @@
         </button>
     </div>
 
-    <!-- Action Buttons -->
     <div class="action-bar">
         <button class="btn btn-primary" onclick="openCreateModal('course')">
             <i class="fas fa-plus"></i> Create Course Certificate
@@ -138,14 +127,12 @@
         </button>
     </div>
 
-    <!-- Tabs -->
     <div class="tabs-container">
         <div class="tabs">
             <button class="tab-btn active" onclick="switchTab('course')">Course Certificates</button>
             <button class="tab-btn" onclick="switchTab('exam')">Exam Certificates</button>
         </div>
 
-        <!-- Course Certificates Tab -->
         <div id="course-tab" class="tab-content active">
             <div class="table-container">
                 <table id="course-certificates-table" class="data-table">
@@ -160,15 +147,12 @@
                             <th>Actions</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        <!-- Data will be populated by JavaScript -->
-                    </tbody>
+                    <tbody></tbody>
                 </table>
             </div>
             <div id="course-pagination" class="pagination"></div>
         </div>
 
-        <!-- Exam Certificates Tab -->
         <div id="exam-tab" class="tab-content">
             <div class="table-container">
                 <table id="exam-certificates-table" class="data-table">
@@ -183,9 +167,7 @@
                             <th>Actions</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        <!-- Data will be populated by JavaScript -->
-                    </tbody>
+                    <tbody></tbody>
                 </table>
             </div>
             <div id="exam-pagination" class="pagination"></div>
@@ -202,36 +184,56 @@
         </div>
         <form id="course-certificate-form" class="modal-form">
             <input type="hidden" id="course-certificate-id">
-            
+
             <div class="form-group">
                 <label for="course-user-id">User *</label>
                 <select id="course-user-id" required>
                     <option value="">Select User</option>
                 </select>
+                <div id="course-user-preview" style="display: none;"></div>
             </div>
-            
+
+            <div class="form-group">
+                <label for="course-user-full-name">User Full Name (auto)</label>
+                <input type="text" id="course-user-full-name" class="readonly-field" readonly placeholder="Auto-filled from selected user">
+                <small class="field-hint">Populated automatically from the selected user's first and last name.</small>
+            </div>
+
+            <div class="form-group">
+                <label for="course-user-image-url">User Image URL (auto)</label>
+                <input type="text" id="course-user-image-url" class="readonly-field" readonly placeholder="Auto-filled from selected user">
+                <small class="field-hint">Populated automatically from the selected user's profile image.</small>
+            </div>
+
             <div class="form-group">
                 <label for="course-course-id">Course *</label>
                 <select id="course-course-id" required>
                     <option value="">Select Course</option>
                 </select>
+                <div id="course-course-preview" style="display: none;"></div>
             </div>
-            
+
+            <div class="form-group">
+                <label for="course-course-name">Course Name (auto)</label>
+                <input type="text" id="course-course-name" class="readonly-field" readonly placeholder="Auto-filled from selected course">
+                <small class="field-hint">Populated automatically from the selected course title.</small>
+            </div>
+
             <div class="form-group">
                 <label for="course-date">Date *</label>
                 <input type="date" id="course-date" required>
             </div>
-            
+
             <div class="form-group">
                 <label for="course-hours">Hours *</label>
                 <input type="number" id="course-hours" min="1" required>
             </div>
-            
+
             <div class="form-group">
                 <label for="course-message">Message</label>
                 <textarea id="course-message" rows="3" placeholder="Optional message"></textarea>
             </div>
-            
+
             <div class="form-actions">
                 <button type="button" class="btn btn-outline" onclick="closeModal('course-certificate-modal')">Cancel</button>
                 <button type="submit" class="btn btn-primary">Save Certificate</button>
@@ -249,36 +251,62 @@
         </div>
         <form id="exam-certificate-form" class="modal-form">
             <input type="hidden" id="exam-certificate-id">
-            
+
             <div class="form-group">
                 <label for="exam-user-id">User *</label>
                 <select id="exam-user-id" required>
                     <option value="">Select User</option>
                 </select>
+                <div id="exam-user-preview" style="display: none;"></div>
             </div>
-            
+
+            <div class="form-group">
+                <label for="exam-user-full-name">User Full Name (auto)</label>
+                <input type="text" id="exam-user-full-name" class="readonly-field" readonly placeholder="Auto-filled from selected user">
+                <small class="field-hint">Populated automatically from the selected user's first and last name.</small>
+            </div>
+
+            <div class="form-group">
+                <label for="exam-user-image-url">User Image URL (auto)</label>
+                <input type="text" id="exam-user-image-url" class="readonly-field" readonly placeholder="Auto-filled from selected user">
+                <small class="field-hint">Populated automatically from the selected user's profile image.</small>
+            </div>
+
             <div class="form-group">
                 <label for="exam-exam-id">Exam *</label>
                 <select id="exam-exam-id" required>
                     <option value="">Select Exam</option>
                 </select>
+                <div id="exam-exam-preview" style="display: none;"></div>
             </div>
-            
+
+            <div class="form-group">
+                <label for="exam-exam-name">Exam Name (auto)</label>
+                <input type="text" id="exam-exam-name" class="readonly-field" readonly placeholder="Auto-filled from selected exam">
+                <small class="field-hint">Populated automatically from the selected exam title.</small>
+            </div>
+
+            <div class="form-group">
+                <label for="exam-course-name">Course Name (optional)</label>
+                <input type="text" id="exam-course-name" placeholder="Optional — leave blank if not applicable">
+                <small class="field-hint">Optional. Auto-filled from exam's related course (if available), or leave empty.</small>
+            </div>
+
             <div class="form-group">
                 <label for="exam-taken-date">Taken Date *</label>
                 <input type="date" id="exam-taken-date" required>
             </div>
-            
+
             <div class="form-group">
                 <label for="exam-expire-date">Expire Date *</label>
                 <input type="date" id="exam-expire-date" required>
             </div>
-            
+
             <div class="form-group">
                 <label for="exam-message">Message</label>
                 <textarea id="exam-message" rows="3" placeholder="Optional message"></textarea>
             </div>
-            
+
             <div class="form-actions">
                 <button type="button" class="btn btn-outline" onclick="closeModal('exam-certificate-modal')">Cancel</button>
                 <button type="submit" class="btn btn-primary">Save Certificate</button>
@@ -304,13 +332,11 @@
     </div>
 </div>
 
-<!-- Loading Overlay -->
 <div id="loading-overlay" class="loading-overlay">
     <div class="loading-spinner"></div>
     <p>Loading...</p>
 </div>
 
-<!-- Toast Notifications -->
 <div id="toast-container" class="toast-container"></div>
 {% endblock %}
 

@@ -1,12 +1,12 @@
 class CertificateManager {
     constructor() {
         this.currentTab = 'course';
-        this.pageSize = 9;                       // Records per page
-        this.currentPage = {                     // Current page per tab
+        this.pageSize = 9;
+        this.currentPage = {
             course: 1,
             exam: 1
         };
-        this.searchQuery = '';                   // Global search term
+        this.searchQuery = '';
 
         this.courseCertificates = [];
         this.examCertificates = [];
@@ -14,10 +14,9 @@ class CertificateManager {
         this.courses = [];
         this.exams = [];
         this.currentDeleteAction = null;
-        
-        // Base API URLs - corrected to match Django URL patterns
+
         this.apiBase = '/selfstudycertificate/api';
-        
+
         this.init();
     }
 
@@ -28,11 +27,15 @@ class CertificateManager {
     }
 
     bindEvents() {
-        // Form submissions
         document.getElementById('course-certificate-form').addEventListener('submit', (e) => this.handleCourseCertificateSubmit(e));
         document.getElementById('exam-certificate-form').addEventListener('submit', (e) => this.handleExamCertificateSubmit(e));
-        
-        // Global search with debouncing
+
+        // Auto-populate on user/course/exam selection
+        document.getElementById('course-user-id').addEventListener('change', () => this.updateCourseUserPreview());
+        document.getElementById('course-course-id').addEventListener('change', () => this.updateCourseCoursePreview());
+        document.getElementById('exam-user-id').addEventListener('change', () => this.updateExamUserPreview());
+        document.getElementById('exam-exam-id').addEventListener('change', () => this.updateExamExamPreview());
+
         let searchTimeout;
         const searchInput = document.getElementById('globalSearch');
         if (searchInput) {
@@ -43,15 +46,13 @@ class CertificateManager {
                 }, 300);
             });
         }
-        
-        // Modal close events
+
         document.addEventListener('click', (e) => {
             if (e.target.classList.contains('modal')) {
                 this.closeModal(e.target.id);
             }
         });
-        
-        // Keyboard events
+
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 this.closeAllModals();
@@ -61,28 +62,25 @@ class CertificateManager {
 
     async loadInitialData() {
         this.showLoading();
-        
+
         try {
-            // Load data sequentially to avoid overwhelming the server
             await this.loadUsers();
-            await this.loadCourses(); 
+            await this.loadCourses();
             await this.loadExams();
             await this.loadCourseCertificates();
             await this.loadExamCertificates();
-            
-            // Reset pages and search when fresh data arrives
+
             this.currentPage = { course: 1, exam: 1 };
             this.searchQuery = '';
             const searchInput = document.getElementById('globalSearch');
             if (searchInput) searchInput.value = '';
-            
+
             this.renderTables();
             this.updateStats();
             this.showToast('Data loaded successfully', 'success');
         } catch (error) {
             console.error('Failed to load initial data:', error);
             this.showToast('Failed to load initial data. Using demo data.', 'warning');
-            // Continue with whatever data we have
             this.renderTables();
             this.updateStats();
         } finally {
@@ -94,7 +92,6 @@ class CertificateManager {
         try {
             const response = await this.makeRequest('GET', `${this.apiBase}/certificates/course/`);
             this.courseCertificates = response.data || [];
-            console.log('Loaded course certificates:', this.courseCertificates.length);
         } catch (error) {
             console.error('Failed to load course certificates:', error);
             this.courseCertificates = [];
@@ -105,7 +102,6 @@ class CertificateManager {
         try {
             const response = await this.makeRequest('GET', `${this.apiBase}/certificates/exam/`);
             this.examCertificates = response.data || [];
-            console.log('Loaded exam certificates:', this.examCertificates.length);
         } catch (error) {
             console.error('Failed to load exam certificates:', error);
             this.examCertificates = [];
@@ -117,8 +113,6 @@ class CertificateManager {
             const response = await this.makeRequest('GET', `${this.apiBase}/lookup/users/`);
             this.users = response.data || [];
             this.populateUserSelects();
-            console.log('Loaded users:', this.users.length);
-            console.log('Users data:', this.users);
         } catch (error) {
             console.error('Failed to load users:', error);
             this.users = [];
@@ -130,8 +124,6 @@ class CertificateManager {
             const response = await this.makeRequest('GET', `${this.apiBase}/lookup/courses/`);
             this.courses = response.data || [];
             this.populateCourseSelect();
-            console.log('Loaded courses:', this.courses.length);
-            console.log('Courses data:', this.courses);
         } catch (error) {
             console.error('Failed to load courses:', error);
             this.courses = [];
@@ -143,31 +135,173 @@ class CertificateManager {
             const response = await this.makeRequest('GET', `${this.apiBase}/lookup/exams/`);
             this.exams = response.data || [];
             this.populateExamSelect();
-            console.log('Loaded exams:', this.exams.length);
-            console.log('Exams data:', this.exams);
         } catch (error) {
             console.error('Failed to load exams:', error);
             this.exams = [];
         }
     }
 
+    // ========== USER / COURSE / EXAM HELPERS ==========
+    findUserById(userId) {
+        return this.users.find(u => {
+            const id = u.external_id || u.user_id || u.id;
+            return id === userId;
+        });
+    }
+
+    findCourseById(courseId) {
+        return this.courses.find(c => {
+            const id = c.external_course_id || c.external_id || c.course_id || c.id;
+            return String(id) === String(courseId);
+        });
+    }
+
+    findExamById(examId) {
+        return this.exams.find(e => {
+            const id = e.external_id || e.exam_id || e.id;
+            return String(id) === String(examId);
+        });
+    }
+
+    getUserFullName(user) {
+        if (!user) return '';
+        const first = (user.first_name || '').trim();
+        const last = (user.last_name || '').trim();
+        const fullName = `${first} ${last}`.trim();
+        return fullName || user.username || '';
+    }
+
+    getUserImageUrl(user) {
+        if (!user) return '';
+        return user.image_url || '';
+    }
+
+    getCourseName(course) {
+        if (!course) return '';
+        return course.title || '';
+    }
+
+    getExamName(exam) {
+        if (!exam) return '';
+        return exam.title || '';
+    }
+
+    // ========== AUTO-POPULATE PREVIEW FIELDS ==========
+    updateCourseUserPreview() {
+        const userSelect = document.getElementById('course-user-id');
+        const user = this.findUserById(userSelect.value);
+
+        document.getElementById('course-user-full-name').value = this.getUserFullName(user);
+        document.getElementById('course-user-image-url').value = this.getUserImageUrl(user);
+
+        const preview = document.getElementById('course-user-preview');
+        if (preview) {
+            if (user) {
+                const imageUrl = this.getUserImageUrl(user);
+                preview.innerHTML = `
+                <div class="preview-card">
+                ${imageUrl ? `<img src="${imageUrl}" alt="User" class="preview-image">` : '<div class="preview-placeholder">👤</div>'}
+                <div class="preview-info">
+                <strong>${this.getUserFullName(user)}</strong>
+                <small>${user.email || user.username || ''}</small>
+                </div>
+                </div>
+                `;
+                preview.style.display = 'block';
+            } else {
+                preview.innerHTML = '';
+                preview.style.display = 'none';
+            }
+        }
+    }
+
+    updateCourseCoursePreview() {
+        const courseSelect = document.getElementById('course-course-id');
+        const course = this.findCourseById(courseSelect.value);
+
+        document.getElementById('course-course-name').value = this.getCourseName(course);
+
+        const preview = document.getElementById('course-course-preview');
+        if (preview) {
+            if (course) {
+                preview.innerHTML = `<div class="preview-info"><strong>${this.getCourseName(course)}</strong></div>`;
+                preview.style.display = 'block';
+            } else {
+                preview.innerHTML = '';
+                preview.style.display = 'none';
+            }
+        }
+    }
+
+    updateExamUserPreview() {
+        const userSelect = document.getElementById('exam-user-id');
+        const user = this.findUserById(userSelect.value);
+
+        document.getElementById('exam-user-full-name').value = this.getUserFullName(user);
+        document.getElementById('exam-user-image-url').value = this.getUserImageUrl(user);
+
+        const preview = document.getElementById('exam-user-preview');
+        if (preview) {
+            if (user) {
+                const imageUrl = this.getUserImageUrl(user);
+                preview.innerHTML = `
+                <div class="preview-card">
+                ${imageUrl ? `<img src="${imageUrl}" alt="User" class="preview-image">` : '<div class="preview-placeholder">👤</div>'}
+                <div class="preview-info">
+                <strong>${this.getUserFullName(user)}</strong>
+                <small>${user.email || user.username || ''}</small>
+                </div>
+                </div>
+                `;
+                preview.style.display = 'block';
+            } else {
+                preview.innerHTML = '';
+                preview.style.display = 'none';
+            }
+        }
+    }
+
+    updateExamExamPreview() {
+        const examSelect = document.getElementById('exam-exam-id');
+        const exam = this.findExamById(examSelect.value);
+
+        document.getElementById('exam-exam-name').value = this.getExamName(exam);
+
+        // Try to auto-fill course_name from exam.course_id if present
+        if (exam && exam.course_id) {
+            const course = this.findCourseById(exam.course_id);
+            if (course) {
+                document.getElementById('exam-course-name').value = this.getCourseName(course);
+            }
+        }
+
+        const preview = document.getElementById('exam-exam-preview');
+        if (preview) {
+            if (exam) {
+                preview.innerHTML = `<div class="preview-info"><strong>${this.getExamName(exam)}</strong></div>`;
+                preview.style.display = 'block';
+            } else {
+                preview.innerHTML = '';
+                preview.style.display = 'none';
+            }
+        }
+    }
+
     populateUserSelects() {
         const courseSelect = document.getElementById('course-user-id');
         const examSelect = document.getElementById('exam-user-id');
-        
+
         this.clearSelect(courseSelect);
         this.clearSelect(examSelect);
-        
-        // Add default option
+
         const defaultOption = document.createElement('option');
         defaultOption.value = '';
         defaultOption.textContent = 'Select User';
         courseSelect.appendChild(defaultOption.cloneNode(true));
         examSelect.appendChild(defaultOption);
-        
+
         this.users.forEach(user => {
             const option = document.createElement('option');
-            // Use external_id for user ID (this is what the certificate service expects)
             const userId = user.external_id || user.user_id || user.id;
             option.value = userId;
             const displayName = `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username || user.email || 'Unknown User';
@@ -180,45 +314,37 @@ class CertificateManager {
     populateCourseSelect() {
         const select = document.getElementById('course-course-id');
         this.clearSelect(select);
-        
-        // Add default option
+
         const defaultOption = document.createElement('option');
         defaultOption.value = '';
         defaultOption.textContent = 'Select Course';
         select.appendChild(defaultOption);
-        
+
         this.courses.forEach(course => {
             const option = document.createElement('option');
-            // Use external_course_id for course ID (this is what the certificate service expects)
             const courseExternalId = course.external_course_id || course.external_id || course.course_id || course.id;
             option.value = courseExternalId;
             option.textContent = course.title || 'Untitled Course';
             select.appendChild(option);
         });
-        
-        console.log('Populated course select with external_course_id:', select.options.length);
     }
 
     populateExamSelect() {
         const select = document.getElementById('exam-exam-id');
         this.clearSelect(select);
-        
-        // Add default option
+
         const defaultOption = document.createElement('option');
         defaultOption.value = '';
         defaultOption.textContent = 'Select Exam';
         select.appendChild(defaultOption);
-        
+
         this.exams.forEach(exam => {
             const option = document.createElement('option');
-            // Use external_id for exam ID (this is what the certificate service expects)
             const examExternalId = exam.external_id || exam.exam_id || exam.id;
             option.value = examExternalId;
             option.textContent = exam.title || 'Untitled Exam';
             select.appendChild(option);
         });
-        
-        console.log('Populated exam select with external IDs:', select.options.length);
     }
 
     clearSelect(select) {
@@ -228,10 +354,8 @@ class CertificateManager {
     // ========== SEARCH AND FILTERING ==========
     handleGlobalSearch(query) {
         this.searchQuery = query.trim().toLowerCase();
-        // Reset pages to 1 for both tabs
         this.currentPage.course = 1;
         this.currentPage.exam = 1;
-        // Re-render both tabs (only the active one is visible, but both will update)
         this.renderCourseCertificatesTable();
         this.renderExamCertificatesTable();
     }
@@ -241,36 +365,35 @@ class CertificateManager {
 
         const term = this.searchQuery.toLowerCase();
         return dataArray.filter(item => {
-            // Search in certificate ID
             if (item.certificate_id && item.certificate_id.toLowerCase().includes(term)) return true;
-            
-            // Search in user name
-            const user = this.users.find(u => (u.external_id || u.user_id) === item.user_id);
+
+            if (item.user_full_name && item.user_full_name.toLowerCase().includes(term)) return true;
+
+            const user = this.findUserById(item.user_id);
             if (user) {
-                const userName = `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username || user.email;
+                const userName = this.getUserFullName(user);
                 if (userName.toLowerCase().includes(term)) return true;
             }
-            
-            // Search in course/exam title
+
             if (type === 'course') {
-                const course = this.courses.find(c => (c.external_course_id || c.external_id || c.course_id) === item.course_id);
+                if (item.course_name && item.course_name.toLowerCase().includes(term)) return true;
+                const course = this.findCourseById(item.course_id);
                 if (course && course.title && course.title.toLowerCase().includes(term)) return true;
             } else {
-                const exam = this.exams.find(e => (e.external_id || e.exam_id) === item.exam_id);
+                if (item.exam_name && item.exam_name.toLowerCase().includes(term)) return true;
+                const exam = this.findExamById(item.exam_id);
                 if (exam && exam.title && exam.title.toLowerCase().includes(term)) return true;
             }
-            
-            // Search in message
+
             if (item.message && item.message.toLowerCase().includes(term)) return true;
-            
-            // Search in dates (as string)
+
             if (type === 'course') {
                 if (item.date && item.date.includes(term)) return true;
             } else {
                 if (item.taken_date && item.taken_date.includes(term)) return true;
                 if (item.expire_date && item.expire_date.includes(term)) return true;
             }
-            
+
             return false;
         });
     }
@@ -289,7 +412,6 @@ class CertificateManager {
         let html = '<div class="pagination-controls">';
         html += `<button class="pagination-btn" data-page="prev" ${currentPage === 1 ? 'disabled' : ''}>« Prev</button>`;
 
-        // Show pages around current
         let start = Math.max(1, currentPage - 2);
         let end = Math.min(totalPages, currentPage + 2);
         if (start > 1) {
@@ -308,9 +430,8 @@ class CertificateManager {
 
         container.innerHTML = html;
 
-        // Attach event listeners
         container.querySelectorAll('.pagination-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
+            btn.addEventListener('click', () => {
                 const page = btn.dataset.page;
                 if (page === 'prev') {
                     this.changePage(tabName, currentPage - 1);
@@ -346,7 +467,7 @@ class CertificateManager {
         return Math.ceil(filtered.length / this.pageSize);
     }
 
-    // ========== TABLE RENDERING (with pagination and filtering) ==========
+    // ========== TABLE RENDERING ==========
     renderTables() {
         this.renderCourseCertificatesTable();
         this.renderExamCertificatesTable();
@@ -373,25 +494,28 @@ class CertificateManager {
             tbody.appendChild(row);
         } else {
             pageData.forEach(certificate => {
-                const user = this.users.find(u => (u.external_id || u.user_id) === certificate.user_id);
-                const course = this.courses.find(c => (c.external_course_id || c.external_id || c.course_id) === certificate.course_id);
-                
+                const user = this.findUserById(certificate.user_id);
+                const course = this.findCourseById(certificate.course_id);
+
+                const userDisplay = certificate.user_full_name || (user ? this.getUserFullName(user) : certificate.user_id);
+                const courseDisplay = certificate.course_name || (course ? course.title : certificate.course_id);
+
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td>${certificate.certificate_id || 'N/A'}</td>
-                    <td>${user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username : certificate.user_id}</td>
-                    <td>${course ? course.title : certificate.course_id}</td>
-                    <td>${this.formatDate(certificate.date)}</td>
-                    <td>${certificate.hours || 0}</td>
-                    <td>${certificate.message || '-'}</td>
-                    <td class="actions">
-                        <button class="btn btn-outline btn-sm" onclick="certificateManager.editCourseCertificate('${certificate.certificate_id}')">
-                            <i class="fas fa-edit"></i> Edit
-                        </button>
-                        <button class="btn btn-danger btn-sm" onclick="certificateManager.confirmDelete('course', '${certificate.certificate_id}')">
-                            <i class="fas fa-trash"></i> Delete
-                        </button>
-                    </td>
+                <td>${certificate.certificate_id || 'N/A'}</td>
+                <td>${userDisplay}</td>
+                <td>${courseDisplay}</td>
+                <td>${this.formatDate(certificate.date)}</td>
+                <td>${certificate.hours || 0}</td>
+                <td>${certificate.message || '-'}</td>
+                <td class="actions">
+                <button class="btn btn-outline btn-sm" onclick="certificateManager.editCourseCertificate('${certificate.certificate_id}')">
+                <i class="fas fa-edit"></i> Edit
+                </button>
+                <button class="btn btn-danger btn-sm" onclick="certificateManager.confirmDelete('course', '${certificate.certificate_id}')">
+                <i class="fas fa-trash"></i> Delete
+                </button>
+                </td>
                 `;
                 tbody.appendChild(row);
             });
@@ -421,26 +545,29 @@ class CertificateManager {
             tbody.appendChild(row);
         } else {
             pageData.forEach(certificate => {
-                const user = this.users.find(u => (u.external_id || u.user_id) === certificate.user_id);
-                const exam = this.exams.find(e => (e.external_id || e.exam_id) === certificate.exam_id);
+                const user = this.findUserById(certificate.user_id);
+                const exam = this.findExamById(certificate.exam_id);
                 const isExpired = new Date(certificate.expire_date) < new Date();
-                
+
+                const userDisplay = certificate.user_full_name || (user ? this.getUserFullName(user) : certificate.user_id);
+                const examDisplay = certificate.exam_name || (exam ? exam.title : certificate.exam_id);
+
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td>${certificate.certificate_id || 'N/A'}</td>
-                    <td>${user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username : certificate.user_id}</td>
-                    <td>${exam ? exam.title : certificate.exam_id}</td>
-                    <td>${this.formatDate(certificate.taken_date)}</td>
-                    <td>${this.formatDate(certificate.expire_date)}</td>
-                    <td><span class="status-badge ${isExpired ? 'status-expired' : 'status-valid'}">${isExpired ? 'Expired' : 'Valid'}</span></td>
-                    <td class="actions">
-                        <button class="btn btn-outline btn-sm" onclick="certificateManager.editExamCertificate('${certificate.certificate_id}')">
-                            <i class="fas fa-edit"></i> Edit
-                        </button>
-                        <button class="btn btn-danger btn-sm" onclick="certificateManager.confirmDelete('exam', '${certificate.certificate_id}')">
-                            <i class="fas fa-trash"></i> Delete
-                        </button>
-                    </td>
+                <td>${certificate.certificate_id || 'N/A'}</td>
+                <td>${userDisplay}</td>
+                <td>${examDisplay}</td>
+                <td>${this.formatDate(certificate.taken_date)}</td>
+                <td>${this.formatDate(certificate.expire_date)}</td>
+                <td><span class="status-badge ${isExpired ? 'status-expired' : 'status-valid'}">${isExpired ? 'Expired' : 'Valid'}</span></td>
+                <td class="actions">
+                <button class="btn btn-outline btn-sm" onclick="certificateManager.editExamCertificate('${certificate.certificate_id}')">
+                <i class="fas fa-edit"></i> Edit
+                </button>
+                <button class="btn btn-danger btn-sm" onclick="certificateManager.confirmDelete('exam', '${certificate.certificate_id}')">
+                <i class="fas fa-trash"></i> Delete
+                </button>
+                </td>
                 `;
                 tbody.appendChild(row);
             });
@@ -461,26 +588,42 @@ class CertificateManager {
             document.getElementById('course-modal-title').textContent = 'Create Course Certificate';
             document.getElementById('course-certificate-form').reset();
             document.getElementById('course-certificate-id').value = '';
-            
-            // Set default date to today
+            document.getElementById('course-user-full-name').value = '';
+            document.getElementById('course-user-image-url').value = '';
+            document.getElementById('course-course-name').value = '';
+
             document.getElementById('course-date').value = new Date().toISOString().split('T')[0];
             document.getElementById('course-hours').value = 1;
-            
+
+            // Clear previews
+            const userPrev = document.getElementById('course-user-preview');
+            const coursePrev = document.getElementById('course-course-preview');
+            if (userPrev) { userPrev.innerHTML = ''; userPrev.style.display = 'none'; }
+            if (coursePrev) { coursePrev.innerHTML = ''; coursePrev.style.display = 'none'; }
+
             this.openModal('course-certificate-modal');
         } else {
             document.getElementById('exam-modal-title').textContent = 'Create Exam Certificate';
             document.getElementById('exam-certificate-form').reset();
             document.getElementById('exam-certificate-id').value = '';
-            
-            // Set default dates
+            document.getElementById('exam-user-full-name').value = '';
+            document.getElementById('exam-user-image-url').value = '';
+            document.getElementById('exam-exam-name').value = '';
+            document.getElementById('exam-course-name').value = '';
+
             const today = new Date().toISOString().split('T')[0];
             const nextYear = new Date();
             nextYear.setFullYear(nextYear.getFullYear() + 1);
             const nextYearStr = nextYear.toISOString().split('T')[0];
-            
+
             document.getElementById('exam-taken-date').value = today;
             document.getElementById('exam-expire-date').value = nextYearStr;
-            
+
+            const userPrev = document.getElementById('exam-user-preview');
+            const examPrev = document.getElementById('exam-exam-preview');
+            if (userPrev) { userPrev.innerHTML = ''; userPrev.style.display = 'none'; }
+            if (examPrev) { examPrev.innerHTML = ''; examPrev.style.display = 'none'; }
+
             this.openModal('exam-certificate-modal');
         }
     }
@@ -500,6 +643,17 @@ class CertificateManager {
         document.getElementById('course-hours').value = certificate.hours;
         document.getElementById('course-message').value = certificate.message || '';
 
+        // Populate denormalized fields (prefer existing stored values, fallback to lookup)
+        const user = this.findUserById(certificate.user_id);
+        const course = this.findCourseById(certificate.course_id);
+
+        document.getElementById('course-user-full-name').value = certificate.user_full_name || this.getUserFullName(user);
+        document.getElementById('course-user-image-url').value = certificate.user_image_url || this.getUserImageUrl(user);
+        document.getElementById('course-course-name').value = certificate.course_name || this.getCourseName(course);
+
+        this.updateCourseUserPreview();
+        this.updateCourseCoursePreview();
+
         this.openModal('course-certificate-modal');
     }
 
@@ -518,95 +672,106 @@ class CertificateManager {
         document.getElementById('exam-expire-date').value = certificate.expire_date;
         document.getElementById('exam-message').value = certificate.message || '';
 
+        const user = this.findUserById(certificate.user_id);
+        const exam = this.findExamById(certificate.exam_id);
+
+        document.getElementById('exam-user-full-name').value = certificate.user_full_name || this.getUserFullName(user);
+        document.getElementById('exam-user-image-url').value = certificate.user_image_url || this.getUserImageUrl(user);
+        document.getElementById('exam-exam-name').value = certificate.exam_name || this.getExamName(exam);
+        document.getElementById('exam-course-name').value = certificate.course_name || '';
+
+        this.updateExamUserPreview();
+        this.updateExamExamPreview();
+
         this.openModal('exam-certificate-modal');
     }
 
     async handleCourseCertificateSubmit(e) {
         e.preventDefault();
-        
+
         const userSelect = document.getElementById('course-user-id');
         const courseSelect = document.getElementById('course-course-id');
-        
+
+        // Ensure auto-populated fields are up to date
+        this.updateCourseUserPreview();
+        this.updateCourseCoursePreview();
+
         const formData = {
-            user_id: userSelect.value,  // User external ID
-            course_external_id: courseSelect.value,  // Course external_course_id
+            user_id: userSelect.value,
+            user_full_name: document.getElementById('course-user-full-name').value,
+            user_image_url: document.getElementById('course-user-image-url').value,
+            course_external_id: courseSelect.value,
+            course_name: document.getElementById('course-course-name').value,
             date: document.getElementById('course-date').value,
             hours: parseInt(document.getElementById('course-hours').value),
             message: document.getElementById('course-message').value || ''
         };
 
-        // Use certificate_id only for edits
         const certificateId = document.getElementById('course-certificate-id').value;
         if (certificateId) {
             formData.certificate_id = certificateId;
         }
 
-        // Validate required fields
         if (!formData.user_id || !formData.course_external_id || !formData.date || !formData.hours) {
             this.showToast('Please fill all required fields', 'error');
             return;
         }
 
-        console.log('Submitting course certificate with external_course_id:', formData);
-        console.log('Selected user (external ID):', userSelect.options[userSelect.selectedIndex]?.text);
-        console.log('Selected course (external_course_id):', courseSelect.options[courseSelect.selectedIndex]?.text);
-        
         await this.submitCertificate('course', formData);
     }
 
     async handleExamCertificateSubmit(e) {
         e.preventDefault();
-        
+
         const userSelect = document.getElementById('exam-user-id');
         const examSelect = document.getElementById('exam-exam-id');
-        
+
+        this.updateExamUserPreview();
+        this.updateExamExamPreview();
+
         const formData = {
-            user_id: userSelect.value,  // User external ID
-            exam_external_id: examSelect.value,  // Exam external ID
+            user_id: userSelect.value,
+            user_full_name: document.getElementById('exam-user-full-name').value,
+            user_image_url: document.getElementById('exam-user-image-url').value,
+            exam_external_id: examSelect.value,
+            exam_name: document.getElementById('exam-exam-name').value,
+            course_name: document.getElementById('exam-course-name').value || '',
             taken_date: document.getElementById('exam-taken-date').value,
             expire_date: document.getElementById('exam-expire-date').value,
             message: document.getElementById('exam-message').value || ''
         };
 
-        // Use certificate_id only for edits
         const certificateId = document.getElementById('exam-certificate-id').value;
         if (certificateId) {
             formData.certificate_id = certificateId;
         }
 
-        // Validate required fields
         if (!formData.user_id || !formData.exam_external_id || !formData.taken_date || !formData.expire_date) {
             this.showToast('Please fill all required fields', 'error');
             return;
         }
 
-        console.log('Submitting exam certificate with external IDs:', formData);
-        console.log('Selected user (external ID):', userSelect.options[userSelect.selectedIndex]?.text);
-        console.log('Selected exam (external ID):', examSelect.options[examSelect.selectedIndex]?.text);
-        
         await this.submitCertificate('exam', formData);
     }
 
     async submitCertificate(type, data) {
         this.showLoading();
-        
+
         try {
             const certificateId = data.certificate_id;
             let response;
-            
+
             if (certificateId) {
-                // Update existing certificate
                 response = await this.makeRequest('PUT', `${this.apiBase}/certificates/${type}/${certificateId}/`, data);
                 this.showToast(`${type.charAt(0).toUpperCase() + type.slice(1)} certificate updated successfully`, 'success');
             } else {
-                // Create new certificate
                 response = await this.makeRequest('POST', `${this.apiBase}/certificates/${type}/`, data);
                 this.showToast(`${type.charAt(0).toUpperCase() + type.slice(1)} certificate created successfully`, 'success');
             }
-            
+
             this.closeModal(`${type}-certificate-modal`);
             await this.loadInitialData();
-            
+
         } catch (error) {
             console.error('Error submitting certificate:', error);
             this.showToast(error.message || `Failed to save ${type} certificate`, 'error');
@@ -625,7 +790,7 @@ class CertificateManager {
 
         const { type, certificateId } = this.currentDeleteAction;
         this.showLoading();
-        
+
         try {
             await this.makeRequest('DELETE', `${this.apiBase}/certificates/${type}/${certificateId}/`);
             this.showToast(`${type.charAt(0).toUpperCase() + type.slice(1)} certificate deleted successfully`, 'success');
@@ -655,33 +820,24 @@ class CertificateManager {
         }
 
         try {
-            console.log(`Making ${method} request to:`, url);
-            console.log('Request data with external IDs:', data);
-            
             const response = await fetch(url, options);
-            
-            console.log('Response status:', response.status);
-            
+
             if (!response.ok) {
                 let errorMessage = `HTTP error! status: ${response.status}`;
                 try {
                     const errorData = await response.json();
                     errorMessage = errorData.error || errorMessage;
-                    console.log('Error response:', errorData);
                 } catch (e) {
                     errorMessage = response.statusText || errorMessage;
                 }
                 throw new Error(errorMessage);
             }
 
-            // Handle empty responses for DELETE
             if (response.status === 204 || response.headers.get('content-length') === '0') {
                 return { success: true };
             }
 
-            const result = await response.json();
-            console.log('Success response:', result);
-            return result;
+            return await response.json();
 
         } catch (error) {
             console.error('API request failed:', error);
@@ -735,15 +891,14 @@ class CertificateManager {
         const toast = document.createElement('div');
         toast.className = `toast ${type}`;
         toast.innerHTML = `
-            <div class="toast-icon">
-                <i class="fas ${this.getToastIcon(type)}"></i>
-            </div>
-            <div class="toast-message">${message}</div>
+        <div class="toast-icon">
+        <i class="fas ${this.getToastIcon(type)}"></i>
+        </div>
+        <div class="toast-message">${message}</div>
         `;
 
         container.appendChild(toast);
 
-        // Auto remove after 5 seconds
         setTimeout(() => {
             if (toast.parentNode) {
                 toast.parentNode.removeChild(toast);
@@ -771,13 +926,11 @@ class CertificateManager {
     }
 
     switchTab(tabName) {
-        // Update tab buttons
         document.querySelectorAll('.tab-btn').forEach(btn => {
             btn.classList.remove('active');
         });
         document.querySelector(`.tab-btn:nth-child(${tabName === 'course' ? 1 : 2})`).classList.add('active');
 
-        // Update tab content
         document.querySelectorAll('.tab-content').forEach(content => {
             content.classList.remove('active');
         });
@@ -787,7 +940,6 @@ class CertificateManager {
     }
 
     async refreshData() {
-        // Reset search and pages
         this.searchQuery = '';
         const searchInput = document.getElementById('globalSearch');
         if (searchInput) searchInput.value = '';
@@ -796,7 +948,6 @@ class CertificateManager {
     }
 }
 
-// Global functions for HTML onclick handlers
 function openCreateModal(type) {
     if (window.certificateManager) {
         window.certificateManager.openCreateModal(type);
@@ -821,11 +972,9 @@ function refreshData() {
     }
 }
 
-// Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     window.certificateManager = new CertificateManager();
-    
-    // Bind confirm delete button
+
     document.getElementById('confirm-delete-btn').addEventListener('click', () => {
         if (window.certificateManager) {
             window.certificateManager.executeDelete();
